@@ -33,7 +33,9 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.parse
+import urllib.request
 from xml.sax.saxutils import escape as xml_escape
 from concurrent.futures import ThreadPoolExecutor
 
@@ -944,13 +946,17 @@ class Api:
 
     def check_update(self):
         """GitHub'daki son surum bundan yeniyse {"update": True, "version", "url", "notes"}."""
+        # curl_cffi'nin Chrome taklidi GitHub API'sinde baglantiyi kopariyor; duz urllib yeterli
+        req = urllib.request.Request(f"https://api.github.com/repos/{UPDATE_REPO}/releases/latest",
+                                     headers={"Accept": "application/vnd.github+json", "User-Agent": f"KickIndirici/{VERSION}"})
         try:
-            r = cffi_requests.get(f"https://api.github.com/repos/{UPDATE_REPO}/releases/latest",
-                                  impersonate="chrome", timeout=10)
-            if r.status_code == 404:          # henuz surum yayinlanmamis
+            with urllib.request.urlopen(req, timeout=10) as r:
+                rel = json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:                 # henuz surum yayinlanmamis
                 return {"ok": True, "update": False, "current": VERSION}
-            r.raise_for_status()
-            rel = r.json()
+            log.info("guncelleme kontrolu: %s", e)
+            return {"ok": False, "update": False, "current": VERSION}
         except Exception as e:  # noqa: BLE001 - guncelleme kontrolu hicbir seyi durdurmaz
             log.info("guncelleme kontrolu: %s", e)
             return {"ok": False, "update": False, "current": VERSION}
