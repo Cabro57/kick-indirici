@@ -45,7 +45,7 @@ from curl_cffi import requests as cffi_requests
 from yt_dlp.downloader.common import FileDownloader
 from yt_dlp.utils import DownloadCancelled
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 UPDATE_REPO = "Cabro57/kick-indirici"         # surumler bu GitHub deposunun release'lerinden okunur
 QUALITIES = ["En iyi", "1080p60", "720p60", "480p", "360p", "160p"]
 # Dosya adi sablonu: kullanici {kanal} {baslik} {tarih} {id} yazar, yt-dlp sablonuna cevrilir.
@@ -417,20 +417,26 @@ class MediaStrip:
         # goruntusuz "audio_only" surumu de var; onu secersek hic kare cikmaz
         variants = hls_variants(master_url)
         variants = [x for x in variants if x["video"]] or variants
-        media_url = min(variants, key=lambda x: x["bw"] or 1 << 40)["url"] if variants else master_url
-        log.info("serit kaynagi: %s", media_url)
-        playlist = cffi_requests.get(media_url, impersonate="chrome", timeout=20).text
-        self.segments, t, dur = [], 0.0, 0.0     # (baslangic, sure, adres)
+        self.media_url = min(variants, key=lambda x: x["bw"] or 1 << 40)["url"] if variants else master_url
+        log.info("serit kaynagi: %s", self.media_url)
+        self.cache = {}
+        self.thumbs = {}
+        self.lock = threading.Lock()
+        self.refresh()
+
+    def refresh(self):
+        """Parca listesini yeniden okur. Suren yayinda liste yalnizca sondan uzar: eski parcalarin
+        sirasi, dolayisiyla onbellek gecerli kalir."""
+        playlist = cffi_requests.get(self.media_url, impersonate="chrome", timeout=20).text
+        segments, t, dur = [], 0.0, 0.0     # (baslangic, sure, adres)
         for line in playlist.splitlines():
             line = line.strip()
             if line.startswith("#EXTINF:"):
                 dur = float(line[8:].split(",")[0])
             elif line and not line.startswith("#"):
-                self.segments.append((t, dur, urllib.parse.urljoin(media_url, line)))
+                segments.append((t, dur, urllib.parse.urljoin(self.media_url, line)))
                 t += dur
-        self.cache = {}
-        self.thumbs = {}
-        self.lock = threading.Lock()
+        self.segments = segments
 
     def index(self):
         return [[round(a, 3), round(d, 3)] for a, d, _ in self.segments]
@@ -1124,24 +1130,35 @@ class Api:
             return {"ok": False, "error": f"Klipler alınamadı. ({str(e)[:120]})"}
         return {"ok": True, "clips": clips, "cursor": nxt if clips else None}
 
-    def vod_source(self, uuid):
-        """Kesit secicideki onizleme oynaticisi icin VOD'un HLS adresi."""
+    def vod_source(self, uuid, live=False):
+        """Kesit secicideki onizleme oynaticisi icin VOD'un HLS adresi. Suren yayinin VOD'u da
+        acilir: listesi her istekte yayinin birkac sn gerisine kadar uzar. live ise o anki
+        uzunluk da doner (duration); oynatici sondan baslasin."""
         try:
             v = kick_get(f"https://kick.com/api/v1/video/{uuid}")
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"Video açılamadı. ({str(e)[:120]})"}
         if not v.get("source"):
             return {"ok": False, "error": "Bu yayının video kaynağı yok."}
-        return {"ok": True, "source": v["source"]}
+        out = {"ok": True, "source": v["source"]}
+        if live:
+            try:
+                out["duration"] = playlist_duration(v["source"])
+            except Exception as e:  # noqa: BLE001 - sure yoksa bastan acilir
+                log.info("canli VOD suresi alinamadi (%s): %s", uuid, e)
+        return out
 
-    def strip_index(self, uuid):
-        """Zaman cizelgesindeki kare/ses seridinin parca listesi: [[baslangic, sure], ...]."""
+    def strip_index(self, uuid, fresh=False):
+        """Zaman cizelgesindeki kare/ses seridinin parca listesi: [[baslangic, sure], ...].
+        fresh: suren yayinda listeyi yeniden okur (yeni parcalar sona eklenir)."""
         log.info("serit listesi istendi: %s (ffmpeg: %s)", uuid, self._ffmpeg)
         if not self._ffmpeg:
             return {"ok": False, "error": "ffmpeg yok; çizelgede kare ve ses dalgası gösterilemiyor."}
         try:
             if uuid not in self._strips:
                 self._strips[uuid] = MediaStrip(uuid, self._ffmpeg)
+            elif fresh:
+                self._strips[uuid].refresh()
         except Exception as e:  # noqa: BLE001
             log.info("serit listesi alinamadi (%s): %s", uuid, e)
             return {"ok": False, "error": f"Çizelge şeridi alınamadı. ({str(e)[:120]})"}
@@ -2034,7 +2051,52 @@ def dark_titlebar(window):
         pass
 
 
+INSTANCE_PID = os.path.join(DATA_DIR, "instance.pid")
+
+
+def single_instance():
+    """Program zaten aciksa onun penceresini one getirir ve False doner; degilse True.
+    Isimli mutex surec kapaninca (cokse bile) Windows'ca birakilir; pid dosyasi pencereyi bulmak icin."""
+    kernel32, user32 = ctypes.windll.kernel32, ctypes.windll.user32
+    kernel32.CreateMutexW.restype = ctypes.c_void_p
+    single_instance.mutex = kernel32.CreateMutexW(None, False, "Local\\KickIndirici.SingleInstance")
+    if kernel32.GetLastError() != 183:      # ERROR_ALREADY_EXISTS
+        try:
+            os.makedirs(DATA_DIR, exist_ok=True)
+            with open(INSTANCE_PID, "w") as f:
+                f.write(str(os.getpid()))
+        except OSError:
+            pass
+        return True
+    try:
+        with open(INSTANCE_PID) as f:
+            pid = int(f.read().strip())
+    except (OSError, ValueError):
+        return False
+    found = []
+    proc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+    def each(hwnd, _):
+        owner = ctypes.c_ulong()
+        user32.GetWindowThreadProcessId(ctypes.c_void_p(hwnd), ctypes.byref(owner))
+        if owner.value == pid and user32.IsWindowVisible(ctypes.c_void_p(hwnd)) \
+                and user32.GetWindowTextLengthW(ctypes.c_void_p(hwnd)):
+            found.append(hwnd)
+            return False
+        return True
+
+    user32.EnumWindows(proc(each), None)
+    if found:
+        hwnd = ctypes.c_void_p(found[0])
+        if user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, 9)      # SW_RESTORE
+        user32.SetForegroundWindow(hwnd)
+    return False
+
+
 def main():
+    if not single_instance():
+        return
     setup_logging()
     build = sys.getwindowsversion().build
     ok, what = webview2_ok()

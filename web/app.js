@@ -20,6 +20,7 @@ const state = {
   view: "home",              // home | channel | library | settings
   channel: null,
   vods: [],
+  liveVod: null,             // suren yayinin VOD'u: canlidan kesit almak icin
   clips: [],
   clipCursor: null,
   clipSort: "date",
@@ -154,6 +155,7 @@ function openChannelData(res) {
   player.stop();
   state.channel = res.channel;
   state.vods = res.vods.filter((v) => !v.live);   // suren yayin Canli sekmesinde
+  state.liveVod = res.vods.find((v) => v.live) || null;
   state.clips = [];
   state.clipCursor = null;
   state.selected.clear();
@@ -223,6 +225,14 @@ function liveItem() {
     categories: l.category ? [l.category] : [],
   };
 }
+
+/* canlidan kesit: Kick suren yayini VOD olarak da yayinlar, listesi yayinin birkac sn gerisine
+   kadar uzar. Kesit editoru onu acar; indirme normal VOD kesiti gibi gider. */
+function liveCutVod() {
+  const l = liveItem(), v = state.liveVod;
+  return l && v ? { ...v, title: l.title, thumb: l.thumb || v.thumb, start: l.start, duration: 0, live: true } : null;
+}
+const cutTarget = (v) => (v && v.kind === "live" ? liveCutVod() : v);
 
 function renderChannel() {
   const ch = state.channel;
@@ -381,7 +391,7 @@ function renderGrid() {
     const dur = c.querySelector(".dur");
     if (v.kind === "live") { dur.textContent = "CANLI"; dur.classList.add("live"); }
     else dur.textContent = fmtDuration(v.duration);
-    c.querySelector(".cutbtn").hidden = state.tab !== "vods";
+    c.querySelector(".cutbtn").hidden = state.tab === "clips" || (v.kind === "live" && !state.liveVod);
     c.querySelector(".check").hidden = v.kind === "live";
     c.querySelector(".title").textContent = cleanTitle(v.title);
     c.title = v.title;
@@ -722,12 +732,14 @@ function renderInspector(start) {
   body.innerHTML = `<h2>${esc(cleanTitle(v.title))}${kind === "live" ? `<span class="beta">CANLI</span>` : ""}</h2>
     <dl class="facts">${facts.map(([k, x]) => `<dt>${k}</dt><dd>${x}</dd>`).join("")}</dl>
     ${d ? stateBlock(d) : ""}
-    ${kind === "live" ? `<p class="insnote"><b>Canlı kayıt (beta):</b> yayın şu andan itibaren kaydedilir. Durdurunca ya da yayın bitince mp4 olur ve İndirilenler'e düşer.</p>` : ""}`;
+    ${kind === "live" ? `<p class="insnote"><b>Canlı kayıt (beta):</b> yayın şu andan itibaren kaydedilir. Durdurunca ya da yayın bitince mp4 olur ve İndirilenler'e düşer.</p>` : ""}
+    ${kind === "live" && state.liveVod ? `<p class="insnote"><b>Kesit al:</b> yayının başından şu ana kadar istediğin anı seç; yayın sürerken iner.</p>` : ""}`;
   if (kind === "live") {
     const rec = d && ACTIVE.concat("queued").includes(d.status);
-    btns.innerHTML = rec
+    btns.innerHTML = (rec
       ? `<button class="btn span" data-ins="stoprec" data-id="${d.id}">${icon("stop")}Kaydı durdur</button>`
-      : `<button class="btn primary span" data-ins="record">${icon("record")}Kaydı başlat</button>`;
+      : `<button class="btn primary span" data-ins="record">${icon("record")}Kaydı başlat</button>`)
+      + (state.liveVod ? `<button class="btn span" data-ins="cut">${icon("scissors")}Kesit al</button>` : "");
   } else if (kind === "clip") {
     btns.innerHTML = `<button class="btn primary span" data-ins="dl">${icon("download")}Klibi indir</button>`;
   } else {
@@ -767,7 +779,7 @@ async function onInspectorAction(b) {
   const act = b.dataset.ins;
   const v = state.focus && itemByUrl(state.focus);
   if (act === "dl" && v) await enqueueItems([v]);
-  else if (act === "cut" && v) { player.el().pause(); openCutter(v); }
+  else if (act === "cut" && v) { player.el().pause(); openCutter(cutTarget(v)); }
   else if (act === "chat" && v) {
     const n = await state.api.enqueue([{ url: v.url, chat: true, title: cleanTitle(v.title), thumb: v.thumb, duration: Math.round(v.duration || 0) }]);
     toast(n ? "Sohbet indiriliyor" : "Bu yayının sohbeti zaten iniyor");
@@ -1424,8 +1436,10 @@ const cut = {
   raf: 0,
   main: null, peek: null,    // seyrek seek yapan yardimcilar
   strip: null,               // cizelgenin kare/ses seridi: { uuid, segs, pps, fe, data, busy, note }
+  src: "",                   // onizlemenin HLS adresi (canlida "Canliya git" yeniden yukler)
   stripTimer: 0,
 };
+const LIVE_BACK = 60;       // canlidan kesitte oynatici yayinin ucundan bu kadar once acilir
 const RATES = [0.25, 0.5, 0.75, 1, 1.5, 2, 4];
 const WAVE_MAX = 900;       // ses dalgasi bu kadar saniye ve alti gorunumde cizilir
 const frameW = (el) => Math.round((el.clientHeight || 52) * 16 / 9);   // seritteki bir karenin genisligi
@@ -1439,7 +1453,9 @@ const cutClips = () => state.cuts.get(cut.vod.url) || [];
 const selClip = () => cutClips().find((c) => c.id === cut.sel) || null;
 const cutDuration = () => {
   const v = $("cutVideo");
-  return isFinite(v.duration) && v.duration > 0 ? v.duration : cut.vod.duration || 0;
+  const d = isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
+  // canlida "Canliya git" sonrasi video bir an eski (kisa) suresini tasir: yeni uzunluk gecsin
+  return cut.vod.live ? Math.max(d, cut.vod.duration || 0) : d || cut.vod.duration || 0;
 };
 
 /* Kaydirirken her harekette seek atmak oynaticiyi bogar: yalnizca son istenen ana,
@@ -1479,8 +1495,9 @@ async function openCutter(vod) {
   $("cutTitle").textContent = cleanTitle(vod.title);
   $("cutTitle").title = vod.title;
   const ch = state.channel;
-  $("cutMeta").textContent = [ch && (ch.name || ch.slug), vod.start && fmtDate(vod.start), vod.duration && fmtDuration(vod.duration)]
-    .filter(Boolean).join(" · ");
+  $("cutMeta").textContent = [ch && (ch.name || ch.slug), vod.live ? `canlı · ${fmtAgo(vod.start)} başladı` : vod.start && fmtDate(vod.start),
+    vod.duration && fmtDuration(vod.duration)].filter(Boolean).join(" · ");
+  $("cutLive").hidden = !vod.live;
   const video = $("cutVideo");
   video.poster = vod.thumb || "";
   video.muted = false;
@@ -1493,16 +1510,30 @@ async function openCutter(vod) {
   renderCutter();   // dialog acikken: serit genislikleri olculebilsin
   $("cutter").focus();   // ilk dugme odak almasin; klavye kisayollari dogrudan calissin
   cut.raf = requestAnimationFrame(tick);
-  const res = await state.api.vod_source(vod.uuid);
+  const res = await state.api.vod_source(vod.uuid, !!vod.live);
   if (cut.vod !== vod || !$("cutter").open) return;
   if (!res.ok) { cutterMsg(res.error + " Kesit yine eklenebilir; saatlerini sağdan yazarsın."); return; }
-  if (!(window.Hls && Hls.isSupported())) { video.src = res.source; cutterMsg(""); return; }
-  cut.hls = new Hls({ maxBufferLength: 20 });
+  cut.src = res.source;
+  attachCut(res.duration);
+}
+
+/* onizlemeyi baglar. Canlida "dur" o anki yayin uzunlugu: oynatici ve cizelge sondan acilir. */
+function attachCut(dur) {
+  const video = $("cutVideo");
+  for (const k of ["hls", "peekHls"]) if (cut[k]) { cut[k].destroy(); cut[k] = null; }
+  const live = cut.vod.live && dur;
+  if (live) {
+    cut.vod.duration = dur;    // video suresi gelene kadar cizelge bunu kullansin
+    setView(dur - WAVE_MAX, dur);
+    drawTimeline();
+  }
+  if (!(window.Hls && Hls.isSupported())) { video.src = cut.src; cutterMsg(""); return; }
+  cut.hls = new Hls({ maxBufferLength: 20, startPosition: live ? Math.max(0, dur - LIVE_BACK) : -1 });
   cut.hls.on(Hls.Events.ERROR, (_, d) => {
     if (d.fatal) cutterMsg("Önizleme oynatılamadı. Kesit yine eklenebilir; saatlerini sağdan yazarsın.");
   });
   cut.hls.on(Hls.Events.MANIFEST_PARSED, () => cutterMsg(""));
-  cut.hls.loadSource(res.source);
+  cut.hls.loadSource(cut.src);
   cut.hls.attachMedia(video);
   // cizelgenin ustundeki kucuk onizleme: ayni yayin, en dusuk kalite, yalnizca kare gostermek icin
   const pv = $("peekVideo");
@@ -1512,8 +1543,26 @@ async function openCutter(vod) {
     cut.peekHls.startLevel = lo;
     cut.peekHls.currentLevel = lo;
   });
-  cut.peekHls.loadSource(res.source);
+  cut.peekHls.loadSource(cut.src);
   cut.peekHls.attachMedia(pv);
+}
+
+/* canlidan kesit: yayinin son anini yukler (liste her istekte uzar), oraya gider; kesitler kalir */
+async function cutToLive() {
+  const vod = cut.vod;
+  if (!vod || !vod.live || !cut.src) return;
+  $("cutLive").disabled = true;
+  cutterMsg("Son an yükleniyor…");
+  const playing = !$("cutVideo").paused;
+  const res = await state.api.vod_source(vod.uuid, true);
+  $("cutLive").disabled = false;
+  if (cut.vod !== vod) return;
+  if (!res.ok || !res.duration) { cutterMsg(""); toast("Yayının son anı alınamadı"); return; }
+  cut.main.reset();
+  cut.peek.reset();
+  attachCut(res.duration);
+  if (playing) $("cutVideo").addEventListener("canplay", () => $("cutVideo").play().catch(() => {}), { once: true });
+  if (cut.strip) loadStrip(cut.strip, true);
 }
 
 function closeCutter() {
@@ -1531,6 +1580,7 @@ function closeCutter() {
   cut.chain = null;
   cut.markIn = null;
   cut.strip = null;
+  cut.src = "";
   clearTimeout(cut.stripTimer);
   closeDD(false);
   showKeys(false);
@@ -1819,8 +1869,8 @@ function drawTimeline() {
 }
 
 /* ---------- kare ve ses seridi ---------- */
-async function loadStrip(st) {
-  const res = await state.api.strip_index(st.uuid);
+async function loadStrip(st, fresh) {
+  const res = await state.api.strip_index(st.uuid, !!fresh);
   if (cut.strip !== st) return;
   if (!res.ok) { st.note = res.error; state.api.client_log(`strip_index: ${res.error}`); drawStrip(); return; }
   st.segs = res.segments;
@@ -2281,6 +2331,7 @@ function bindCutter() {
   $("cutter").addEventListener("close", closeCutter);
   $("cutClose").addEventListener("click", closeCutter);
   $("cutKeys").addEventListener("click", () => showKeys($("keysPop").hidden));
+  $("cutLive").addEventListener("click", cutToLive);
   $("cutter").addEventListener("pointerdown", (e) => {
     if (!$("keysPop").hidden && !e.target.closest(".keyshelp")) showKeys(false);
   });
@@ -2621,7 +2672,7 @@ function bind() {
     const c = e.target.closest(".card[data-url]");
     if (!c) return;
     const url = c.dataset.url;
-    if (e.target.closest(".cutbtn")) { hover.stop(); player.el().pause(); openCutter(itemByUrl(url)); return; }
+    if (e.target.closest(".cutbtn")) { hover.stop(); player.el().pause(); openCutter(cutTarget(itemByUrl(url))); return; }
     if (e.target.closest(".check") || e.ctrlKey || e.metaKey) {
       if ((itemByUrl(url) || {}).kind === "live") return;
       if (!state.selected.size && state.focus && state.focus !== url && !e.target.closest(".check")) toggleSel(state.focus, true);
