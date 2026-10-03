@@ -1953,7 +1953,7 @@ function paintFilm(el, s, span, st) {
   });
 }
 
-function paintCards() {
+function paintCutThumbs() {   // kesit listesindeki kucuk kareler (izgaradaki paintCards ayri)
   const st = cut.strip;
   for (const li of $("cutList").children) {
     const c = cutClips().find((x) => x.id === Number(li.dataset.id));
@@ -1971,7 +1971,7 @@ function drawStrip() {
   const span = e - s;
   paintFilm($("tlFilm"), s, span, st);
   paintFilm($("ovFilm"), 0, cutDuration(), st);
-  paintCards();
+  paintCutThumbs();
 
   // ses dalgasi
   const cv = $("tlWave");
