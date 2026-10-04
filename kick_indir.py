@@ -45,7 +45,7 @@ from curl_cffi import requests as cffi_requests
 from yt_dlp.downloader.common import FileDownloader
 from yt_dlp.utils import DownloadCancelled
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 UPDATE_REPO = "Cabro57/kick-indirici"         # surumler bu GitHub deposunun release'lerinden okunur
 QUALITIES = ["En iyi", "1080p60", "720p60", "480p", "360p", "160p"]
 # Dosya adi sablonu: kullanici {kanal} {baslik} {tarih} {id} yazar, yt-dlp sablonuna cevrilir.
@@ -2006,11 +2006,34 @@ class Api:
         toast(f"{f['name']}: yeni yayın indiriliyor",
               ready[0]["title"] if len(ready) == 1 else f"{len(ready)} yeni yayın kuyruğa eklendi")
 
+    def _frame_thumb(self, path):
+        """Dosyanin ilk saniyelerinden kucuk bir kare (data URI). Alinamazsa ''."""
+        work = tempfile.mkdtemp(prefix="kickthumb-")
+        jpg = os.path.join(work, "f.jpg")
+        try:
+            for ss in ("1", "0"):
+                subprocess.run([self._ffmpeg, "-nostdin", "-v", "error", "-y", "-ss", ss, "-i", path, "-map", "0:v:0",
+                                "-frames:v", "1", "-vf", "scale=-2:180", "-q:v", "5", jpg],
+                               stdin=subprocess.DEVNULL, capture_output=True, timeout=30,
+                               creationflags=subprocess.CREATE_NO_WINDOW)
+                if os.path.exists(jpg):
+                    with open(jpg, "rb") as f:
+                        return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+            return ""
+        except Exception as e:  # noqa: BLE001 - kapak yoksa eski kapak kalir
+            log.info("kesit kapagi alinamadi: %s", e)
+            return ""
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+
     def _remember(self, d):
         """Biten indirmeyi Indirilenler gecmisine yazar (ayni dosya tekrar inerse guncellenir)."""
         if not d.filename or not os.path.isfile(d.filename):
             return
-        entry = {"file": d.filename, "title": d.title, "thumb": d.thumb, "url": d.url,
+        thumb = d.thumb
+        if (d.section or d.sections) and self._ffmpeg:
+            thumb = self._frame_thumb(d.filename) or thumb    # kesitin kapagi yayininki degil, kesitin kendi karesi
+        entry = {"file": d.filename, "title": d.title, "thumb": thumb, "url": d.url,
                  "section": list(d.section) if d.section else None,
                  "sections": [list(x) for x in d.sections] if d.sections else None, "live": d.live, "chat": d.chat,
                  "channel": parse_link(d.url)[0] or (re.match(r"https://kick\.com/([\w-]+)/clips?/", d.url) or [None, ""])[1],

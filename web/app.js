@@ -1802,6 +1802,9 @@ function closeCutter() {
 function cutterMsg(msg) {
   $("cutMsg").hidden = !msg;
   $("cutMsg").textContent = msg;
+  // halka: kaynak/akis yuklenirken donsun; hata mesajinda ya da hazir olunca sussun
+  const busy = !!msg && !/kesit yine eklenebilir/i.test(msg);
+  $("cutVideo").parentElement.classList.toggle("loading", busy);
 }
 
 function showKeys(on) {

@@ -530,7 +530,7 @@ body:has(.selbar:not([hidden])) .toast { bottom: calc(var(--sb) + 86px); }
   50% { stroke-dasharray: 90 150; stroke-dashoffset: -35; }
   100% { stroke-dasharray: 90 150; stroke-dashoffset: -124; }
 }
-.player.loading .spin, .thumb.loading .spin { opacity: 1; transition-delay: .2s; }
+.player.loading .spin, .thumb.loading .spin, .videobox.loading .spin { opacity: 1; transition-delay: .2s; }
 .thumb .spin { width: 34px; height: 34px; margin: -17px 0 0 -17px; }
 .thumb .spin circle { stroke-width: 5; }
 .pmsg {
