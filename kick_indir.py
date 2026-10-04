@@ -2264,8 +2264,8 @@ def main():
     window.events.closing += on_closing
     # Her acilista temiz WebView2 profili: eski surumun onbellege alinmis HTML/CSS'i gelmesin
     profile = tempfile.mkdtemp(prefix="kickindirici-")
-    # paketli exe ikonunu kendi dosyasindan alir; kaynaktan calisirken pencereye ayrica ver
-    icon = None if getattr(sys, "frozen", False) else os.path.join(app_dir(), "assets", "app.ico")
+    # pencere/gorev cubugu ikonu: verilmezse pywebview Python ikonunu kullanir
+    icon = os.path.join(resource_dir(), "assets", "app.ico")
     webview.start(debug="--debug" in sys.argv, private_mode=True, storage_path=profile, icon=icon)
     api._stop_recordings()
     api._persist_queue()
