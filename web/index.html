@@ -16,6 +16,7 @@
     <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2.5"/></symbol>
     <symbol id="i-retry" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="19" r="1.6" fill="currentColor"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
     <symbol id="i-verified" viewBox="0 0 24 24"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
@@ -100,7 +101,7 @@
         <p>Üstteki kutuya yayıncının adını yaz ya da kanal, VOD veya klip linkini yapıştır.</p>
         <ol class="steps">
           <li><b>Yayıncıyı aç.</b> Yayınları, klipleri ve canlıysa canlı yayını listelenir.</li>
-          <li><b>Bir videoya tıkla.</b> Sağdaki panelde hemen oynar; tamamını indir ya da <b>Kesit al</b> ile içinden parçalar seç.</li>
+          <li><b>Bir videoya tıkla.</b> Ortada büyük oynar; tamamını indir ya da <b>Kesit al</b> ile içinden parçalar seç. Birden çok indirmek için kartın köşesindeki kutuyla seç.</li>
           <li><b>Yıldıza bas.</b> Yayıncı soldaki şeride eklenir; canlıya geçince ve yeni yayın gelince haber verir.</li>
         </ol>
       </div>
@@ -128,7 +129,6 @@
     <nav class="tabs" id="tabs" role="tablist">
       <button class="tab" role="tab" data-tab="vods" aria-selected="true">Yayınlar <span id="vodCount" class="num"></span></button>
       <button class="tab" role="tab" data-tab="clips" aria-selected="false">Klipler <span id="clipCount" class="num"></span></button>
-      <button class="tab live" role="tab" data-tab="live" aria-selected="false" id="liveTab" hidden><i class="livedot"></i>Canlı</button>
     </nav>
     <div class="filters" id="filters">
       <label class="search"><svg class="ic"><use href="#i-search"/></svg><input id="fQuery" type="search" spellcheck="false" placeholder="Başlıkta ara"></label>
@@ -142,6 +142,16 @@
       <div class="grid" id="grid" role="listbox" aria-multiselectable="true" aria-label="Videolar"></div>
       <div class="more" id="moreBox" hidden><button class="btn" id="moreBtn" type="button">Daha fazla klip yükle</button></div>
       <p class="gridnote" id="gridNote" hidden></p>
+    </div>
+    <div class="selbar" id="selBar" hidden>
+      <ul class="sellist" id="selList" hidden></ul>
+      <div class="selrow">
+        <button class="selcount" id="selCount" type="button" aria-expanded="false" title="Seçilenleri göster"><b class="num" id="selN"></b><span class="num" id="selDur"></span><svg class="ic"><use href="#i-chevron"/></svg></button>
+        <span class="grow"></span>
+        <div class="select sm" data-label="Kalite" id="selQualityBox"><select id="selQuality"></select></div>
+        <button class="btn ghost sm" id="selClear" type="button" title="Esc">Seçimi bırak</button>
+        <button class="btn primary sm" id="selDl" type="button"><svg class="ic"><use href="#i-download"/></svg><span></span></button>
+      </div>
     </div>
   </section>
 
@@ -162,7 +172,7 @@
       <div id="histGroups"></div>
       <div class="libempty" id="libEmpty" hidden>
         <h2>Henüz indirilen yok</h2>
-        <p>İndirdiğin her video, klip ve kesit burada durur. Tıklayınca sağda oynar; dosyayı klasörde gösterebilir ya da silebilirsin.</p>
+        <p>İndirdiğin her video, klip ve kesit burada durur. Tıklayınca ortada oynar; dosyayı klasörde gösterebilir ya da silebilirsin.</p>
       </div>
     </div>
   </section>
@@ -212,7 +222,7 @@
           <button class="switch" id="setHover" type="button" role="switch" aria-checked="true"><i></i></button>
         </div>
         <div class="setrow">
-          <div class="setlbl"><b>Oynatıcı sessiz başlasın</b><p>Kapalıyken sağdaki oynatıcı kayıtlı ses seviyesiyle açılır.</p></div>
+          <div class="setlbl"><b>Oynatıcı sessiz başlasın</b><p>Kapalıyken oynatıcı kayıtlı ses seviyesiyle açılır.</p></div>
           <button class="switch" id="setMuted" type="button" role="switch" aria-checked="true"><i></i></button>
         </div>
         <div class="setrow">
@@ -259,30 +269,6 @@
     </div>
   </section>
 
-  <!-- inceleme paneli -->
-  <aside class="inspector" id="inspector" aria-label="Seçilen video">
-    <div class="player" id="player">
-      <video id="insVideo" playsinline></video>
-      <img class="ppos" id="insPoster" alt="">
-      <div class="pmsg" id="pMsg" hidden></div>
-      <div class="pctl" id="pCtl">
-        <input type="range" class="pseek" id="pSeek" min="0" max="1000" value="0" step="1" aria-label="Konum">
-        <div class="pbar">
-          <button class="iconbtn" id="pPlay" type="button" title="Oynat / durdur" aria-label="Oynat / durdur"><svg class="ic"><use href="#i-play"/></svg></button>
-          <span class="ptime num" id="pTime">0:00</span>
-          <span class="grow"></span>
-          <button class="iconbtn" id="pMute" type="button" title="Sesi kapat / aç (M)" aria-label="Sesi kapat / aç"><svg class="ic"><use href="#i-volume"/></svg></button>
-          <input type="range" class="pvol" id="pVol" min="0" max="100" step="1" aria-label="Ses seviyesi">
-          <button class="iconbtn" id="pFull" type="button" title="Tam ekran (F)" aria-label="Tam ekran"><svg class="ic"><use href="#i-full"/></svg></button>
-        </div>
-      </div>
-    </div>
-    <div class="insbody" id="insBody"></div>
-    <footer class="insfoot" id="insFoot">
-      <div class="select" data-label="Kalite" id="qualityBox"><select id="quality"></select></div>
-      <div class="insbtns" id="insBtns"></div>
-    </footer>
-  </aside>
 </main>
 
 <footer class="statusbar" id="statusBar">
@@ -301,6 +287,37 @@
 
 <div class="toast" id="toast" role="status" hidden></div>
 <div class="dropzone" id="dropZone" hidden><div><svg class="ic"><use href="#i-link"/></svg><b>Linki bırak</b><span>Kanal, VOD ya da klip linki açılır</span></div></div>
+<!-- oynatici penceresi: videoya tiklayinca ortada acilir -->
+<dialog class="watch" id="watch" aria-label="Video">
+  <button class="wnav prev" id="wPrev" type="button" title="Önceki (←)" aria-label="Önceki"><svg class="ic"><use href="#i-chevron"/></svg></button>
+  <div class="wpanel" id="inspector" tabindex="-1" autofocus>
+      <div class="player" id="player">
+        <video id="insVideo" playsinline></video>
+        <img class="ppos" id="insPoster" alt="">
+        <div class="spin" aria-hidden="true"><svg viewBox="0 0 50 50"><circle class="trk" cx="25" cy="25" r="20"/><circle class="arc" cx="25" cy="25" r="20"/></svg></div>
+        <div class="pmsg" id="pMsg" hidden></div>
+        <div class="pctl" id="pCtl">
+          <input type="range" class="pseek" id="pSeek" min="0" max="1000" value="0" step="1" aria-label="Konum">
+          <div class="pbar">
+            <button class="iconbtn" id="pPlay" type="button" title="Oynat / durdur" aria-label="Oynat / durdur"><svg class="ic"><use href="#i-play"/></svg></button>
+            <span class="ptime num" id="pTime">0:00</span>
+            <span class="grow"></span>
+            <button class="iconbtn" id="pMute" type="button" title="Sesi kapat / aç (M)" aria-label="Sesi kapat / aç"><svg class="ic"><use href="#i-volume"/></svg></button>
+            <input type="range" class="pvol" id="pVol" min="0" max="100" step="1" aria-label="Ses seviyesi">
+            <button class="iconbtn" id="pFull" type="button" title="Tam ekran (F)" aria-label="Tam ekran"><svg class="ic"><use href="#i-full"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <div class="insbody" id="insBody"></div>
+      <footer class="insfoot" id="insFoot">
+        <div class="select" data-label="Kalite" id="qualityBox"><select id="quality"></select></div>
+        <div class="insbtns" id="insBtns"></div>
+      </footer>
+    <button class="iconbtn wclose" id="wClose" type="button" title="Kapat (Esc)" aria-label="Kapat"><svg class="ic"><use href="#i-x"/></svg></button>
+  </div>
+  <button class="wnav next" id="wNext" type="button" title="Sonraki (→)" aria-label="Sonraki"><svg class="ic"><use href="#i-chevron"/></svg></button>
+</dialog>
+
 <dialog class="keysdlg" id="keysDlg" aria-labelledby="keysTitle">
   <header><h2 id="keysTitle">Kısayollar</h2><button class="iconbtn" id="keysClose" type="button" title="Kapat (Esc)" aria-label="Kapat"><svg class="ic"><use href="#i-x"/></svg></button></header>
   <div class="keyscols">
@@ -312,8 +329,7 @@
       <dt><kbd>?</kbd></dt><dd>Bu liste</dd>
     </dl></section>
     <section><h3>Videolar</h3><dl>
-      <dt>Tık</dt><dd>Sağda oynat</dd>
-      <dt>Çift tık</dt><dd>Hemen indir</dd>
+      <dt>Tık</dt><dd>İzle (seçim varken: seçime ekle / çıkar)</dd>
       <dt><kbd>Ctrl</kbd> tık · <kbd>Boşluk</kbd></dt><dd>Seçime ekle / çıkar</dd>
       <dt><kbd>Shift</kbd> tık</dt><dd>Aradakileri seç</dd>
       <dt><kbd>Ctrl</kbd> <kbd>A</kbd></dt><dd>Tümünü seç</dd>
@@ -323,6 +339,8 @@
       <dt><kbd>K</kbd></dt><dd>Oynat / durdur</dd>
       <dt><kbd>M</kbd></dt><dd>Sesi kapat / aç</dd>
       <dt><kbd>F</kbd></dt><dd>Tam ekran</dd>
+      <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Önceki / sonraki video</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Kapat</dd>
     </dl></section>
     <section><h3>İndirilenler</h3><dl>
       <dt><kbd>Enter</kbd></dt><dd>Seçili dosyayı oynat</dd>
@@ -332,6 +350,7 @@
   <p class="keysfoot">Kesit editörünün kendi kısayolları orada, sağ üstteki <b>Kısayollar</b> düğmesinde.</p>
 </dialog>
 <ul class="ddmenu" id="ddMenu" role="listbox" hidden></ul>
+<div class="cardmenu" id="cardMenu" role="menu" hidden></div>
 <form class="favpop" id="favPop" hidden autocomplete="off">
   <label for="favPopInput">Favori ekle</label>
   <input id="favPopInput" spellcheck="false" placeholder="Kanal adı ya da linki">
@@ -484,6 +503,24 @@
   </section>
 </dialog>
 
+<template id="liveTpl">
+  <div class="card livecard" role="option" tabindex="0" aria-selected="false">
+    <div class="thumb">
+      <img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+      <span class="state num"></span>
+    </div>
+    <div class="lmeta">
+      <p class="lhead"><span class="livechip"><i></i>CANLI</span><span class="lsince num"></span></p>
+      <p class="ltitle"></p>
+      <p class="sub num"></p>
+      <div class="lacts">
+        <button class="btn primary lrec" type="button" data-live="record" title="Yayını şu andan itibaren kaydeder; durdurunca ya da yayın bitince mp4 olur"></button>
+        <button class="btn" type="button" data-live="cut" title="Yayının başından şu ana kadar istediğin anı seç; yayın sürerken iner"><svg class="ic"><use href="#i-scissors"/></svg>Kesit al</button>
+      </div>
+    </div>
+  </div>
+</template>
+
 <template id="cardTpl">
   <div class="card" role="option" tabindex="0" aria-selected="false">
     <div class="thumb">
@@ -491,12 +528,14 @@
       <span class="dur num"></span>
       <button class="check" type="button" tabindex="-1" title="Seç (Ctrl+tık)" aria-label="Seç"><svg class="ic"><use href="#i-check"/></svg></button>
       <button class="cutbtn" type="button" tabindex="-1" title="Kesit al: yayının içinden parçalar seç" aria-label="Kesit al" hidden><svg class="ic"><use href="#i-scissors"/></svg>Kesit al</button>
+      <button class="cplay" type="button" tabindex="-1" title="İzle" aria-label="İzle"><svg class="ic"><use href="#i-play"/></svg></button>
       <span class="state num"></span>
       <i class="tprog" hidden></i>
     </div>
     <div class="meta">
       <p class="title"></p>
       <p class="sub num"></p>
+      <button class="more" type="button" tabindex="-1" title="Diğer işlemler" aria-label="Diğer işlemler" aria-haspopup="menu"><svg class="ic"><use href="#i-more"/></svg></button>
     </div>
   </div>
 </template>

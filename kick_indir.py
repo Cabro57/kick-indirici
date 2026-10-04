@@ -45,7 +45,7 @@ from curl_cffi import requests as cffi_requests
 from yt_dlp.downloader.common import FileDownloader
 from yt_dlp.utils import DownloadCancelled
 
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 UPDATE_REPO = "Cabro57/kick-indirici"         # surumler bu GitHub deposunun release'lerinden okunur
 QUALITIES = ["En iyi", "1080p60", "720p60", "480p", "360p", "160p"]
 # Dosya adi sablonu: kullanici {kanal} {baslik} {tarih} {id} yazar, yt-dlp sablonuna cevrilir.
@@ -833,16 +833,38 @@ def out_template(name, section, count=1):
     return t + ".%(ext)s"
 
 
+TOAST_APP_ID = "Cabro57.KickIndirici"
+
+
+def register_toast_app():
+    """Bildirimde 'Windows PowerShell' yerine uygulamanin adi ve ikonu gorunsun: paketsiz uygulama
+    kimligi (AUMID) HKCU altina ad + ikonla kaydedilir. Ikon kalici bir yere kopyalanir; tek dosyalik
+    exe her acilista baska gecici klasore acildigindan _MEIPASS yolu kullanilamaz."""
+    import winreg
+    icon = os.path.join(DATA_DIR, "app.png")
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        shutil.copyfile(os.path.join(resource_dir(), "assets", "logo-1024.png"), icon)
+    except OSError as e:
+        log.info("bildirim ikonu kopyalanamadi: %s", e)
+    try:
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, rf"Software\Classes\AppUserModelId\{TOAST_APP_ID}") as k:
+            winreg.SetValueEx(k, "DisplayName", 0, winreg.REG_SZ, "Kick İndirici")
+            if os.path.exists(icon):
+                winreg.SetValueEx(k, "IconUri", 0, winreg.REG_SZ, icon)
+    except OSError as e:
+        log.info("bildirim kimligi kaydedilemedi: %s", e)
+
+
 def toast(title, text):
-    """Windows bildirimi. Ek kutuphane yok: PowerShell uzerinden WinRT. Metin ortam degiskeniyle
-    gecer, komut satirina girmez; tirnak ya da ozel karakter komutu bozamaz."""
+    """Windows bildirimi. Ek kutuphane yok: PowerShell uzerinden WinRT, kimlik olarak TOAST_APP_ID.
+    Metin ortam degiskeniyle gecer, komut satirina girmez; tirnak ya da ozel karakter komutu bozamaz."""
     xml = ("<toast><visual><binding template='ToastGeneric'>"
            f"<text>{xml_escape(title)}</text><text>{xml_escape(text)}</text></binding></visual></toast>")
     ps = ("[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime]>$null;"
           "[Windows.Data.Xml.Dom.XmlDocument,Windows.Data.Xml.Dom.XmlDocument,ContentType=WindowsRuntime]>$null;"
           "$x=New-Object Windows.Data.Xml.Dom.XmlDocument;$x.LoadXml($env:KICK_TOAST);"
-          "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("
-          "'{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe')"
+          f"[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{TOAST_APP_ID}')"
           ".Show([Windows.UI.Notifications.ToastNotification]::new($x))")
     try:
         subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
@@ -975,8 +997,8 @@ class Api:
                 "notes": (rel.get("body") or "")[:600]}
 
     def open_url(self, url):
-        """Yalnizca GitHub surum sayfasi acilir: arayuz baska adres acamaz."""
-        if isinstance(url, str) and url.startswith(f"https://github.com/{UPDATE_REPO}/"):
+        """Tarayicida acar. Yalnizca GitHub surum sayfasi ve kick.com: arayuz baska adres acamaz."""
+        if isinstance(url, str) and (url.startswith(f"https://github.com/{UPDATE_REPO}/") or url.startswith("https://kick.com/")):
             os.startfile(url)
             return True
         return False
@@ -1147,6 +1169,19 @@ class Api:
             except Exception as e:  # noqa: BLE001 - sure yoksa bastan acilir
                 log.info("canli VOD suresi alinamadi (%s): %s", uuid, e)
         return out
+
+    def live_master(self, url):
+        """Canli yayinin HLS ana listesinin metni. Kick'in ana listesi CORS'u yalniz kick.com'a acar,
+        arayuz dogrudan cekemez; alt listeler ve parcalar herkese acik (tam adresli), arayuz onlari
+        kendisi ceker."""
+        if not re.match(r"https://[\w.-]+\.live-video\.net/", url or ""):
+            return {"ok": False, "error": "Geçersiz canlı yayın adresi."}
+        try:
+            r = cffi_requests.get(url, impersonate="chrome", timeout=15)
+            r.raise_for_status()
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"Canlı yayın açılamadı. ({str(e)[:120]})"}
+        return {"ok": True, "text": r.text}
 
     def strip_index(self, uuid, fresh=False):
         """Zaman cizelgesindeki kare/ses seridinin parca listesi: [[baslangic, sure], ...].
@@ -2111,6 +2146,7 @@ def main():
     if "--no-gpu" in sys.argv or (build < 22000 and "--gpu" not in sys.argv):
         os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = "--disable-features=ElasticOverscroll --disable-gpu"
         log.info("GPU kapali")
+    register_toast_app()
 
     api = Api()
     window = webview.create_window(

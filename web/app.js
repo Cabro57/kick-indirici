@@ -31,7 +31,7 @@ const state = {
   filters: { q: "", cat: "", len: "", sort: "new" },
   selected: new Set(),       // secili videolarin url'leri (toplu indirme)
   anchor: null,
-  focus: null,               // incelemede acik ogenin anahtari
+  focus: null,               // oynatici penceresinde acik ogenin adresi
   downloads: [],
   byUrl: new Map(),          // url -> tam video indirmesi
   favorites: [],
@@ -39,7 +39,7 @@ const state = {
   liveFavs: new Set(),
   library: [],
   libQuery: "",
-  libFocus: null,            // incelemede oynayan dosya
+  libFocus: null,            // oynatici penceresinde oynayan dosya
   cuts: new Map(),           // vod url -> kesit listesi (kesit secici)
   lastClip: "",              // panodan en son onerilen link: ayni link ikinci kez sorulmaz
   notices: new Map(),        // ust seritteki bildirimler: anahtar -> eleman
@@ -110,18 +110,17 @@ const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAI
 /* ---------- gorunumler ---------- */
 function showView(view) {
   state.view = view;
+  closeWatch();
   $("homeView").hidden = view !== "home";
   $("channelView").hidden = view !== "channel";
   $("libraryView").hidden = view !== "library";
   $("settingsView").hidden = view !== "settings";
-  $("main").classList.toggle("noins", view === "home" || view === "settings");
   $("homeBtn").classList.toggle("on", view === "home");
   $("settingsBtn").classList.toggle("on", view === "settings");
   $("libBtn").classList.toggle("on", view === "library");
   if (view === "home" || view === "settings") player.stop();
   if (view === "home") renderHome();
-  if (view === "library") { refreshLibrary(); renderInspector(); }
-  if (view === "channel") renderInspector();
+  if (view === "library") refreshLibrary();
   if (view === "settings") renderSettings();
   renderRail();
 }
@@ -167,15 +166,14 @@ function openChannelData(res) {
   const fav = state.favStatus[res.channel.slug];
   if (fav && fav.ok) fav.newVods = 0;   // acildi: yeniler goruldu
   const focusVod = res.focus && state.vods.find((v) => v.uuid === res.focus);
-  setTab(res.channel.live && !focusVod ? "live" : "vods", true);
+  setTab("vods", true);
   loadClips(true);
   showView("channel");
   renderChannel();
   renderGrid();
   state.focus = null;
-  if (focusVod) focusItem(focusVod.url);
-  else if (state.tab === "live") focusItem(liveItem().url);
-  else renderInspector();
+  renderSelBar();
+  if (focusVod) focusItem(focusVod.url);   // VOD linki yapistirildi: dogrudan o oynasin
   $("gridWrap").scrollTop = 0;
   if (focusVod) {
     const el = cardEl(focusVod.url);
@@ -204,9 +202,7 @@ function renderSkeletonChannel(slug) {
   $("chAvatar").src = f ? f.avatar : "";
   $("chName").textContent = f ? f.name : slug;
   $("chMeta").textContent = "Yükleniyor…";
-  $("liveTab").hidden = true;
   renderSkeleton();
-  renderInspector();
 }
 
 function showError(msg) {
@@ -233,6 +229,8 @@ function liveCutVod() {
   return l && v ? { ...v, title: l.title, thumb: l.thumb || v.thumb, start: l.start, duration: 0, live: true } : null;
 }
 const cutTarget = (v) => (v && v.kind === "live" ? liveCutVod() : v);
+/* kanalin suren ya da sirada bekleyen canli kaydi */
+const liveRec = (url) => state.downloads.find((x) => x.live && x.url === url && ACTIVE.concat("queued").includes(x.status));
 
 function renderChannel() {
   const ch = state.channel;
@@ -251,7 +249,6 @@ function renderChannel() {
     ch.live ? `${fmtCount(ch.live.viewers)} kişi izliyor` : "", newN ? `${newN} yeni yayın` : "",
   ].filter(Boolean).join(" · ");
   $("vodCount").textContent = state.vods.length;
-  $("liveTab").hidden = !ch.live;
   const ft = $("favToggle");
   ft.setAttribute("aria-pressed", state.favorite);
   ft.querySelector("span").textContent = state.favorite ? "Favorilerde" : "Favorilere ekle";
@@ -308,7 +305,6 @@ function fillSelect(sel, opts, value) {
 
 function renderFilters() {
   const list = state.tab === "clips" ? state.clips : state.vods;
-  $("filters").hidden = state.tab === "live";
   const cats = [...new Set(list.flatMap((v) => v.categories && v.categories.length ? v.categories : v.category ? [v.category] : []))].sort();
   fillSelect($("fCat"), [["", "Hepsi"], ...cats.map((c) => [c, c])], state.filters.cat);
   fillSelect($("fLen"), LEN_OPTS[state.tab === "clips" ? "clips" : "vods"], state.filters.len);
@@ -317,7 +313,6 @@ function renderFilters() {
 }
 
 function filtered() {
-  if (state.tab === "live") { const l = liveItem(); return l ? [l] : []; }
   const f = state.filters;
   let list = state.tab === "clips" ? state.clips : state.vods;
   if (f.q) { const q = fold(f.q); list = list.filter((v) => fold(v.title).includes(q) || fold(v.creator).includes(q)); }
@@ -333,7 +328,7 @@ function filtered() {
   }
   return list;
 }
-const filtering = () => state.tab !== "live" && !!(state.filters.q || state.filters.cat || state.filters.len);
+const filtering = () => !!(state.filters.q || state.filters.cat || state.filters.len);
 
 /* ---------- izgara ---------- */
 const cardEl = (url) => $("grid").querySelector(`.card[data-url="${CSS.escape(url)}"]`);
@@ -364,7 +359,7 @@ function renderGrid() {
   renderFilters();
   const g = $("grid");
   g.innerHTML = "";
-  const all = state.tab === "clips" ? state.clips : state.tab === "live" ? filtered() : state.vods;
+  const all = state.tab === "clips" ? state.clips : state.vods;
   const list = filtered();
   const note = $("gridNote");
   if (state.tab === "clips" && state.clipsLoading && !state.clips.length) { renderSkeleton(); return; }
@@ -373,31 +368,22 @@ function renderGrid() {
   $("moreBox").hidden = !(state.tab === "clips" && state.clipCursor && state.clips.length);
   $("fClear").hidden = !filtering();
   $("filters").classList.toggle("filtering", filtering());
-  $("fCount").textContent = state.tab === "live" ? "" : filtering()
+  $("fCount").textContent = filtering()
     ? `${list.length} / ${all.length}${state.tab === "clips" && state.clipCursor ? "+" : ""}`
     : `${all.length}${state.tab === "clips" && state.clipCursor ? "+" : ""} ${state.tab === "clips" ? "klip" : "yayın"}`;
   const frag = document.createDocumentFragment();
+  // suren yayin Yayinlar'in basinda, arsivin ustunde tam genislikte; filtre arsivi aradigi icin gizler
+  const live = state.tab === "vods" && !filtering() && liveItem();
+  if (live) frag.append(liveCard(live));
   for (const v of list) {
     const c = $("cardTpl").content.firstElementChild.cloneNode(true);
     c.dataset.url = v.url;
-    const img = c.querySelector("img");
-    img.src = v.thumb || (v.kind === "live" && v.avatar) || BLANK;
-    img.classList.toggle("avfb", !v.thumb && v.kind === "live");
-    img.addEventListener("error", () => {   // canli kapagi henuz yoksa kanal resmi
-      const fb = v.kind === "live" && v.avatar && img.src !== v.avatar;
-      img.src = fb ? v.avatar : BLANK;
-      img.classList.toggle("avfb", !!fb);
-    });
-    const dur = c.querySelector(".dur");
-    if (v.kind === "live") { dur.textContent = "CANLI"; dur.classList.add("live"); }
-    else dur.textContent = fmtDuration(v.duration);
-    c.querySelector(".cutbtn").hidden = state.tab === "clips" || (v.kind === "live" && !state.liveVod);
-    c.querySelector(".check").hidden = v.kind === "live";
+    c.querySelector("img").src = v.thumb || BLANK;
+    c.querySelector(".dur").textContent = fmtDuration(v.duration);
+    c.querySelector(".cutbtn").hidden = state.tab === "clips";
     c.querySelector(".title").textContent = cleanTitle(v.title);
     c.title = v.title;
-    const bits = v.kind === "live"
-      ? [`${fmtCount(v.views)} izleyici`, v.category]
-      : [fmtAgo(v.start), v.creator ? `kırpan ${v.creator}` : "", `${fmtCount(v.views)} izlenme`, v.category];
+    const bits = [fmtAgo(v.start), v.creator ? `kırpan ${v.creator}` : "", `${fmtCount(v.views)} izlenme`, v.category];
     const sub = c.querySelector(".sub");
     sub.textContent = bits.filter(Boolean).join(" · ");
     if (state.tab === "vods" && state.seenBefore && v.start > state.seenBefore) sub.insertAdjacentHTML("afterbegin", `<span class="newpill">YENİ</span>`);
@@ -407,9 +393,58 @@ function renderGrid() {
   paintCards();
 }
 
+/* suren yayin: kapak (uzerine gelince canli onizleme), baslik, sure, izleyici ve dogrudan islemler */
+function liveCard(v) {
+  const c = $("liveTpl").content.firstElementChild.cloneNode(true);
+  c.dataset.url = v.url;
+  const img = c.querySelector("img");
+  img.src = v.thumb || v.avatar || BLANK;
+  img.classList.toggle("avfb", !v.thumb);
+  img.addEventListener("error", () => {   // canli kapagi henuz yoksa kanal resmi
+    const fb = v.avatar && img.src !== v.avatar;
+    img.src = fb ? v.avatar : BLANK;
+    img.classList.toggle("avfb", !!fb);
+  });
+  c.querySelector(".lsince").textContent = v.start ? `${fmtAgo(v.start)} başladı` : "";
+  c.querySelector(".ltitle").textContent = cleanTitle(v.title);
+  c.querySelector(".ltitle").title = v.title;
+  c.querySelector(".sub").textContent = [`${fmtCount(v.views)} izleyici`, v.category].filter(Boolean).join(" · ");
+  c.querySelector('[data-live="cut"]').hidden = !state.liveVod;
+  return c;
+}
+
+function paintLive(c) {
+  const d = liveRec(c.dataset.url);
+  const k = d ? `${d.id}:${d.status}` : "";
+  c.classList.toggle("focus", state.focus === c.dataset.url);
+  c.classList.toggle("rec", !!d);
+  const st = c.querySelector(".state");
+  st.className = d ? "state on active" : "state";
+  st.textContent = d ? (d.status === "queued" ? "Sırada" : d.status === "merging" ? "mp4'e çevriliyor" : "Kaydediliyor") : "";
+  const b = c.querySelector(".lrec");
+  if (b.dataset.k === k) return;
+  b.dataset.k = k;
+  b.dataset.live = d ? "stoprec" : "record";
+  b.dataset.id = d ? d.id : "";
+  b.className = d ? "btn lrec" : "btn primary lrec";
+  b.innerHTML = d ? `${icon("stop")}Kaydı durdur` : `${icon("record")}Kaydı başlat`;
+}
+
+async function onLiveAction(b) {
+  const v = liveItem();
+  if (!v) return;
+  const act = b.dataset.live;
+  if (act === "record") {
+    const n = await state.api.enqueue([{ url: v.url, title: cleanTitle(v.title), thumb: v.thumb || v.avatar, live: true }]);
+    toast(n ? "Canlı kayıt başladı" : "Bu kanal zaten kaydediliyor");
+  } else if (act === "stoprec") state.api.cancel(Number(b.dataset.id));
+  else if (act === "cut") { hover.stop(); player.el().pause(); openCutter(liveCutVod()); }
+}
+
 function paintCards() {
   $("grid").classList.toggle("picking", state.selected.size > 0);
   for (const c of $("grid").querySelectorAll(".card[data-url]")) {
+    if (c.classList.contains("livecard")) { paintLive(c); continue; }
     const url = c.dataset.url;
     c.setAttribute("aria-selected", state.selected.has(url));
     c.classList.toggle("focus", state.focus === url);
@@ -438,7 +473,30 @@ function toggleSel(url, on) {
 
 function selectionChanged() {
   paintCards();
-  renderInspector();
+  renderSelBar();
+}
+
+/* ---------- secim cubugu ---------- */
+function renderSelBar() {
+  const items = [...state.selected].map(itemByUrl).filter(Boolean);
+  const list = $("selList");
+  $("selBar").hidden = !items.length;
+  if (!items.length) { list.hidden = true; $("selCount").setAttribute("aria-expanded", "false"); return; }
+  $("selN").textContent = `${items.length} seçili`;
+  const total = items.reduce((a, v) => a + (v.duration || 0), 0);
+  $("selDur").textContent = total ? `toplam ${fmtDuration(total)}` : "";
+  $("selDl").querySelector("span").textContent = `İndir (${items.length})`;
+  if (list.hidden) return;
+  list.innerHTML = items.map((v) => `<li><img src="${esc(v.thumb || BLANK)}" alt=""><span title="${esc(v.title)}">${esc(cleanTitle(v.title))}</span>
+    <small class="num">${fmtDuration(v.duration)}</small>
+    <button class="iconbtn" type="button" data-unsel="${esc(v.url)}" title="Seçimden çıkar" aria-label="Seçimden çıkar">${icon("x")}</button></li>`).join("");
+}
+
+function toggleSelList() {
+  const list = $("selList");
+  list.hidden = !list.hidden;
+  $("selCount").setAttribute("aria-expanded", String(!list.hidden));
+  renderSelBar();
 }
 
 async function enqueueItems(items) {
@@ -461,7 +519,7 @@ function setTab(tab, silent) {
   state.tab = tab;
   for (const t of document.querySelectorAll(".tab")) t.setAttribute("aria-selected", t.dataset.tab === tab);
   state.selected.clear();
-  if (!silent) { renderGrid(); renderInspector(); $("gridWrap").scrollTop = 0; }
+  if (!silent) { renderGrid(); renderSelBar(); $("gridWrap").scrollTop = 0; }
 }
 
 async function loadClips(reset) {
@@ -488,8 +546,21 @@ async function loadClips(reset) {
   }
 }
 
+/* Kick'in canli ana listesi CORS'u yalniz kick.com'a acar: metnini Python ceker, hls.js'e blob
+   olarak verilir. Alt listeler ve parcalar tam adresli ve herkese acik; hls.js onlari kendisi ceker. */
+const liveBlobs = new Map();   // ana liste adresi -> blob adresi
+async function hlsUrl(v) {
+  if (v.kind !== "live") return v.source;
+  if (!liveBlobs.has(v.source)) {
+    const res = await state.api.live_master(v.source);
+    if (!res.ok) throw new Error(res.error);
+    liveBlobs.set(v.source, URL.createObjectURL(new Blob([res.text], { type: "application/vnd.apple.mpegurl" })));
+  }
+  return liveBlobs.get(v.source);
+}
+
 /* ---------- oynatici ----------
-   Tek oynatici: incelemede secilen video, klip, canli yayin ya da indirilen dosya. HLS ise hls.js,
+   Tek oynatici (ortadaki pencere): secilen video, klip, canli yayin ya da indirilen dosya. HLS ise hls.js,
    yerel dosyaysa dogrudan. Ses ayari kalici (ayarlar: volume, previewMuted). */
 const player = {
   hls: null, key: null, live: false, volTimer: 0,
@@ -501,6 +572,7 @@ const player = {
     this.key = key;
     this.live = live;
     $("player").classList.remove("empty", "playing");
+    $("player").classList.toggle("loading", !!(file || source));
     $("insPoster").src = poster || "";
     $("insPoster").classList.remove("avfb");
     this.msg("");
@@ -510,7 +582,7 @@ const player = {
     $("pSeek").disabled = live;
     const go = () => {
       if (start && !live) v.currentTime = start;
-      if (autoplay) v.play().catch(() => {});
+      if (autoplay) v.play().catch(() => $("player").classList.remove("loading"));
     };
     if (file) {
       v.src = file;
@@ -521,9 +593,12 @@ const player = {
       hls.on(Hls.Events.ERROR, (_, d) => {
         if (d.fatal && this.hls === hls) this.msg(live ? "Canlı yayın oynatılamadı." : "Video oynatılamadı.");
       });
-      hls.on(Hls.Events.MANIFEST_PARSED, () => { if (autoplay) v.play().catch(() => {}); });
-      hls.loadSource(source);
-      hls.attachMedia(v);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => { if (autoplay) v.play().catch(() => $("player").classList.remove("loading")); });
+      Promise.resolve(source).then((src) => {
+        if (this.hls !== hls) return;
+        hls.loadSource(src);
+        hls.attachMedia(v);
+      }).catch(() => { if (this.hls === hls) this.msg(live ? "Canlı yayın oynatılamadı." : "Video oynatılamadı."); });
     } else if (source) {
       v.src = source;
       v.addEventListener("loadedmetadata", go, { once: true });
@@ -538,7 +613,7 @@ const player = {
     v.removeAttribute("src");
     v.load();
     this.key = null;
-    $("player").classList.remove("playing");
+    $("player").classList.remove("playing", "loading");
     paintPlayer();
   },
   empty(text) {
@@ -555,6 +630,7 @@ const player = {
   },
   msg(text, ic) {
     const m = $("pMsg");
+    if (text) $("player").classList.remove("loading");
     m.hidden = !text;
     m.innerHTML = text ? `${ic ? icon(ic) : ""}<span></span>` : "";
     if (text) m.querySelector("span").textContent = text;
@@ -597,7 +673,9 @@ function paintVolume() {
 function bindPlayer() {
   const v = player.el();
   for (const ev of ["play", "pause", "timeupdate", "durationchange", "seeked"]) v.addEventListener(ev, paintPlayer);
-  v.addEventListener("playing", () => $("player").classList.add("playing"));
+  v.addEventListener("playing", () => { $("player").classList.add("playing"); $("player").classList.remove("loading"); });
+  v.addEventListener("waiting", () => { if (player.key) $("player").classList.add("loading"); });   // takildi, tampon doluyor
+  v.addEventListener("pause", () => $("player").classList.remove("loading"));
   v.addEventListener("volumechange", () => { paintVolume(); player.saveVolume(); });
   v.addEventListener("error", () => { if (player.key) player.msg("Video oynatılamadı."); });
   const toggle = () => { if (player.key) v.paused ? v.play().catch(() => {}) : v.pause(); };
@@ -625,6 +703,7 @@ function fullscreen() {
 }
 
 /* ---------- uzerine gelince onizleme ---------- */
+const SPIN = `<div class="spin" aria-hidden="true"><svg viewBox="0 0 50 50"><circle class="trk" cx="25" cy="25" r="20"/><circle class="arc" cx="25" cy="25" r="20"/></svg></div>`;
 const hover = {
   timer: 0, hls: null, card: null, video: null, url: null,
   start(card) {
@@ -640,6 +719,9 @@ const hover = {
       video.loop = v.kind !== "live";
       const img = card.querySelector(".thumb img");
       img.after(video);
+      const thumb = card.querySelector(".thumb");
+      if (!thumb.querySelector(".spin")) thumb.insertAdjacentHTML("beforeend", SPIN);
+      thumb.classList.add("loading");
       const kind = kindOf(v);
       const start = kind === "live" ? -1 : kind === "vod" ? Math.floor((v.duration || 0) * 0.2) : 0;
       const hls = new Hls({ maxBufferLength: 6, startPosition: start, capLevelToPlayerSize: true, autoStartLoad: true });
@@ -649,9 +731,12 @@ const hover = {
         hls.currentLevel = lo;
         video.play().catch(() => {});
       });
-      video.addEventListener("playing", () => video.classList.add("on"), { once: true });
-      hls.loadSource(v.source);
-      hls.attachMedia(video);
+      video.addEventListener("playing", () => { video.classList.add("on"); thumb.classList.remove("loading"); }, { once: true });
+      hlsUrl(v).then((src) => {
+        if (this.hls !== hls) return;
+        hls.loadSource(src);
+        hls.attachMedia(video);
+      }).catch(() => {});
       this.hls = hls;
       this.video = video;
       this.url = v.url;
@@ -663,6 +748,7 @@ const hover = {
   },
   stop() {
     clearTimeout(this.timer);
+    if (this.card) this.card.querySelector(".thumb").classList.remove("loading");
     if (this.hls) { this.hls.destroy(); this.hls = null; }
     if (this.video) { this.video.pause(); this.video.remove(); this.video = null; }
     this.card = null;
@@ -673,48 +759,67 @@ const hover = {
 /* ---------- inceleme paneli ---------- */
 function focusItem(url, start) {
   state.focus = url;
+  state.libFocus = null;
   paintCards();
+  openWatch();
   renderInspector(start);
+}
+
+/* ---------- oynatici penceresi ----------
+   Kanalda tiklanan video / canli yayin ya da Indirilenler'deki dosya. Kapaninca oynatici durur. */
+function openWatch() {
+  const w = $("watch");
+  if (!w.open) w.showModal();
+  paintWatchNav();
+}
+
+function closeWatch() {
+  if ($("watch").open) $("watch").close();
+}
+
+function onWatchClosed() {
+  player.stop();
+  const lib = state.libFocus;
+  state.focus = null;
+  state.libFocus = null;
+  paintCards();
+  if (lib && state.view === "library") renderLibrary();
+}
+
+/* onceki / sonraki: kanalda izgaradaki sira (canli yayin basta), Indirilenler'de listedeki sira */
+function watchList() {
+  if (state.libFocus) return libVisible().filter((e) => e.exists && !e.chat).map((e) => e.file);
+  const live = state.tab === "vods" && !filtering() && liveItem();
+  return [...(live ? [live.url] : []), ...filtered().map((v) => v.url)];
+}
+
+function watchStep(d) {
+  const list = watchList();
+  const i = list.indexOf(state.libFocus || state.focus);
+  const next = i < 0 ? null : list[i + d];
+  if (!next) return;
+  if (state.libFocus) { playFile(next); return; }
+  hover.stop();
+  focusItem(next);
+  const el = cardEl(next);
+  el && el.scrollIntoView({ block: "nearest" });
+}
+
+function paintWatchNav() {
+  const list = watchList();
+  const i = list.indexOf(state.libFocus || state.focus);
+  $("wPrev").disabled = i <= 0;
+  $("wNext").disabled = i < 0 || i >= list.length - 1;
 }
 
 function renderInspector(start) {
   const body = $("insBody"), btns = $("insBtns");
   $("qualityBox").hidden = false;
-  if (state.view === "library") return renderLibraryInspector();
-  if (state.view !== "channel") return;
-  if (!state.channel) {
-    player.empty("Yükleniyor…");
-    body.innerHTML = "";
-    btns.innerHTML = "";
-    return;
-  }
-  // coklu secim
-  if (state.selected.size >= 2) {
-    const items = [...state.selected].map(itemByUrl).filter(Boolean);
-    const total = items.reduce((a, v) => a + (v.duration || 0), 0);
-    if (!player.key) player.empty(`${items.length} video seçili`);
-    body.innerHTML = `<h2>${items.length} video seçili</h2>
-      <dl class="facts"><dt>Toplam süre</dt><dd>${fmtDuration(total)}</dd></dl>
-      <ul class="selist">${items.map((v) => `<li><img src="${esc(v.thumb || BLANK)}" alt=""><span title="${esc(v.title)}">${esc(cleanTitle(v.title))}</span><small class="num">${fmtDuration(v.duration)}</small></li>`).join("")}</ul>
-      <p class="insnote">Ctrl+tık ya da kartın köşesindeki kutu: seçime ekle / çıkar · Esc: seçimi bırak</p>`;
-    btns.innerHTML = `<button class="btn primary span" data-ins="dlsel">${icon("download")}İndir (${items.length})</button>
-      <button class="btn ghost span" data-ins="clearsel">Seçimi bırak</button>`;
-    return;
-  }
-  const v = state.focus && itemByUrl(state.focus);
-  if (!v) {
-    player.empty("Bir videoya tıkla, burada oynasın.");
-    body.innerHTML = `<div class="insempty">
-      <p><b>Bir videoya tıkla:</b> burada oynar, bilgileri görünür.</p>
-      <p>Oradan tamamını indir, klibi al ya da <b>Kesit al</b> ile yayının içinden parçalar seç.</p>
-      <div class="keys"><span>Ctrl+tık: birden çok seç · Ctrl+A: tümünü seç</span><span>Çift tık: hemen indir · Esc: seçimi bırak</span></div>
-    </div>`;
-    btns.innerHTML = "";
-    return;
-  }
+  const v = state.focus && state.channel && itemByUrl(state.focus);
+  if (!v) { closeWatch(); return; }
   const kind = kindOf(v);
   if (kind === "live") {
-    player.load(`live:${state.channel.slug}`, { source: v.source, poster: v.thumb || v.avatar, live: true });
+    player.load(`live:${state.channel.slug}`, { source: hlsUrl(v), poster: v.thumb || v.avatar, live: true });
     $("insPoster").classList.toggle("avfb", !v.thumb);
   } else {
     player.load(v.url, { source: v.source, poster: v.thumb, start: start ?? hover.time(v.url) ?? 0 });
@@ -728,7 +833,7 @@ function renderInspector(start) {
   }
   const cats = v.categories && v.categories.length ? v.categories : v.category ? [v.category] : [];
   if (cats.length) facts.push([cats.length > 1 ? "Kategoriler" : "Kategori", `<span class="chips">${cats.map((c) => `<span class="chip">${esc(c)}</span>`).join("")}</span>`]);
-  const d = kind === "live" ? state.downloads.find((x) => x.live && x.url === v.url && ACTIVE.concat("queued").includes(x.status)) : state.byUrl.get(v.url);
+  const d = kind === "live" ? liveRec(v.url) : state.byUrl.get(v.url);
   body.innerHTML = `<h2>${esc(cleanTitle(v.title))}${kind === "live" ? `<span class="beta">CANLI</span>` : ""}</h2>
     <dl class="facts">${facts.map(([k, x]) => `<dt>${k}</dt><dd>${x}</dd>`).join("")}</dl>
     ${d ? stateBlock(d) : ""}
@@ -747,6 +852,116 @@ function renderInspector(start) {
       <button class="btn" data-ins="cut">${icon("scissors")}Kesit al</button>
       ${chatButton(v)}`;
   }
+}
+
+async function downloadChat(v) {
+  const n = await state.api.enqueue([{ url: v.url, chat: true, title: cleanTitle(v.title), thumb: v.thumb, duration: Math.round(v.duration || 0) }]);
+  toast(n ? "Sohbet indiriliyor" : "Bu yayının sohbeti zaten iniyor");
+}
+
+/* ---------- kartin "diger islemler" menusu ----------
+   Uc nokta ya da sag tik. Islemler videonun durumuna gore: inmemis, iniyor, durmus / hatali, inmis. */
+const cmenu = { url: null, btn: null };
+
+function cardMenuItems(v) {
+  const kind = kindOf(v), d = state.byUrl.get(v.url);
+  const items = [["watch", "play", "İzle"]];
+  if (!d) items.push(["dl", "download", kind === "clip" ? "Klibi indir" : "Tamamını indir", "go"]);
+  else if (d.status === "done") items.push(["playfile", "play", "İndirileni oynat"], ["reveal", "reveal", "Klasörde göster"]);
+  else if (["stopped", "error"].includes(d.status)) items.push(["retry", "retry", d.status === "error" ? "Tekrar dene" : "Devam ettir", "go"]);
+  else items.push(["cancel", "stop", "İndirmeyi durdur", "danger"]);
+  if (kind === "vod") {
+    items.push(["cut", "scissors", "Kesit al"]);
+    const c = state.downloads.find((x) => x.chat && x.url === v.url);
+    if (!c || ["error", "stopped"].includes(c.status)) items.push(["chat", "chat", "Sohbeti indir"]);
+  }
+  items.push("-", ["select", "check", state.selected.has(v.url) ? "Seçimden çıkar" : "Seç", "", "Ctrl+tık"]);
+  items.push("-", ["kick", "external", "Kick'te aç"], ["copy", "link", "Linki kopyala"]);
+  return items;
+}
+
+function openCardMenu(url, at, btn) {
+  const v = itemByUrl(url);
+  if (!v) return;
+  closeCardMenu(false);
+  hover.stop();
+  cmenu.url = url;
+  cmenu.btn = btn || null;
+  const m = $("cardMenu");
+  m.innerHTML = cardMenuItems(v).map((x) => x === "-" ? "<hr>"
+    : `<button type="button" role="menuitem" data-cm="${x[0]}" class="${x[3] || ""}">${icon(x[1])}<span>${x[2]}</span>${x[4] ? `<small>${x[4]}</small>` : ""}</button>`).join("");
+  m.hidden = false;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  const r = btn ? btn.getBoundingClientRect() : { left: at.x, right: at.x, top: at.y, bottom: at.y };
+  const left = btn ? r.right - w : r.left;
+  const down = window.innerHeight - r.bottom - 8 >= h;
+  m.style.left = `${clamp(left, 8, window.innerWidth - w - 8)}px`;
+  m.style.top = `${down ? r.bottom + 4 : Math.max(8, r.top - h - 4)}px`;
+  m.classList.toggle("up", !down);
+  if (btn) btn.setAttribute("aria-expanded", "true");
+  m.querySelector("button").focus({ preventScroll: true });
+}
+
+function closeCardMenu(focusBtn) {
+  const m = $("cardMenu");
+  if (m.hidden) return;
+  m.hidden = true;
+  if (cmenu.btn) { cmenu.btn.setAttribute("aria-expanded", "false"); if (focusBtn) cmenu.btn.closest(".card").focus(); }
+  cmenu.url = cmenu.btn = null;
+}
+
+async function onCardMenu(act) {
+  const url = cmenu.url, v = itemByUrl(url), d = state.byUrl.get(url);
+  closeCardMenu(false);
+  if (!v) return;
+  if (act === "watch") focusItem(url);
+  else if (act === "dl") await enqueueItems([v]);
+  else if (act === "playfile" && d) playFile(d.filename);
+  else if (act === "reveal" && d) state.api.reveal(d.id);
+  else if (act === "retry" && d) state.api.retry(d.id);
+  else if (act === "cancel" && d) state.api.cancel(d.id);
+  else if (act === "cut") openCutter(cutTarget(v));
+  else if (act === "chat") downloadChat(v);
+  else if (act === "select") { toggleSel(url); state.anchor = url; selectionChanged(); }
+  else if (act === "kick") state.api.open_url(v.url);
+  else if (act === "copy") copyText(v.url).then((ok) => toast(ok ? "Link kopyalandı" : "Link kopyalanamadı"));
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* asagidaki yol */ }
+  const t = document.createElement("textarea");
+  t.value = text;
+  t.style.cssText = "position:fixed;opacity:0";
+  document.body.append(t);
+  t.select();
+  const ok = document.execCommand("copy");
+  t.remove();
+  return ok;
+}
+
+function bindCardMenu() {
+  const m = $("cardMenu");
+  m.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-cm]");
+    if (b) onCardMenu(b.dataset.cm);
+  });
+  m.addEventListener("keydown", (e) => {
+    const items = [...m.querySelectorAll("button")];
+    const i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
+    else if (e.key === "Home") items[0].focus();
+    else if (e.key === "End") items[items.length - 1].focus();
+    else if (e.key === "Escape" || e.key === "Tab") closeCardMenu(e.key === "Escape");
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (!m.hidden && !e.target.closest(".cardmenu") && e.target.closest(".more") !== cmenu.btn) closeCardMenu(false);
+  });
+  $("gridWrap").addEventListener("scroll", () => closeCardMenu(false), { passive: true });
+  window.addEventListener("resize", () => closeCardMenu(false));
+  window.addEventListener("blur", () => closeCardMenu(false));
 }
 
 /* VOD'un sohbeti: videoyla ayni adla .ass + .json; durum dugmenin uzerinde */
@@ -779,11 +994,8 @@ async function onInspectorAction(b) {
   const act = b.dataset.ins;
   const v = state.focus && itemByUrl(state.focus);
   if (act === "dl" && v) await enqueueItems([v]);
-  else if (act === "cut" && v) { player.el().pause(); openCutter(cutTarget(v)); }
-  else if (act === "chat" && v) {
-    const n = await state.api.enqueue([{ url: v.url, chat: true, title: cleanTitle(v.title), thumb: v.thumb, duration: Math.round(v.duration || 0) }]);
-    toast(n ? "Sohbet indiriliyor" : "Bu yayının sohbeti zaten iniyor");
-  }
+  else if (act === "cut" && v) { closeWatch(); openCutter(cutTarget(v)); }
+  else if (act === "chat" && v) downloadChat(v);
   else if (act === "record" && v) {
     const n = await state.api.enqueue([{ url: v.url, title: cleanTitle(v.title), thumb: v.thumb || v.avatar, live: true }]);
     toast(n ? "Canlı kayıt başladı" : "Bu kanal zaten kaydediliyor");
@@ -791,10 +1003,7 @@ async function onInspectorAction(b) {
   else if (act === "stoprec" || act === "cancel") state.api.cancel(Number(b.dataset.id));
   else if (act === "retry") state.api.retry(Number(b.dataset.id));
   else if (act === "reveal") state.api.reveal(Number(b.dataset.id));
-  else if (act === "playfile") { showView("library"); playFile(b.dataset.file); }
-  else if (act === "dlsel") await downloadSelected([...state.selected]);
-  else if (act === "clearsel") { state.selected.clear(); selectionChanged(); }
-  else if (act === "lplay") playFile(b.dataset.file, true);
+  else if (act === "playfile" || act === "lplay") playFile(b.dataset.file);
   else if (act === "lopen") { player.el().pause(); state.api.open_file(b.dataset.file); }   // ayni anda iki yerde calmasin
   else if (act === "lreveal") state.api.reveal_file(b.dataset.file);
   else if (act === "ldel") deleteFile(b.dataset.file);
@@ -925,7 +1134,7 @@ function refreshStateBlock() {
   const v = itemByUrl(state.focus);
   if (!v || state.selected.size >= 2) return;
   const kind = kindOf(v);
-  const d = kind === "live" ? state.downloads.find((x) => x.live && x.url === v.url && ACTIVE.concat("queued").includes(x.status)) : state.byUrl.get(v.url);
+  const d = kind === "live" ? liveRec(v.url) : state.byUrl.get(v.url);
   const chatBtn = $("insBtns").querySelector('[data-ins="chat"]');
   if (chatBtn) {
     const tmpBtn = document.createElement("div");
@@ -1120,9 +1329,14 @@ function dayLabel(ts) {
   return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: now.getFullYear() === d.getFullYear() ? undefined : "numeric" });
 }
 
+function libVisible() {
+  const q = fold(state.libQuery);
+  return state.library.filter((e) => !q || fold(e.title).includes(q) || fold(e.channel).includes(q));
+}
+
 function renderLibrary() {
   const q = fold(state.libQuery);
-  const items = state.library.filter((e) => !q || fold(e.title).includes(q) || fold(e.channel).includes(q));
+  const items = libVisible();
   const groups = new Map();
   for (const e of items) {
     const k = dayLabel(e.done);
@@ -1147,11 +1361,13 @@ function libEntry(file) {
   return state.library.find((e) => e.file === file);
 }
 
-async function playFile(file, keep) {
+async function playFile(file) {
   const e = libEntry(file);
+  if (!e) return;
+  state.focus = null;
   state.libFocus = file;
-  if (state.view !== "library") showView("library");
-  renderLibrary();
+  if (state.view === "library") renderLibrary();
+  openWatch();
   renderLibraryInspector();
   if (!e || !e.exists) return;
   if (e.chat) { player.poster(e.thumb, "Sohbet kaydı. Videoyu aynı klasörden VLC ya da MPC ile açınca sohbet ekranda akar."); return; }
@@ -1166,12 +1382,7 @@ function renderLibraryInspector() {
   const body = $("insBody"), btns = $("insBtns");
   $("qualityBox").hidden = true;
   const e = state.libFocus && libEntry(state.libFocus);
-  if (!e) {
-    if (!player.key || !player.key.startsWith("file:")) player.empty("Bir dosyaya tıkla, burada oynasın.");
-    body.innerHTML = `<div class="insempty"><p><b>İndirdiğin bir dosyaya tıkla:</b> burada oynar.</p><p>Dosyayı Windows oynatıcısında açabilir, klasörde gösterebilir ya da silebilirsin. Silinen dosya Geri Dönüşüm Kutusu'na gider.</p></div>`;
-    btns.innerHTML = "";
-    return;
-  }
+  if (!e) { closeWatch(); return; }
   const facts = [["Kanal", esc(e.channel)], ["Boyut", fmtBytes(e.size)], ["İndirildi", new Date(e.done * 1000).toLocaleString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })]];
   if (e.sections) facts.push(["Kesitler", e.sections.map((x) => `${fmtDuration(x[0])}–${fmtDuration(x[1])}`).join(", ")]);
   else if (e.section) facts.push(["Kesit", `${fmtDuration(e.section[0])} – ${fmtDuration(e.section[1])}`]);
@@ -1196,10 +1407,9 @@ async function deleteFile(file) {
   await new Promise((r) => setTimeout(r, 150));
   const res = await state.api.library_remove(file, e.exists);
   if (!res.ok) { toast(res.error); return; }
-  if (state.libFocus === file) state.libFocus = null;
+  if (state.libFocus === file) closeWatch();
   toast(res.trashed ? "Dosya Geri Dönüşüm Kutusu'na taşındı" : "Listeden kaldırıldı");
   await refreshLibrary();
-  renderLibraryInspector();
 }
 
 /* ---------- ayarlar ---------- */
@@ -1257,7 +1467,7 @@ function bindSettings() {
       if (key === "hoverPreview" && !on) hover.stop();
     });
   }
-  $("setQuality").addEventListener("change", async (e) => { await saveSetting({ quality: e.target.value }); $("quality").value = e.target.value; syncSelect($("quality")); });
+  $("setQuality").addEventListener("change", (e) => setQuality(e.target.value, true));
   const num = (v) => (v === "auto" ? "auto" : Number(v));
   $("setParallel").addEventListener("change", (e) => saveSetting({ parallel: num(e.target.value) }));
   $("setThreads").addEventListener("change", (e) => saveSetting({ fragThreads: num(e.target.value) }));
@@ -2582,9 +2792,16 @@ function bindDrop() {
 
 /* ---------- kucuk yardimcilar ---------- */
 let toastTimer;
+/* kalite tek ayar: oynatici penceresi, secim cubugu ve ayarlardaki kutular birlikte */
+async function setQuality(q, quiet) {
+  await saveSetting({ quality: q }, true);
+  for (const id of ["quality", "selQuality", "setQuality"]) { $(id).value = q; syncSelect($(id)); }
+  if (!quiet) toast(`Kalite: ${q}`);
+}
+
 function toast(msg) {
   const t = $("toast");
-  const host = $("cutter").open ? $("cutter") : document.body;   // modal acikken ustte gorunsun
+  const host = $("cutter").open ? $("cutter") : $("watch").open ? $("watch") : document.body;   // modal acikken ustte gorunsun
   if (t.parentElement !== host) host.append(t);
   t.textContent = msg;
   t.hidden = false;
@@ -2647,7 +2864,6 @@ function bind() {
     const t = e.target.closest(".tab");
     if (!t || t.dataset.tab === state.tab) return;
     setTab(t.dataset.tab);
-    if (t.dataset.tab === "live") focusItem(liveItem().url);
   });
   let qTimer;
   $("fQuery").addEventListener("input", (e) => {
@@ -2672,16 +2888,20 @@ function bind() {
     const c = e.target.closest(".card[data-url]");
     if (!c) return;
     const url = c.dataset.url;
+    const lb = e.target.closest("[data-live]");
+    if (lb) { onLiveAction(lb); return; }
+    const mb = e.target.closest(".more");
+    if (mb) { $("cardMenu").hidden || cmenu.btn !== mb ? openCardMenu(url, null, mb) : closeCardMenu(false); return; }
     if (e.target.closest(".cutbtn")) { hover.stop(); player.el().pause(); openCutter(cutTarget(itemByUrl(url))); return; }
-    if (e.target.closest(".check") || e.ctrlKey || e.metaKey) {
-      if ((itemByUrl(url) || {}).kind === "live") return;
-      if (!state.selected.size && state.focus && state.focus !== url && !e.target.closest(".check")) toggleSel(state.focus, true);
+    const live = c.classList.contains("livecard");
+    // secim varken tik secime ekler / cikarir; izlemek icin kartin ortasindaki oynat dugmesi
+    if (!live && !e.target.closest(".cplay") && !e.shiftKey && (e.target.closest(".check") || e.ctrlKey || e.metaKey || state.selected.size)) {
       toggleSel(url);
       state.anchor = url;
       selectionChanged();
       return;
     }
-    if (e.shiftKey && state.anchor) {
+    if (!live && e.shiftKey && state.anchor) {
       const urls = filtered().map((v) => v.url);
       const [a, b] = [urls.indexOf(state.anchor), urls.indexOf(url)].sort((x, y) => x - y);
       if (a >= 0) urls.slice(a, b + 1).forEach((u) => toggleSel(u, true));
@@ -2694,15 +2914,21 @@ function bind() {
     state.anchor = url;
     focusItem(url, t ?? undefined);
   });
-  grid.addEventListener("dblclick", (e) => {
-    if (e.target.closest(".cutbtn, .check")) return;
-    const c = e.target.closest(".card[data-url]");
-    if (c && itemByUrl(c.dataset.url).kind !== "live") downloadSelected([c.dataset.url]);
+  grid.addEventListener("contextmenu", (e) => {
+    const c = e.target.closest(".card[data-url]:not(.livecard)");
+    if (!c) return;
+    e.preventDefault();
+    openCardMenu(c.dataset.url, { x: e.clientX, y: e.clientY }, null);
   });
   grid.addEventListener("keydown", (e) => {
     const c = e.target.closest(".card[data-url]");
     if (!c) return;
-    if (e.key === " ") { e.preventDefault(); toggleSel(c.dataset.url); selectionChanged(); }
+    if ((e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) && !c.classList.contains("livecard")) {
+      e.preventDefault();
+      openCardMenu(c.dataset.url, null, c.querySelector(".more"));
+      return;
+    }
+    if (e.key === " " && !c.classList.contains("livecard")) { e.preventDefault(); toggleSel(c.dataset.url); selectionChanged(); }
     if (e.key === "Enter") focusItem(c.dataset.url);
   });
   grid.addEventListener("pointerover", (e) => {
@@ -2715,15 +2941,27 @@ function bind() {
     if (c && !c.contains(e.relatedTarget)) hover.stop();
   });
 
-  // inceleme
+  // secim cubugu
+  $("selCount").addEventListener("click", toggleSelList);
+  $("selClear").addEventListener("click", () => { state.selected.clear(); selectionChanged(); });
+  $("selDl").addEventListener("click", () => downloadSelected([...state.selected]));
+  $("selList").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-unsel]");
+    if (b) { toggleSel(b.dataset.unsel, false); selectionChanged(); }
+  });
+
+  // oynatici penceresi
+  const watch = $("watch");
+  watch.addEventListener("close", onWatchClosed);
+  watch.addEventListener("click", (e) => { if (e.target === watch) closeWatch(); });   // panelin disi
+  $("wClose").addEventListener("click", closeWatch);
+  $("wPrev").addEventListener("click", () => watchStep(-1));
+  $("wNext").addEventListener("click", () => watchStep(1));
   $("inspector").addEventListener("click", (e) => {
     const b = e.target.closest("[data-ins]");
     if (b) onInspectorAction(b);
   });
-  $("quality").addEventListener("change", async (e) => {
-    await saveSetting({ quality: e.target.value }, true);
-    toast(`Kalite: ${e.target.value}`);
-  });
+  for (const id of ["quality", "selQuality"]) $(id).addEventListener("change", (e) => setQuality(e.target.value));
   bindPlayer();
   $("insPoster").addEventListener("error", (e) => {
     const l = player.live && liveItem();
@@ -2776,6 +3014,10 @@ function bind() {
     if (e.key === "m" && player.key) { v.muted = !v.muted; return; }
     if (e.key === "f" && player.key) { fullscreen(); return; }
     if (e.key === "k" && player.key) { v.paused ? v.play().catch(() => {}) : v.pause(); return; }
+    if ($("watch").open) {
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.target.type !== "range") { e.preventDefault(); watchStep(e.key === "ArrowLeft" ? -1 : 1); }
+      return;
+    }
     if (state.view !== "channel") return;
     if (e.key === "a" && e.ctrlKey) {
       e.preventDefault();
@@ -2787,6 +3029,7 @@ function bind() {
   window.addEventListener("resize", () => { if (!$("favPop").hidden) $("favPop").hidden = true; });
 
   enhanceSelects();
+  bindCardMenu();
   bindCutter();
   bindSettings();
   // kesit editorundeki "Uzunluk" degisince ayar da degissin
@@ -2800,8 +3043,10 @@ async function start(api) {
   state.cfg = cfg;
   state.settings = cfg.settings;
   state.favorites = cfg.favorites || [];
-  $("quality").innerHTML = cfg.qualities.map((q) => `<option>${q}</option>`).join("");
-  $("quality").value = cfg.quality;
+  for (const id of ["quality", "selQuality"]) {
+    $(id).innerHTML = cfg.qualities.map((q) => `<option>${q}</option>`).join("");
+    $(id).value = cfg.quality;
+  }
   bind();
   syncSelects();
   applySectionLength();
