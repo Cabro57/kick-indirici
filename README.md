@@ -149,11 +149,10 @@ Bitenler güne göre gruplanır. Dosya uygulamanın içinde oynar, Windows oynat
 
 ### Hazır sürüm (önerilen)
 
-1. [**Releases**](https://github.com/Cabro57/kick-indirici/releases) sayfasından son `KickIndirici.exe` dosyasını indir.
-2. **`ffmpeg.exe`** dosyasını `KickIndirici.exe`'nin yanına koy (ya da ffmpeg'i PATH'e ekle). ffmpeg olmadan videolar iner ama kesit, canlı kayıt ve son mp4 düzeltmesi çalışmaz.
-3. Çift tıkla çalıştır. Kurulum yok.
+1. [**Releases**](https://github.com/Cabro57/kick-indirici/releases) sayfasından son `KickIndirici-…-windows.zip` dosyasını indir.
+2. Bir klasöre çıkar ve **`KickIndirici.exe`**'yi aç. Kurulum yok. `ffmpeg.exe` zip'in içinde, exe'nin yanında durmalı.
 
-> ffmpeg için: [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) üzerinden "release essentials" yeterli, ya da `winget install Gyan.FFmpeg`.
+> ffmpeg olmadan videolar iner ama kesit, canlı kayıt ve son mp4 düzeltmesi çalışmaz. Kaynaktan çalıştırıyorsan ffmpeg'i kendin kur: `winget install Gyan.FFmpeg`, ya da [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) üzerinden "release essentials".
 
 ### Gereksinimler
 
@@ -162,7 +161,7 @@ Bitenler güne göre gruplanır. Dosya uygulamanın içinde oynar, Windows oynat
 | **İşletim sistemi** | Windows 10 ya da 11 |
 | **WebView2 Runtime** | Windows 11'de hazır gelir. Yoksa program açılışta indirme sayfasını önerir. |
 | **.NET Framework 4.6.2+** | Windows'ta hazır gelir. |
-| **ffmpeg** | Kesit, canlı kayıt ve mp4 düzeltmesi için |
+| **ffmpeg** | Kesit, canlı kayıt ve mp4 düzeltmesi için (zip'te hazır) |
 
 ### Kaynaktan çalıştır
 
