@@ -870,6 +870,7 @@ function cardMenuItems(v) {
   else if (d.status === "done") items.push(["playfile", "play", "İndirileni oynat"], ["reveal", "reveal", "Klasörde göster"]);
   else if (["stopped", "error"].includes(d.status)) items.push(["retry", "retry", d.status === "error" ? "Tekrar dene" : "Devam ettir", "go"]);
   else items.push(["cancel", "stop", "İndirmeyi durdur", "danger"]);
+  if (d && d.status !== "done" && !d.live) items.push(["abort", "trash", "İptal et ve yarım dosyaları sil", "danger"]);
   if (kind === "vod") {
     items.push(["cut", "scissors", "Kesit al"]);
     const c = state.downloads.find((x) => x.chat && x.url === v.url);
@@ -920,6 +921,7 @@ async function onCardMenu(act) {
   else if (act === "reveal" && d) state.api.reveal(d.id);
   else if (act === "retry" && d) state.api.retry(d.id);
   else if (act === "cancel" && d) state.api.cancel(d.id);
+  else if (act === "abort" && d) state.api.abort(d.id);
   else if (act === "cut") openCutter(cutTarget(v));
   else if (act === "chat") downloadChat(v);
   else if (act === "select") { toggleSel(url); state.anchor = url; selectionChanged(); }
@@ -985,8 +987,8 @@ function stateBlock(d) {
   const showBar = ["downloading", "merging", "preparing", "recording", "queued"].includes(d.status);
   const acts = d.status === "done"
     ? `<div class="btnrow"><button class="btn sm" data-ins="playfile" data-file="${esc(d.filename)}">${icon("play")}Oynat</button><button class="btn ghost sm" data-ins="reveal" data-id="${d.id}">${icon("reveal")}Klasörde göster</button></div>`
-    : ["stopped", "error"].includes(d.status) ? `<div class="btnrow"><button class="btn sm" data-ins="retry" data-id="${d.id}">${icon("retry")}Tekrar dene</button></div>`
-    : `<div class="btnrow"><button class="btn ghost sm danger" data-ins="cancel" data-id="${d.id}">${icon("stop")}Durdur</button></div>`;
+    : ["stopped", "error"].includes(d.status) ? `<div class="btnrow"><button class="btn sm" data-ins="retry" data-id="${d.id}">${icon("retry")}Tekrar dene</button>${d.live ? "" : `<button class="btn ghost sm danger" data-ins="abort" data-id="${d.id}">${icon("trash")}İptal et</button>`}</div>`
+    : `<div class="btnrow"><button class="btn ghost sm danger" data-ins="cancel" data-id="${d.id}">${icon("stop")}Durdur</button>${d.live ? "" : `<button class="btn ghost sm danger" data-ins="abort" data-id="${d.id}">${icon("trash")}İptal et</button>`}</div>`;
   return `<div class="insstate ${d.status}" data-k="${d.id}:${d.status}"><p>${line}</p>${showBar ? `<div class="bar"><i style="transform:scaleX(${d.status === "queued" ? 0 : d.pct / 100})"></i></div>` : ""}${sub ? `<p class="num">${esc(sub)}</p>` : ""}${acts}</div>`;
 }
 
@@ -1002,6 +1004,7 @@ async function onInspectorAction(b) {
   }
   else if (act === "stoprec" || act === "cancel") state.api.cancel(Number(b.dataset.id));
   else if (act === "retry") state.api.retry(Number(b.dataset.id));
+  else if (act === "abort") state.api.abort(Number(b.dataset.id));
   else if (act === "reveal") state.api.reveal(Number(b.dataset.id));
   else if (act === "playfile" || act === "lplay") playFile(b.dataset.file);
   else if (act === "lopen") { player.el().pause(); state.api.open_file(b.dataset.file); }   // ayni anda iki yerde calmasin
@@ -1271,9 +1274,9 @@ function actionsFor(d) {
     `<button class="iconbtn ${cls}" data-act="${act}" data-id="${d.id}" title="${label}" aria-label="${label}">${icon(ic)}</button>`;
   switch (d.status) {
     case "queued": case "preparing": case "downloading": case "merging": case "recording":
-      return { key: "run", html: b("cancel", "stop", d.live ? "Kaydı durdur" : "Durdur", "danger") };
+      return { key: "run", html: b("cancel", "stop", d.live ? "Kaydı durdur" : "Durdur", "danger") + (d.live ? "" : b("abort", "trash", "İptal et ve yarım dosyaları sil", "danger")) };
     default:
-      return { key: "bad", html: b("retry", "retry", "Tekrar dene") + b("remove", "x", "Listeden kaldır") };
+      return { key: "bad", html: b("retry", "retry", "Tekrar dene") + (d.live ? "" : b("abort", "trash", "İptal et ve yarım dosyaları sil", "danger")) + b("remove", "x", "Listeden kaldır") };
   }
 }
 
@@ -1399,10 +1402,37 @@ function renderLibraryInspector() {
     : `<button class="btn ghost span" data-ins="ldel" data-file="${esc(e.file)}">${icon("x")}Listeden kaldır</button>`;
 }
 
+/* onay penceresi: true/false doner. Varsayilan odak "Vazgec"te; Esc ve disari tik de vazgecer. */
+function askConfirm({ title, name, thumb, text, ok, ic = "trash" }) {
+  const dlg = $("askDlg");
+  $("askIc").firstElementChild.setAttribute("href", `#i-${ic}`);
+  $("askTitle").textContent = title;
+  $("askText").textContent = text;
+  $("askYes").textContent = ok;
+  $("askItem").hidden = !name;
+  $("askName").textContent = name || "";
+  $("askThumb").src = thumb || BLANK;
+  return new Promise((resolve) => {
+    dlg.returnValue = "no";
+    dlg.addEventListener("close", () => resolve(dlg.returnValue === "yes"), { once: true });
+    dlg.showModal();
+    $("askNo").focus();
+  });
+}
+
+/* pencere kapatilirken indirme suruyorsa: Python kapanmayi iptal eder, bunu cagirir */
+async function askExit() {
+  if ($("askDlg").open) return;
+  const ok = await askConfirm({ title: "Çıkılsın mı?", ic: "power", ok: "Durdur ve çık",
+    text: "İndirmeler sürüyor. Durdurup çıkarsan yarım kalanlar sonra kaldığı yerden devam eder." });
+  if (ok) state.api.exit_now();
+}
+
 async function deleteFile(file) {
   const e = libEntry(file);
   if (!e) return;
-  if (e.exists && !confirm(`"${cleanTitle(e.title)}" silinsin mi?\n\nDosya Geri Dönüşüm Kutusu'na taşınır.`)) return;
+  if (e.exists && !(await askConfirm({ title: "Dosya silinsin mi?", name: cleanTitle(e.title), thumb: e.thumb || avatarFor(e.url),
+    text: "Dosya Geri Dönüşüm Kutusu'na taşınır; oradan geri alabilirsin.", ok: "Sil" }))) return;
   if (player.key === `file:${file}`) player.stop();     // acik dosya silinemez
   await new Promise((r) => setTimeout(r, 150));
   const res = await state.api.library_remove(file, e.exists);
@@ -2830,7 +2860,8 @@ function bind() {
   window.addEventListener("focus", () => checkClipboard());
   $("keysBtn").addEventListener("click", () => $("keysDlg").showModal());
   $("keysClose").addEventListener("click", () => $("keysDlg").close());
-  $("keysDlg").addEventListener("click", (e) => { if (e.target === $("keysDlg")) $("keysDlg").close(); });   // disari tiklayinca
+  $("keysDlg").addEventListener("click", (e) => { if (e.target === $("keysDlg")) $("keysDlg").close(); });
+  $("askDlg").addEventListener("click", (e) => { if (e.target === $("askDlg")) $("askDlg").close("no"); });   // disari tiklayinca
   $("afterDone").addEventListener("change", async (e) => {
     const mode = await state.api.set_after_done(e.target.value);
     toast({ none: "Bitince bir şey yapılmayacak", sleep: "İndirmeler bitince bilgisayar uykuya alınacak", shutdown: "İndirmeler bitince bilgisayar kapanacak (1 dk içinde iptal edebilirsin)" }[mode]);
@@ -3006,6 +3037,7 @@ function bind() {
 
   // klavye
   document.addEventListener("keydown", (e) => {
+    if ($("askDlg").open) return;
     if ($("cutter").open) return cutterKey(e);
     if ($("keysDlg").open) return;
     const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName);

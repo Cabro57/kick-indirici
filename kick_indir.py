@@ -16,6 +16,7 @@ import array
 import base64
 import calendar
 import collections
+import glob
 import http.server
 import copy
 import ctypes
@@ -643,6 +644,7 @@ class Download:
         self.filename = ""
         self.exact = False
         self.cancel = False
+        self.discard = False   # kullanici iptal etti: yarim kalan dosyalar silinir (kapanista silinmez, devam edilir)
         # klip: az parcali, sabit hazirlik/birlestirme payi yuksek
         self.short = bool(re.search(r"/clips?/|[?&]clip=", url))
 
@@ -903,6 +905,7 @@ class Api:
         # cok paralel istek: 8 -> 32 is parcacigi ilk karelerde 17-21 -> 50-65 parca/sn (PERF.md)
         self._strip_pool = ThreadPoolExecutor(max_workers=32)
         self._closing = False
+        self._exit_ok = False
         self._dirty = threading.Event()
         self._force = False
         self._live_favs = set()         # su an canli olan favoriler (sync ile arayuze gider)
@@ -955,7 +958,7 @@ class Api:
         """Durmus ve hatali indirmelerin hepsini yeniden kuyruga alir (or. onceki oturumdan gelenler)."""
         for d in list(self._downloads.values()):
             if d.status in ("stopped", "error") and not d.live:
-                d.cancel, d.error, d.status = False, "", "queued"
+                d.cancel, d.discard, d.error, d.status = False, False, "", "queued"
         self._push(force=True)
 
     def set_after_done(self, mode):
@@ -1279,13 +1282,34 @@ class Api:
         self._push(force=True)
         return added
 
-    def cancel(self, did):
+    def cancel(self, did, discard=False):
+        """Durdurur (yarim dosya kalir, devam edilebilir). discard: iptal; yarim dosyalar silinir, satir kalkar."""
         d = self._downloads.get(did)
         if d and d.status in ("queued",) + ACTIVE_ALL:
             d.cancel = True
+            d.discard = discard and not d.live
             if d.status == "queued":
                 d.status = "stopped"
         self._push(force=True)
+
+    def abort(self, did):
+        """Iptal et: indirmeyi durdurur, diskte biraktigi yarim dosyalari ve listedeki satirini siler."""
+        d = self._downloads.get(did)
+        if not d or d.live or d.status == "done":
+            return
+        if d.status in ACTIVE_ALL:
+            self.cancel(did, discard=True)    # is parcacigi durunca temizler
+            return
+        d.discard = True
+        self._discard_partial(d, self._work_dir(d) if d.sections else None)
+        with self._lock:
+            self._downloads.pop(did, None)
+        self._push(force=True)
+
+    def exit_now(self):
+        """Cikis onayi verildi: kapanma olayi bu sefer onay sormadan gecer."""
+        self._exit_ok = True
+        threading.Thread(target=self._window.destroy, daemon=True).start()
 
     def cancel_all(self):
         for d in list(self._downloads.values()):
@@ -1294,7 +1318,7 @@ class Api:
     def retry(self, did):
         d = self._downloads.get(did)
         if d and d.status in ("stopped", "error"):
-            d.cancel = False
+            d.cancel = d.discard = False
             d.error = ""
             d.status = "queued"
         self._push(force=True)
@@ -1305,6 +1329,10 @@ class Api:
             if d and d.status not in ACTIVE_ALL:
                 d.cancel = True
                 del self._downloads[did]
+            else:
+                d = None
+        if d and d.status in ("stopped", "error", "queued") and not d.live:
+            self._discard_partial(d, self._work_dir(d) if d.sections else None)   # listeden kalkan indirmenin yarim dosyasi kalmasin
         self._push(force=True)
 
     def clear_done(self):
@@ -1627,6 +1655,9 @@ class Api:
             d.speed = 0.0
             if d.status == "done":
                 self._remember(d)
+            elif d.status == "stopped" and d.discard:
+                self._discard_partial(d)
+                self._downloads.pop(d.id, None)
             self._push(force=True)
 
     def _download_merged(self, d):
@@ -1637,7 +1668,7 @@ class Api:
         total = sum(b - a for a, b in d.sections) or 1
         prog = {"base": 0.0, "share": 0.0}   # bitmis kesitlerin suresi, sureninki
         anchor = None
-        work = os.path.join(self._folder, ".kesitler-" + hashlib.md5(d.key.encode()).hexdigest()[:10])
+        work = self._work_dir(d)
 
         def hook(info):
             if d.cancel:
@@ -1737,7 +1768,29 @@ class Api:
             d.speed = 0.0
             if d.status == "done":
                 self._remember(d)
+            elif d.status == "stopped" and d.discard:
+                self._discard_partial(d, work)
+                self._downloads.pop(d.id, None)
             self._push(force=True)
+
+    def _work_dir(self, d):
+        return os.path.join(self._folder, ".kesitler-" + hashlib.md5(d.key.encode()).hexdigest()[:10])
+
+    @staticmethod
+    def _discard_partial(d, work=None):
+        """Iptal edilen indirmenin diskte biraktigi yarim dosyalari siler (.part, parca dosyalari,
+        .ytdl, kesit/birlestirme gecicileri, kesit klasoru). Bitmis dosyaya dokunmaz."""
+        if work:
+            shutil.rmtree(work, ignore_errors=True)
+        if not d.filename:
+            return
+        base = glob.escape(d.filename)
+        for pat in (base + ".part*", base + ".ytdl", base + ".kesit*", base + ".birlesik*"):
+            for f in glob.glob(pat):
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
 
     @staticmethod
     def _prepare_section(ydl, info, section):
@@ -2198,8 +2251,9 @@ def main():
     def on_closing():
         # Arayuz thread'inde calisir: evaluate_js'e giden hicbir sey (or. cancel_all -> _push) cagrilmamali.
         busy = any(d.status in ACTIVE_ALL for d in api._downloads.values())
-        if busy and not window.create_confirmation_dialog(
-                "Çıkış", "İndirmeler sürüyor. Durdurup çıkılsın mı? (Yarım kalanlar sonra kaldığı yerden devam eder.)"):
+        if busy and not api._exit_ok:
+            # onay uygulamanin kendi penceresinde sorulur; kapanma simdilik iptal, evet denirse exit_now kapatir
+            threading.Thread(target=lambda: window.evaluate_js("askExit()"), daemon=True).start()
             return False
         api._closing = True
         api._dirty.set()

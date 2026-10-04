@@ -349,6 +349,17 @@
   </div>
   <p class="keysfoot">Kesit editörünün kendi kısayolları orada, sağ üstteki <b>Kısayollar</b> düğmesinde.</p>
 </dialog>
+<dialog class="askdlg" id="askDlg" aria-labelledby="askTitle" aria-describedby="askText">
+  <form method="dialog">
+    <div class="askhead"><span class="askic"><svg class="ic" id="askIc"><use href="#i-trash"/></svg></span><h2 id="askTitle"></h2></div>
+    <div class="askitem" id="askItem" hidden><img id="askThumb" alt=""><p id="askName"></p></div>
+    <p class="asktext" id="askText"></p>
+    <div class="askbtns">
+      <button class="btn" id="askNo" value="no" type="submit" autofocus>Vazgeç</button>
+      <button class="btn okbtn" id="askYes" value="yes" type="submit"></button>
+    </div>
+  </form>
+</dialog>
 <ul class="ddmenu" id="ddMenu" role="listbox" hidden></ul>
 <div class="cardmenu" id="cardMenu" role="menu" hidden></div>
 <form class="favpop" id="favPop" hidden autocomplete="off">
