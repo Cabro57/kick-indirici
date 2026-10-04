@@ -2013,7 +2013,8 @@ class Api:
         entry = {"file": d.filename, "title": d.title, "thumb": d.thumb, "url": d.url,
                  "section": list(d.section) if d.section else None,
                  "sections": [list(x) for x in d.sections] if d.sections else None, "live": d.live, "chat": d.chat,
-                 "channel": parse_link(d.url)[0] or "", "size": os.path.getsize(d.filename), "done": time.time()}
+                 "channel": parse_link(d.url)[0] or (re.match(r"https://kick\.com/([\w-]+)/clips?/", d.url) or [None, ""])[1],
+                 "size": os.path.getsize(d.filename), "done": time.time()}
         with self._lock:
             self._history = [e for e in self._history if e["file"] != d.filename] + [entry]
             self._history = self._history[-HISTORY_MAX:]
