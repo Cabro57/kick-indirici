@@ -6,7 +6,7 @@ import shutil
 import sys
 
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 
 
 UPDATE_REPO = "Cabro57/kick-indirici"         # surumler bu GitHub deposunun release'lerinden okunur

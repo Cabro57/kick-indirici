@@ -1046,6 +1046,9 @@ kbd { font: 600 11px var(--font); padding: 1px 5px; border-radius: 4px; backgrou
 .notice p b { font-weight: 600; }
 .notice p .num { color: var(--muted); }
 .notice .btn.sm { height: 28px; }
+.notice.run p { flex: none; }
+.notice .meter { flex: 1; max-width: 320px; margin: 0; }
+.notice .meter.wait i { transform: scaleX(1); opacity: .4; animation: livebeat 1.2s ease-in-out infinite; }
 
 /* ---------- favori otomatik isleri ---------- */
 .autobox { display: flex; gap: 6px; }

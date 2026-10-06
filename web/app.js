@@ -2874,15 +2874,47 @@ async function checkUpdate(manual) {
     notice("update", {
       icon: "gift", text: `Yeni sürüm çıktı: <b>${esc(r.version)}</b> <span class="num">(şu an ${esc(r.current)})</span>`,
       actions: r.setup
-        ? [["Güncelle ve yeniden başlat", async () => {
-              toast("Güncelleme indiriliyor…");
-              const u = await state.api.install_update(r.setup);
-              if (!u.ok) toast(u.error);
-            }, "primary"],
+        ? [["Güncelle ve yeniden başlat", () => runUpdate(r), "primary"],
            ["Sürüm notları", () => state.api.open_url(r.url)]]
         : [["İndirme sayfasını aç", () => state.api.open_url(r.url), "primary"]],
     });
   } else if (manual) toast(r.ok ? `Güncel sürümü kullanıyorsun (${r.current})` : "Güncelleme denetlenemedi. İnterneti kontrol et.");
+}
+
+/* guncelleme: indirme ve kurulum ayni seritte ilerler; ilerleme arka yuzden okunur, serit kapatilamaz */
+async function runUpdate(r) {
+  const u = await state.api.install_update(r.setup);
+  if (!u.ok) return updateFailed(r, u.error);
+  notice("update-run", { icon: "gift", text: "", sticky: true });
+  const el = state.notices.get("update-run");
+  el.classList.add("run");
+  el.setAttribute("aria-live", "off");
+  el.querySelector("p").after(Object.assign(document.createElement("div"), {
+    className: "bar meter", role: "progressbar", ariaLabel: "Güncelleme ilerlemesi", innerHTML: "<i></i>",
+  }));
+  const text = el.querySelector("p"), meter = el.querySelector(".meter");
+  for (;;) {
+    let p;
+    try { p = await state.api.update_progress(); } catch { return; }   // uygulama kapandı: yeni sürüm açılıyor
+    if (p.phase === "error") { closeNotice("update-run"); return updateFailed(r, p.error); }
+    const known = p.phase === "downloading" && p.total > 0;
+    const pct = known ? Math.floor((p.done / p.total) * 100) : null;
+    meter.classList.toggle("wait", !known);
+    meter.firstElementChild.style.transform = known ? `scaleX(${p.done / p.total})` : "";
+    if (known) meter.setAttribute("aria-valuenow", pct);
+    else meter.removeAttribute("aria-valuenow");
+    text.innerHTML = p.phase === "installing"
+      ? `<b>${esc(r.version)}</b> kuruluyor. Program kapanıp kendiliğinden yeniden açılacak.`
+      : `<b>${esc(r.version)}</b> indiriliyor${known ? ` <span class="num">%${pct} · ${fmtBytes(p.done)} / ${fmtBytes(p.total)}</span>` : ""}`;
+    await new Promise((ok) => setTimeout(ok, 300));
+  }
+}
+
+function updateFailed(r, msg) {
+  notice("update", {
+    icon: "alert", warn: true, text: `Güncelleme tamamlanamadı. ${esc(msg)}`,
+    actions: [["Tekrar dene", () => runUpdate(r), "primary"], ["İndirme sayfasını aç", () => state.api.open_url(r.url)]],
+  });
 }
 
 /* onceki oturumdan yarim kalan indirmeler: kendiliginden baslamaz, kullaniciya sorulur */
