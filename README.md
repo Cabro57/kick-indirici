@@ -7,7 +7,7 @@
 **Kick yayınlarını, kliplerini ve canlı yayınlarını hattın izin verdiği hızla indir.**
 İzle, içinden istediğin anı kes, canlıyı kaydet. Hepsi tek pencerede.
 
-![Sürüm](https://img.shields.io/badge/sürüm-1.0.5-53FC18?style=flat-square&labelColor=0b0e0f)
+![Sürüm](https://img.shields.io/badge/sürüm-1.0.0-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-53FC18?style=flat-square&labelColor=0b0e0f)
 
 <br>
@@ -272,7 +272,12 @@ Program verisini şurada tutar: `%APPDATA%\KickIndirici\`
 
 ## Güncellemeler
 
-Yeni sürüm çıkınca program açılışta haber verir (ayarlardan kapatılır). Kurucuyla kurduysan **Güncelle ve yeniden başlat**'a basman yeter: program yeni sürümü indirir, kurar ve kendiliğinden yeniden açar. Zip'ten çalıştırıyorsan yeni zip'i eski klasörün üzerine çıkar.
+Yeni sürüm çıkınca program açılışta haber verir (ayarlardan kapatılır) ve kendini günceller; yalnızca değişen dosyalar iner.
+
+- **Güncelle:** yeni sürüm arka planda iner. Bitince **Yeniden başlat**'a basarsan hemen geçer; basmazsan programı bir sonraki açışında yeni sürüm açılır.
+- **Güncelle ve yeniden başlat:** indirir ve hemen yeni sürümle yeniden açar.
+
+Zip'ten kurulumsuz kullanıyorsan da aynı şekilde çalışır; yeter ki klasör yazılabilir olsun.
 
 Ayarların ve geçmişin `%APPDATA%` içinde durduğu için güncellemede kaybolmaz.
 
