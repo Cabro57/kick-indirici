@@ -7,7 +7,7 @@
 **Kick yayınlarını, kliplerini ve canlı yayınlarını hattın izin verdiği hızla indir.**
 İzle, içinden istediğin anı kes, canlıyı kaydet. Hepsi tek pencerede.
 
-![Sürüm](https://img.shields.io/badge/sürüm-1.0.4-53FC18?style=flat-square&labelColor=0b0e0f)
+![Sürüm](https://img.shields.io/badge/sürüm-1.0.5-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Python](https://img.shields.io/badge/Python-3-53FC18?style=flat-square&labelColor=0b0e0f)
 
@@ -358,9 +358,9 @@ exe_yap.bat
 python -m PyInstaller --noconfirm KickIndirici.spec
 ```
 
-Çıktı `dist\KickIndirici.exe`. Kurucuyu (`dist\KickIndirici-Setup-<sürüm>.exe`) [Inno Setup 6](https://jrsoftware.org/isinfo.php) ile `ISCC /DAppVersion=1.0.4 installer\KickIndirici.iss` derler.
+Çıktı `dist\KickIndirici.exe`. Kurucuyu (`dist\KickIndirici-Setup-<sürüm>.exe`) [Inno Setup 6](https://jrsoftware.org/isinfo.php) ile `ISCC /DAppVersion=1.0.5 installer\KickIndirici.iss` derler.
 
-**Sürüm çıkarmak:** `src/kickindir/config.py` içindeki `VERSION`'ı artır, commit'le, `git tag v1.0.5 && git push --tags`. `.github/workflows/release.yml` exe'yi, kurucuyu ve zip'i derleyip [kick-indirici](https://github.com/Cabro57/kick-indirici) deposuna sürüm olarak yükler. Bunun için bu depoda `RELEASE_TOKEN` secret'ı (kick-indirici'ye *Contents: write* yetkili bir fine-grained token) tanımlı olmalı. Hız denemelerinin kaydı için [PERF.md](PERF.md)'ye bak.
+**Sürüm çıkarmak:** `src/kickindir/config.py` içindeki `VERSION`'ı artır, commit'le, `git tag v1.0.6 && git push --tags`. `.github/workflows/release.yml` exe'yi, kurucuyu ve zip'i derleyip [kick-indirici](https://github.com/Cabro57/kick-indirici) deposuna sürüm olarak yükler. Bunun için bu depoda `RELEASE_TOKEN` secret'ı (kick-indirici'ye *Contents: write* yetkili bir fine-grained token) tanımlı olmalı. Hız denemelerinin kaydı için [PERF.md](PERF.md)'ye bak.
 
 <br>
 

@@ -126,7 +126,7 @@ class AppMixin:
         env = {k: v for k, v in os.environ.items() if not k.startswith("_PYI") and k != "_MEIPASS2"}
         env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
         try:
-            subprocess.Popen([path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
+            subprocess.Popen([path, "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
                               "/LOG=" + os.path.join(DATA_DIR, "update.log")],
                              creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
                              close_fds=True, env=env)
@@ -134,6 +134,7 @@ class AppMixin:
             log.info("kurucu baslatilamadi: %s", e)
             state.update(phase="error", error="Kurucu başlatılamadı.")
             return
+        # /SILENT: kurucu kendi ilerleme penceresini gosterir; pencere kapaninca arada bos ekran kalmaz
         time.sleep(1.5)     # arayuz "kuruluyor" durumunu bir an gosterebilsin
         self.exit_now()
 
