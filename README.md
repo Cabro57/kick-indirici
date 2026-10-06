@@ -7,7 +7,7 @@
 **Kick yayınlarını, kliplerini ve canlı yayınlarını hattın izin verdiği hızla indir.**
 İzle, içinden istediğin anı kes, canlıyı kaydet. Hepsi tek pencerede.
 
-![Sürüm](https://img.shields.io/badge/sürüm-1.0.3-53FC18?style=flat-square&labelColor=0b0e0f)
+![Sürüm](https://img.shields.io/badge/sürüm-1.0.4-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-53FC18?style=flat-square&labelColor=0b0e0f)
 
 <br>
@@ -146,12 +146,18 @@ Bitenler güne göre gruplanır. Dosya uygulamanın içinde oynar, Windows oynat
 
 ## Kurulum
 
-### Hazır sürüm
+### Tek tıkla kurulum (önerilen)
 
-1. [**Releases**](https://github.com/Cabro57/kick-indirici/releases) sayfasından son `KickIndirici-…-windows.zip` dosyasını indir.
-2. Bir klasöre çıkar ve **`KickIndirici.exe`**'yi aç. Kurulum yok. `ffmpeg.exe` zip'in içinde, exe'nin yanında durmalı.
+1. [**Releases**](https://github.com/Cabro57/kick-indirici/releases/latest) sayfasından **`KickIndirici-Setup-….exe`** dosyasını indir.
+2. Aç ve **Kur**'a bas. Yönetici izni gerekmez. Başlat menüsüne kısayol eklenir, `ffmpeg` içinde hazır gelir.
 
-> ffmpeg olmadan videolar iner ama kesit, canlı kayıt ve son mp4 düzeltmesi çalışmaz. `ffmpeg.exe`, `KickIndirici.exe` ile aynı klasörde durmalı.
+> Windows "bilgisayarını korudu" (SmartScreen) uyarısı gösterirse **Ek bilgi → Yine de çalıştır**'a bas. Program henüz imzasız olduğu için çıkar.
+
+### Kurulumsuz (zip)
+
+`KickIndirici-…-windows.zip` dosyasını bir klasöre çıkar ve **`KickIndirici.exe`**'yi aç. `ffmpeg.exe` exe'nin yanında durmalı.
+
+> ffmpeg olmadan videolar iner ama kesit, canlı kayıt ve son mp4 düzeltmesi çalışmaz.
 
 ### Gereksinimler
 
@@ -160,7 +166,9 @@ Bitenler güne göre gruplanır. Dosya uygulamanın içinde oynar, Windows oynat
 | **İşletim sistemi** | Windows 10 ya da 11 |
 | **WebView2 Runtime** | Windows 11'de hazır gelir. Yoksa program açılışta indirme sayfasını önerir. |
 | **.NET Framework 4.6.2+** | Windows'ta hazır gelir. |
-| **ffmpeg** | Kesit, canlı kayıt ve mp4 düzeltmesi için (zip'te hazır gelir) |
+| **ffmpeg** | Kesit, canlı kayıt ve mp4 düzeltmesi için (kurucuda ve zip'te hazır) |
+
+<br>
 
 ## Nasıl kullanılır
 
@@ -264,7 +272,9 @@ Program verisini şurada tutar: `%APPDATA%\KickIndirici\`
 
 ## Güncellemeler
 
-Yeni sürüm çıkınca program açılışta haber verir (ayarlardan kapatılır). Yeni zip'i indirip eski klasörün üzerine çıkarman yeterli. Ayarların ve geçmişin `%APPDATA%` içinde olduğu için kaybolmaz.
+Yeni sürüm çıkınca program açılışta haber verir (ayarlardan kapatılır). Kurucuyla kurduysan **Güncelle ve yeniden başlat**'a basman yeter: program yeni sürümü indirir, kurar ve kendiliğinden yeniden açar. Zip'ten çalıştırıyorsan yeni zip'i eski klasörün üzerine çıkar.
+
+Ayarların ve geçmişin `%APPDATA%` içinde durduğu için güncellemede kaybolmaz.
 
 <br>
 
@@ -286,7 +296,7 @@ Windows 10'da bazı ekran kartı sürücüleri WebView2'yi siyah çizer. Program
 
 <br>
 
-`ffmpeg.exe` dosyası `KickIndirici.exe` ile aynı klasörde olmalı. Zip'i yeniden çıkar. ffmpeg PATH'te kuruluysa program onu da bulur.
+`ffmpeg.exe` dosyasını `KickIndirici.exe`'nin yanına koy ya da PATH'e ekle. Terminalde `ffmpeg -version` çalışıyorsa program da bulur.
 
 </details>
 
@@ -296,15 +306,6 @@ Windows 10'da bazı ekran kartı sürücüleri WebView2'yi siyah çizer. Program
 <br>
 
 Kick erişimi reddetti. Tekrar dene; sürerse video silinmiş ya da abonelere özel olabilir.
-
-</details>
-
-<details>
-<summary><b>Abonelere özel yayınlar iner mi?</b></summary>
-
-<br>
-
-Hayır. Program Kick hesabına giriş yapmaz; yalnızca herkese açık yayınları ve klipleri indirir.
 
 </details>
 
@@ -322,9 +323,11 @@ Ayarlarda *Canlı kaydı mp4'e çevir* kapalıdır. Uygulamanın oynatıcısı `
 
 <br>
 
-`%APPDATA%\KickIndirici\log.txt` dosyasına bak ve sorun bildirirken ekle.
+`%APPDATA%\KickIndirici\log.txt` dosyasına bak. Kaynaktan çalıştırırken `python kick_indir.py --debug` geliştirici araçlarını açar.
 
 </details>
+
+<br>
 
 <br>
 
