@@ -46,7 +46,7 @@ from curl_cffi import requests as cffi_requests
 from yt_dlp.downloader.common import FileDownloader
 from yt_dlp.utils import DownloadCancelled
 
-VERSION = "1.0.5"
+VERSION = "1.0.0"
 UPDATE_REPO = "Cabro57/kick-indirici"         # surumler bu GitHub deposunun release'lerinden okunur
 QUALITIES = ["En iyi", "1080p60", "720p60", "480p", "360p", "160p"]
 # Dosya adi sablonu: kullanici {kanal} {baslik} {tarih} {id} yazar, yt-dlp sablonuna cevrilir.
