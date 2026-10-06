@@ -5,7 +5,7 @@ Bu pakette bulunan ffmpeg.exe, FFmpeg projesinin bir parçasıdır ve
 Kick İndirici'den ayrı bir programdır. Kick İndirici onu yalnızca ayrı bir
 süreç olarak çalıştırır.
 
-Sürüm   : ffmpeg "release essentials" (www.gyan.dev, Windows 64 bit, statik), en güncel kararlı sürüm
+Sürüm   : ffmpeg 9.0.2 "essentials" (www.gyan.dev, Windows 64 bit, statik)
 Lisans  : GNU General Public License, sürüm 3 ya da daha yenisi (GPLv3+)
           Derleme --enable-gpl --enable-version3 ile yapılmıştır.
 Telif   : Copyright (c) 2000-2026 the FFmpeg developers
@@ -14,7 +14,7 @@ Kaynak kod
 ----------
 GPLv3 gereği bu ikili dosyanın kaynak koduna şuradan ulaşabilirsin:
 
-- FFmpeg kaynak kodu (sürüm numarası ffmpeg -version çıktısında):  https://ffmpeg.org/releases/ffmpeg-<sürüm>.tar.xz
+- FFmpeg 9.0.2 kaynak kodu:  https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
 - Bu derlemenin yapıldığı yer, kullanılan kütüphaneler ve derleme ayarları:
   https://www.gyan.dev/ffmpeg/builds/
 - FFmpeg lisans bilgisi:  https://ffmpeg.org/legal.html

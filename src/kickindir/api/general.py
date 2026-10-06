@@ -1,16 +1,11 @@
 """Uygulama genelindeki JS cagrilari: baslangic, pano, guncelleme, ayarlar."""
 
-import json
 import os
 import re
 import subprocess
-import tempfile
-import threading
-import urllib.parse
-import urllib.request
 import webview
 
-from kickindir.config import ACTIVE_ALL, AFTER_DONE, DATA_DIR, FRAG_THREADS, FRAG_THREADS_MAX, MAX_PARALLEL, NAME_DEFAULT, NAME_TOKENS, QUALITIES, UPDATE_REPO, VERSION, app_dir, log
+from kickindir.config import AFTER_DONE, FRAG_THREADS, FRAG_THREADS_MAX, MAX_PARALLEL, NAME_DEFAULT, NAME_TOKENS, QUALITIES, UPDATE_REPO, VERSION, log
 from kickindir.core.engine import LIMITER
 from kickindir.services.kick import fetch_channel, kick_error, parse_link, vod_channel
 from kickindir.core.prefs import PREFS, int_or_auto
@@ -57,117 +52,6 @@ class AppMixin:
             subprocess.run(["shutdown", "/a"], capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
             self._shutdown_at = None
         self._push(force=True)
-
-    def check_update(self):
-        """GitHub'daki son surum bundan yeniyse {"update": True, "version", "url", "notes"}."""
-        # curl_cffi'nin Chrome taklidi GitHub API'sinde baglantiyi kopariyor; duz urllib yeterli
-        req = urllib.request.Request(f"https://api.github.com/repos/{UPDATE_REPO}/releases/latest",
-                                     headers={"Accept": "application/vnd.github+json", "User-Agent": f"KickIndirici/{VERSION}"})
-        try:
-            with urllib.request.urlopen(req, timeout=10) as r:
-                rel = json.load(r)
-        except urllib.error.HTTPError as e:
-            if e.code == 404:                 # henuz surum yayinlanmamis
-                return {"ok": True, "update": False, "current": VERSION}
-            log.info("guncelleme kontrolu: %s", e)
-            return {"ok": False, "update": False, "current": VERSION}
-        except Exception as e:  # noqa: BLE001 - guncelleme kontrolu hicbir seyi durdurmaz
-            log.info("guncelleme kontrolu: %s", e)
-            return {"ok": False, "update": False, "current": VERSION}
-        latest = (rel.get("tag_name") or "").lstrip("vV")
-
-        def parts(v):
-            return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
-        setup = next((a.get("browser_download_url") for a in rel.get("assets") or []
-                      if re.fullmatch(r"KickIndirici-Setup-.*\.exe", a.get("name") or "")), None)
-        # uygulama-ici kurulum yalnizca kurucuyla kurulmus surumde (yaninda unins000.exe var) sunulur
-        installed = os.path.exists(os.path.join(app_dir(), "unins000.exe"))
-        return {"ok": True, "update": bool(latest) and parts(latest) > parts(VERSION), "current": VERSION,
-                "version": latest, "url": rel.get("html_url") or f"https://github.com/{UPDATE_REPO}/releases",
-                "setup": setup if installed else None, "notes": (rel.get("body") or "")[:600]}
-
-    _update_state = {"phase": "idle", "done": 0, "total": 0, "error": ""}
-    _update_setup = None        # indirilmis, kurulmayi bekleyen kurucu
-    _update_launched = False
-
-    def install_update(self, url, restart=True):
-        """Guncellemeyi arka planda indirir ve hemen doner; ilerleme update_progress() ile sorulur.
-        restart: indirme bitince kurucu calisir, program kapanir ve yeni surum acilir.
-        Degilse "ready" olur: restart_to_update() ile ya da program kapanirken sessizce kurulur."""
-        prefix = f"https://github.com/{UPDATE_REPO}/releases/download/"
-        if not (isinstance(url, str) and url.startswith(prefix) and url.endswith(".exe")):
-            return {"ok": False, "error": "Geçersiz güncelleme adresi."}
-        if restart and any(d.status in ACTIVE_ALL for d in self._downloads.values()):
-            return {"ok": False, "error": "Sürmekte olan indirmeler var. Bitince ya da durdurunca güncelle."}
-        if self._update_state["phase"] in ("downloading", "installing"):
-            return {"ok": True, "started": False}
-        if self._update_state["phase"] == "ready":
-            return self.restart_to_update() if restart else {"ok": True, "started": False}
-        self._update_state = {"phase": "downloading", "done": 0, "total": 0, "error": ""}
-        threading.Thread(target=self._update_worker, args=(url, bool(restart)), daemon=True).start()
-        return {"ok": True, "started": True}
-
-    def update_progress(self):
-        """{"phase": idle|downloading|ready|installing|error, "done": bayt, "total": bayt (0 = bilinmiyor), "error": metin}"""
-        return dict(self._update_state)
-
-    def restart_to_update(self):
-        """Indirilmis guncellemeyi simdi kurar: kurucu ilerleme penceresini gosterir, program kapanip yeni surumle acilir."""
-        if not self._update_setup:
-            return {"ok": False, "error": "Kurulacak güncelleme yok."}
-        if any(d.status in ACTIVE_ALL for d in self._downloads.values()):
-            return {"ok": False, "error": "Sürmekte olan indirmeler var. Bitince ya da durdurunca yeniden başlat."}
-        if not self._launch_setup(relaunch=True):
-            self._update_state.update(phase="error", error="Kurucu başlatılamadı.")
-            return {"ok": False, "error": "Kurucu başlatılamadı."}
-        self._update_state["phase"] = "installing"
-        threading.Timer(1.5, self.exit_now).start()     # arayuz "kuruluyor" durumunu bir an gosterebilsin
-        return {"ok": True}
-
-    def _apply_pending_update(self):
-        """Program kapanirken: indirilmis ama kurulmamis guncelleme varsa pencere gostermeden kurar,
-        programi yeniden acmaz. Bir sonraki acilis yeni surumle olur."""
-        if self._update_setup and not self._update_launched:
-            self._launch_setup(relaunch=False)
-
-    def _launch_setup(self, relaunch):
-        # kurucunun actigi yeni exe bu surecin PyInstaller ortamini miras almasin
-        env = {k: v for k, v in os.environ.items() if not k.startswith("_PYI") and k != "_MEIPASS2"}
-        env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
-        # /SILENT: kurucu kendi ilerleme penceresini gosterir; kapanista ise /VERYSILENT ve yeniden acilmaz
-        args = [self._update_setup, "/SILENT" if relaunch else "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
-                "/CLOSEAPPLICATIONS", "/LOG=" + os.path.join(DATA_DIR, "update.log")]
-        if not relaunch:
-            args.append("/NORUN=1")
-        try:
-            subprocess.Popen(args, creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
-                             close_fds=True, env=env)
-        except OSError as e:
-            log.info("kurucu baslatilamadi: %s", e)
-            return False
-        self._update_launched = True
-        return True
-
-    def _update_worker(self, url, restart):
-        state = self._update_state
-        path = os.path.join(tempfile.gettempdir(), os.path.basename(urllib.parse.urlparse(url).path))
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": f"KickIndirici/{VERSION}"})
-            with urllib.request.urlopen(req, timeout=30) as r, open(path, "wb") as f:
-                state["total"] = int(r.headers.get("Content-Length") or 0)
-                while chunk := r.read(256 * 1024):
-                    f.write(chunk)
-                    state["done"] += len(chunk)
-        except Exception as e:  # noqa: BLE001
-            log.info("guncelleme indirilemedi: %s", e)
-            state.update(phase="error", error="Güncelleme indirilemedi. İnterneti kontrol et.")
-            return
-        self._update_setup = path
-        state["phase"] = "ready"
-        if restart:
-            r = self.restart_to_update()
-            if not r["ok"]:
-                state.update(phase="error", error=r["error"])
 
     def open_url(self, url):
         """Tarayicida acar. Yalnizca GitHub surum sayfasi ve kick.com: arayuz baska adres acamaz."""

@@ -7,7 +7,7 @@
 **Kick yayınlarını, kliplerini ve canlı yayınlarını hattın izin verdiği hızla indir.**
 İzle, içinden istediğin anı kes, canlıyı kaydet. Hepsi tek pencerede.
 
-![Sürüm](https://img.shields.io/badge/sürüm-1.0.7-53FC18?style=flat-square&labelColor=0b0e0f)
+![Sürüm](https://img.shields.io/badge/sürüm-1.0.0-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Python](https://img.shields.io/badge/Python-3-53FC18?style=flat-square&labelColor=0b0e0f)
 
@@ -338,13 +338,15 @@ kick_indir.py     Giriş noktası (src/ klasörünü yola ekleyip kickindir.app.
 src/kickindir/    Python motoru
   config.py         Sabitler, dosya yolları, uygulama klasörleri
   app.py            Pencere, tek kopya denetimi, main()
-  api/              Arayüze açılan Api: __init__.py birleştirir; general, queue_control,
+  api/              Arayüze açılan Api: __init__.py birleştirir; general, updates, queue_control,
                     workers, library, favorites, cuts, browse parçalarından oluşur
-  services/         kick (Kick API'si), chat (sohbet), media (önizleme, medya sunucusu), notify (bildirim)
+  services/         kick (Kick API'si), chat (sohbet), media (önizleme, medya sunucusu), notify (bildirim),
+                    updater (manifest'e göre dosya güncelleme)
   core/             engine (hız sınırlayıcı, indirme kaydı), storage (ayarlar, kuyruk, geçmiş), prefs, util
 web/              Arayüz (index.html, app.css, app.js, vendor/ içinde hls.js)
 assets/           Logo ve uygulama ikonu
 tools/make_logo.py  Logo ve ikonu üreten betik
+tools/make_manifest.py  Sürümün manifest.json'unu üreten betik
 PRODUCT.md        Ürünün ne yaptığı ve kısıtları
 DESIGN.md         Görsel tasarım sistemi
 PERF.md           Hız denemeleri ve sonuçları
@@ -358,9 +360,9 @@ exe_yap.bat
 python -m PyInstaller --noconfirm KickIndirici.spec
 ```
 
-Çıktı `dist\KickIndirici.exe`. Kurucuyu (`dist\KickIndirici-Setup-<sürüm>.exe`) [Inno Setup 6](https://jrsoftware.org/isinfo.php) ile `ISCC /DAppVersion=1.0.7 installer\KickIndirici.iss` derler.
+Çıktı `dist\KickIndirici.exe`. Kurucuyu (`dist\KickIndirici-Setup-<sürüm>.exe`) [Inno Setup 6](https://jrsoftware.org/isinfo.php) ile `ISCC /DAppVersion=1.0.0 installer\KickIndirici.iss` derler.
 
-**Sürüm çıkarmak:** `src/kickindir/config.py` içindeki `VERSION`'ı artır, commit'le, `git tag v1.0.8 && git push --tags`. `.github/workflows/release.yml` exe'yi, kurucuyu ve zip'i derleyip [kick-indirici](https://github.com/Cabro57/kick-indirici) deposuna sürüm olarak yükler. Bunun için bu depoda `RELEASE_TOKEN` secret'ı (kick-indirici'ye *Contents: write* yetkili bir fine-grained token) tanımlı olmalı. Hız denemelerinin kaydı için [PERF.md](PERF.md)'ye bak.
+**Sürüm çıkarmak:** `src/kickindir/config.py` içindeki `VERSION`'ı artır, commit'le, `git tag v1.0.1 && git push --tags`. `.github/workflows/release.yml` exe'yi, kurucuyu ve zip'i derleyip [kick-indirici](https://github.com/Cabro57/kick-indirici) deposuna sürüm olarak yükler. Uygulama içi güncelleme bu sürümdeki `manifest.json`'a bakar ve yalnızca değişen dosyaları (SHA-256 ile doğrulayarak) indirir; manifest okunamazsa kurucuya döner. Yeni bir dosya eklemek için workflow'daki `make_manifest.py` satırına eklemek yeter. Bunun için bu depoda `RELEASE_TOKEN` secret'ı (kick-indirici'ye *Contents: write* yetkili bir fine-grained token) tanımlı olmalı. Hız denemelerinin kaydı için [PERF.md](PERF.md)'ye bak.
 
 <br>
 

@@ -1,9 +1,14 @@
 name: release
 
-# v1.2.3 etiketi atilinca: exe + kurucu + zip derlenir, herkese acik surum deposuna yuklenir.
+# v1.2.3 etiketi atilinca: exe + kurucu + zip + manifest derlenir, herkese acik surum deposuna yuklenir.
+# Uygulama-ici guncelleyici manifest.json'u okur ve yalnizca degisen dosyalari indirir.
 on:
   push:
     tags: ["v*"]
+
+env:
+  # sabit surum: her derlemede ayni ffmpeg.exe cikar, guncellemede yeniden indirilmez
+  FFMPEG_VERSION: "9.0.2"
 
 jobs:
   build:
@@ -29,7 +34,7 @@ jobs:
       - name: ffmpeg
         shell: bash
         run: |
-          curl -fsSL -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+          curl -fsSL -o ffmpeg.zip "https://github.com/GyanD/codexffmpeg/releases/download/$FFMPEG_VERSION/ffmpeg-$FFMPEG_VERSION-essentials_build.zip"
           7z e ffmpeg.zip "*/bin/ffmpeg.exe" -odist -y
 
       - name: exe
@@ -41,6 +46,15 @@ jobs:
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" installer\KickIndirici.iss
           Compress-Archive -Path dist\KickIndirici.exe, dist\ffmpeg.exe, installer\LICENSE-ffmpeg.txt -DestinationPath "dist\KickIndirici-$env:VERSION-windows.zip"
 
+      - name: Manifest
+        shell: bash
+        run: |
+          cp installer/LICENSE-ffmpeg.txt dist/
+          python tools/make_manifest.py --version "$VERSION" \
+            --base-url "https://github.com/Cabro57/kick-indirici/releases/download/$GITHUB_REF_NAME" \
+            --installer "KickIndirici-Setup-$VERSION.exe" --out dist/manifest.json \
+            KickIndirici.exe=dist/KickIndirici.exe ffmpeg.exe=dist/ffmpeg.exe LICENSE-ffmpeg.txt=dist/LICENSE-ffmpeg.txt
+
       - name: Surumu yayinla
         shell: bash
         env:
@@ -48,4 +62,5 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             "dist/KickIndirici-Setup-$VERSION.exe" "dist/KickIndirici-$VERSION-windows.zip" \
+            dist/manifest.json dist/KickIndirici.exe dist/ffmpeg.exe dist/LICENSE-ffmpeg.txt \
             -R Cabro57/kick-indirici --title "Kick İndirici $VERSION" --generate-notes

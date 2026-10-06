@@ -13,7 +13,7 @@ DefaultDirName={autopf}\KickIndirici
 DefaultGroupName=Kick İndirici
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
+UninstallDisplayName=Kick İndirici
 OutputDir=..\dist
 OutputBaseFilename=KickIndirici-Setup-{#AppVersion}
 SetupIconFile=..\assets\app.ico
@@ -48,7 +48,8 @@ Name: "{autodesktop}\Kick İndirici"; Filename: "{app}\KickIndirici.exe"; Tasks:
 Filename: "{cmd}"; Parameters: "/c set _PYI_APPLICATION_HOME_DIR=& set _PYI_ARCHIVE_FILE=& set _PYI_PARENT_PROCESS_LEVEL=& set _MEIPASS2=& set PYINSTALLER_RESET_ENVIRONMENT=1& start """" ""{app}\KickIndirici.exe"""; Description: "Kick İndirici'yi aç"; Flags: runhidden nowait postinstall; Check: not NoRun
 
 [Code]
-{ program kapanirken kurulan guncelleme /NORUN=1 ile gelir: programi kullanici bir sonraki sefer kendisi acar }
+{ Kurulum her zaman kullanici klasorune: uygulama-ici guncelleyici dosyalari yerinde degistirebilsin.
+  Kurucuyla kapanista guncelleme /NORUN=1 ile gelir: programi kullanici bir sonraki sefer kendisi acar. }
 function NoRun: Boolean;
 begin
   Result := ExpandConstant('{param:norun|0}') = '1';

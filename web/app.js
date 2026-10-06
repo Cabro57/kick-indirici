@@ -2873,7 +2873,7 @@ async function checkUpdate(manual) {
   if (r.update) {
     notice("update", {
       icon: "gift", text: `Yeni sürüm çıktı: <b>${esc(r.version)}</b> <span class="num">(şu an ${esc(r.current)})</span>`,
-      actions: r.setup
+      actions: r.auto
         ? [["Güncelle", () => runUpdate(r, false), "primary"],
            ["Güncelle ve yeniden başlat", () => runUpdate(r, true)],
            ["Sürüm notları", () => state.api.open_url(r.url)]]
@@ -2885,7 +2885,7 @@ async function checkUpdate(manual) {
 /* guncelleme: indirme ve kurulum ayni seritte ilerler; ilerleme arka yuzden okunur, serit kapatilamaz.
    restart=false: indirme bitince "hazir" bildirimi; yeniden baslatinca ya da program kapanirken kurulur */
 async function runUpdate(r, restart) {
-  const u = await state.api.install_update(r.setup, restart);
+  const u = await state.api.install_update(restart);
   if (!u.ok) return updateFailed(r, u.error);
   const strip = updateStrip(r);
   for (;;) {
@@ -2917,13 +2917,13 @@ function updateStrip(r) {
     else meter.removeAttribute("aria-valuenow");
     text.innerHTML = p.phase === "downloading"
       ? `<b>${esc(r.version)}</b> indiriliyor${known ? ` <span class="num">%${pct} · ${fmtBytes(p.done)} / ${fmtBytes(p.total)}</span>` : ""}`
-      : `<b>${esc(r.version)}</b> kuruluyor. Program kapanıp kendiliğinden yeniden açılacak.`;
+      : `<b>${esc(r.version)}</b> kuruldu. Program yeniden başlatılıyor…`;
   };
 }
 
 function updateReady(r) {
   notice("update", {
-    icon: "gift", text: `<b>${esc(r.version)}</b> hazır. Yeniden başlatınca kurulur; şimdi başlatmazsan programı kapattığında kurulur.`,
+    icon: "gift", text: `<b>${esc(r.version)}</b> hazır. Yeniden başlatınca geçilir; şimdi başlatmazsan programı bir sonraki açışında yeni sürüm açılır.`,
     actions: [["Yeniden başlat", async () => {
       const u = await state.api.restart_to_update();
       if (!u.ok) return updateFailed(r, u.error);

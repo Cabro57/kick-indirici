@@ -7,10 +7,12 @@ import shutil
 import sys
 import tempfile
 import threading
+import time
 import webview
 
 from kickindir.api import Api
-from kickindir.config import ACTIVE_ALL, DATA_DIR, INSTANCE_PID, LOG_PATH, WEBVIEW2_PAGE, WEBVIEW2_URL, log, resource_dir
+from kickindir.config import ACTIVE_ALL, DATA_DIR, INSTANCE_PID, LOG_PATH, WEBVIEW2_PAGE, WEBVIEW2_URL, app_dir, log, resource_dir
+from kickindir.services import updater
 from kickindir.services.notify import register_toast_app
 
 
@@ -78,8 +80,17 @@ def single_instance():
     Isimli mutex surec kapaninca (cokse bile) Windows'ca birakilir; pid dosyasi pencereyi bulmak icin."""
     kernel32, user32 = ctypes.windll.kernel32, ctypes.windll.user32
     kernel32.CreateMutexW.restype = ctypes.c_void_p
-    single_instance.mutex = kernel32.CreateMutexW(None, False, "Local\\KickIndirici.SingleInstance")
-    if kernel32.GetLastError() != 183:      # ERROR_ALREADY_EXISTS
+    # guncellemeden sonra acilan yeni surum: eski surec kapanana kadar (en fazla 20 sn) bekler
+    tries = 80 if "--after-update" in sys.argv else 1
+    for _ in range(tries):
+        single_instance.mutex = kernel32.CreateMutexW(None, False, "Local\\KickIndirici.SingleInstance")
+        if kernel32.GetLastError() != 183:      # ERROR_ALREADY_EXISTS
+            break
+        kernel32.CloseHandle(ctypes.c_void_p(single_instance.mutex))
+        time.sleep(0.25)
+    else:
+        single_instance.mutex = None
+    if single_instance.mutex:
         try:
             os.makedirs(DATA_DIR, exist_ok=True)
             with open(INSTANCE_PID, "w") as f:
@@ -117,6 +128,8 @@ def main():
     if not single_instance():
         return
     setup_logging()
+    if getattr(sys, "frozen", False):     # onceki guncellemeden kalan .old dosyalari
+        threading.Thread(target=updater.cleanup, args=(app_dir(),), daemon=True).start()
     build = sys.getwindowsversion().build
     ok, what = webview2_ok()
     log.info("Windows build %s, WebView2/.NET: %s %s", build, ok, what)
@@ -164,7 +177,6 @@ def main():
             return False
         api._closing = True
         api._dirty.set()
-        api._apply_pending_update()
         for d in list(api._downloads.values()):
             d.cancel = True
         # pencere kapandiktan sonra bazi thread'ler (WebView2 .NET) sureci acik tutabiliyor; kurucu
@@ -173,6 +185,7 @@ def main():
             cleanup = threading.Thread(target=lambda: (api._stop_recordings(), api._persist_queue()), daemon=True)
             cleanup.start()
             cleanup.join(3)
+            api._apply_pending_update()
             os._exit(0)
         timer = threading.Timer(4, hard_exit)
         timer.daemon = True
@@ -187,6 +200,7 @@ def main():
     webview.start(debug="--debug" in sys.argv, private_mode=True, storage_path=profile, icon=icon)
     api._stop_recordings()
     api._persist_queue()
+    api._apply_pending_update()
     shutil.rmtree(profile, ignore_errors=True)
     os._exit(0)
 

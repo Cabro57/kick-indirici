@@ -9,6 +9,7 @@ from kickindir.core.engine import AutoTuner, Download, LIMITER
 from kickindir.core.prefs import PREFS, int_or_auto
 from kickindir.core.storage import clean_cut_set, load_history, load_queue, load_settings
 from kickindir.api.general import AppMixin
+from kickindir.api.updates import UpdateMixin
 from kickindir.api.cuts import CutsMixin
 from kickindir.api.favorites import FavoritesMixin
 from kickindir.api.browse import BrowseMixin
@@ -17,7 +18,7 @@ from kickindir.api.library import LibraryMixin
 from kickindir.api.workers import WorkerMixin
 
 
-class Api(AppMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMixin, LibraryMixin, WorkerMixin):
+class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMixin, LibraryMixin, WorkerMixin):
     """JS tarafinin cagirdigi metotlar. '_' ile baslayan ozellikler JS'e acilmaz."""
 
     def __init__(self):
