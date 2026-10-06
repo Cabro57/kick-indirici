@@ -3,9 +3,11 @@
 import json
 import os
 import re
-import shutil
 import subprocess
 import tempfile
+import threading
+import time
+import urllib.parse
 import urllib.request
 import webview
 
@@ -85,29 +87,55 @@ class AppMixin:
                 "version": latest, "url": rel.get("html_url") or f"https://github.com/{UPDATE_REPO}/releases",
                 "setup": setup if installed else None, "notes": (rel.get("body") or "")[:600]}
 
+    _update_state = {"phase": "idle", "done": 0, "total": 0, "error": ""}
+
     def install_update(self, url):
-        """Kurucuyu indirir, sessizce calistirir ve uygulamayi kapatir; kurucu bitince yeni surumu acar."""
+        """Guncellemeyi arka planda baslatir ve hemen doner. Ilerleme update_progress() ile sorulur:
+        indirme biter, kurucu sessizce calisir, uygulama kapanir ve kurucu yeni surumu acar."""
         prefix = f"https://github.com/{UPDATE_REPO}/releases/download/"
         if not (isinstance(url, str) and url.startswith(prefix) and url.endswith(".exe")):
             return {"ok": False, "error": "Geçersiz güncelleme adresi."}
         if any(d.status in ACTIVE_ALL for d in self._downloads.values()):
             return {"ok": False, "error": "Sürmekte olan indirmeler var. Bitince ya da durdurunca güncelle."}
+        if self._update_state["phase"] in ("downloading", "installing"):
+            return {"ok": True, "started": False}
+        self._update_state = {"phase": "downloading", "done": 0, "total": 0, "error": ""}
+        threading.Thread(target=self._update_worker, args=(url,), daemon=True).start()
+        return {"ok": True, "started": True}
+
+    def update_progress(self):
+        """{"phase": idle|downloading|installing|error, "done": bayt, "total": bayt (0 = bilinmiyor), "error": metin}"""
+        return dict(self._update_state)
+
+    def _update_worker(self, url):
+        state = self._update_state
         path = os.path.join(tempfile.gettempdir(), os.path.basename(urllib.parse.urlparse(url).path))
         try:
             req = urllib.request.Request(url, headers={"User-Agent": f"KickIndirici/{VERSION}"})
             with urllib.request.urlopen(req, timeout=30) as r, open(path, "wb") as f:
-                shutil.copyfileobj(r, f)
+                state["total"] = int(r.headers.get("Content-Length") or 0)
+                while chunk := r.read(256 * 1024):
+                    f.write(chunk)
+                    state["done"] += len(chunk)
         except Exception as e:  # noqa: BLE001
             log.info("guncelleme indirilemedi: %s", e)
-            return {"ok": False, "error": "Güncelleme indirilemedi. İnterneti kontrol et."}
+            state.update(phase="error", error="Güncelleme indirilemedi. İnterneti kontrol et.")
+            return
+        state["phase"] = "installing"
         # kurucunun actigi yeni exe bu surecin PyInstaller ortamini miras almasin
         env = {k: v for k, v in os.environ.items() if not k.startswith("_PYI") and k != "_MEIPASS2"}
         env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
-        subprocess.Popen([path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
-                          "/LOG=" + os.path.join(DATA_DIR, "update.log")],
-                         creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP, close_fds=True, env=env)
+        try:
+            subprocess.Popen([path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
+                              "/LOG=" + os.path.join(DATA_DIR, "update.log")],
+                             creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+                             close_fds=True, env=env)
+        except OSError as e:
+            log.info("kurucu baslatilamadi: %s", e)
+            state.update(phase="error", error="Kurucu başlatılamadı.")
+            return
+        time.sleep(1.5)     # arayuz "kuruluyor" durumunu bir an gosterebilsin
         self.exit_now()
-        return {"ok": True}
 
     def open_url(self, url):
         """Tarayicida acar. Yalnizca GitHub surum sayfasi ve kick.com: arayuz baska adres acamaz."""
