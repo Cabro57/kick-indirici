@@ -21,7 +21,8 @@ UninstallDisplayIcon={app}\KickIndirici.exe
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
-CloseApplications=yes
+CloseApplications=force
+CloseApplicationsFilter=KickIndirici.exe
 RestartApplications=no
 ArchitecturesInstallIn64BitMode=x64compatible
 

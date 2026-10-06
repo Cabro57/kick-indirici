@@ -9,7 +9,7 @@ import tempfile
 import urllib.request
 import webview
 
-from kickindir.config import ACTIVE_ALL, AFTER_DONE, FRAG_THREADS, FRAG_THREADS_MAX, MAX_PARALLEL, NAME_DEFAULT, NAME_TOKENS, QUALITIES, UPDATE_REPO, VERSION, app_dir, log
+from kickindir.config import ACTIVE_ALL, AFTER_DONE, DATA_DIR, FRAG_THREADS, FRAG_THREADS_MAX, MAX_PARALLEL, NAME_DEFAULT, NAME_TOKENS, QUALITIES, UPDATE_REPO, VERSION, app_dir, log
 from kickindir.core.engine import LIMITER
 from kickindir.services.kick import fetch_channel, kick_error, parse_link, vod_channel
 from kickindir.core.prefs import PREFS, int_or_auto
@@ -100,7 +100,8 @@ class AppMixin:
         except Exception as e:  # noqa: BLE001
             log.info("guncelleme indirilemedi: %s", e)
             return {"ok": False, "error": "Güncelleme indirilemedi. İnterneti kontrol et."}
-        subprocess.Popen([path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"],
+        subprocess.Popen([path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
+                          "/LOG=" + os.path.join(DATA_DIR, "update.log")],
                          creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP, close_fds=True)
         self.exit_now()
         return {"ok": True}

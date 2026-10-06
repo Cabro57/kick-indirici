@@ -166,6 +166,16 @@ def main():
         api._dirty.set()
         for d in list(api._downloads.values()):
             d.cancel = True
+        # pencere kapandiktan sonra bazi thread'ler (WebView2 .NET) sureci acik tutabiliyor; kurucu
+        # exe'yi yazamaz. Kuyruk kaydedilir, ffmpeg durdurulur, sonra surec zorla bitirilir.
+        def hard_exit():
+            cleanup = threading.Thread(target=lambda: (api._stop_recordings(), api._persist_queue()), daemon=True)
+            cleanup.start()
+            cleanup.join(3)
+            os._exit(0)
+        timer = threading.Timer(4, hard_exit)
+        timer.daemon = True
+        timer.start()
         return True
 
     window.events.closing += on_closing
