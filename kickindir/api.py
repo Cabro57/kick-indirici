@@ -1,0 +1,84 @@
+"""JS'e acilan Api nesnesi: pywebview bu sinifin acik yontemlerini arayuze verir."""
+
+import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
+from .config import FRAG_THREADS_MAX, MAX_PARALLEL, QUALITIES, find_ffmpeg
+from .engine import AutoTuner, Download, LIMITER
+from .prefs import PREFS, int_or_auto
+from .storage import clean_cut_set, load_history, load_queue, load_settings
+from .api_app import AppMixin
+from .api_cuts import CutsMixin
+from .api_favorites import FavoritesMixin
+from .api_browse import BrowseMixin
+from .api_queue import QueueMixin
+from .api_library import LibraryMixin
+from .api_workers import WorkerMixin
+
+
+class Api(AppMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMixin, LibraryMixin, WorkerMixin):
+    """JS tarafinin cagirdigi metotlar. '_' ile baslayan ozellikler JS'e acilmaz."""
+
+    def __init__(self):
+        s = load_settings()
+        self._folder = s.get("folder") or os.path.join(os.path.expanduser("~"), "Downloads", "Kick")
+        self._quality = s.get("quality") if s.get("quality") in QUALITIES else QUALITIES[0]
+        self._parallel = int_or_auto(s.get("parallel"), 1, MAX_PARALLEL)
+        self._threads = int_or_auto(s.get("fragThreads"), 1, FRAG_THREADS_MAX)
+        self._prefs = {}
+        for key, (default, check) in PREFS.items():
+            value = check(s[key]) if key in s else None
+            self._prefs[key] = default if value is None else value
+        # favori: {"slug", "name", "avatar", "seen": en son gorulen VOD'un baslangic zamani}
+        self._favorites = [f for f in s.get("favorites") or [] if isinstance(f, dict) and f.get("slug")]
+        self._fav_lock = threading.Lock()
+        # kayitli kesitler: {vod url: {"uuid", "title", "thumb", "start", "duration", "channel", "updated",
+        #                              "clips": [{"a", "b", "name", "note"}]}}
+        self._cuts = {}
+        for url, entry in (s.get("cuts") or {}).items() if isinstance(s.get("cuts"), dict) else ():
+            entry = clean_cut_set(url, entry)
+            if entry:
+                self._cuts[url] = entry
+        self._cuts_lock = threading.Lock()
+        self._ffmpeg = find_ffmpeg()
+        self._downloads = {}
+        self._lock = threading.Lock()
+        self._tuner = AutoTuner()
+        self._window = None
+        self._ready = False
+        self._last_push = ""
+        self._strips = {}
+        # ilk kareler (strip_thumbs) 32'li gruplar halinde gelir; CDN gecikmesi belirleyici oldugundan
+        # cok paralel istek: 8 -> 32 is parcacigi ilk karelerde 17-21 -> 50-65 parca/sn (PERF.md)
+        self._strip_pool = ThreadPoolExecutor(max_workers=32)
+        self._closing = False
+        self._exit_ok = False
+        self._dirty = threading.Event()
+        self._force = False
+        self._live_favs = set()         # su an canli olan favoriler (sync ile arayuze gider)
+        self._history = load_history()  # Indirilenler: biten her dosya, liste temizlense de kalir
+        self._media = None              # MediaServer; ilk oynatmada acilir
+        LIMITER.rate = self._prefs["speedLimit"] * 1024 * 1024
+        self._after = "none"            # kuyruk bitince yapilacak (AFTER_DONE); her seferinde sifirlanir
+        self._shutdown_at = None        # kapatma komutu verildiyse zamani (iptal edilebilir)
+        self._free = (0.0, None)        # (olcum zamani, bos alan): sync'te diskteki bos yer
+        self._auto_started = {}         # otomatik kayit: kanal -> kaydi baslatilan yayinin baslangici
+        self._live_wake = threading.Event()   # favori ayari degisince canli kontrolunu hemen yaptirir
+        self._restored = 0              # onceki oturumdan geri gelen indirme sayisi
+        for e in load_queue():
+            try:
+                d = Download(e["url"], e.get("title") or e["url"], e.get("thumb") or "",
+                             tuple(e["section"]) if e.get("section") else None,
+                             sections=[tuple(x) for x in e["sections"]] if e.get("sections") else None,
+                             chat=bool(e.get("chat")))
+            except (TypeError, ValueError, IndexError):
+                continue
+            d.duration = e.get("duration") or 0
+            d.status = "stopped"            # kendiliginden baslamaz; kullanici "devam" der
+            self._downloads[d.id] = d
+            self._restored += 1
+        self._saved_queue = None
+        threading.Thread(target=self._scheduler, daemon=True).start()
+        threading.Thread(target=self._pusher, daemon=True).start()
+        threading.Thread(target=self._watch_live, daemon=True).start()

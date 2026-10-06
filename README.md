@@ -7,7 +7,7 @@
 **Kick yayınlarını, kliplerini ve canlı yayınlarını hattın izin verdiği hızla indir.**
 İzle, içinden istediğin anı kes, canlıyı kaydet. Hepsi tek pencerede.
 
-![Sürüm](https://img.shields.io/badge/sürüm-1.0.0-53FC18?style=flat-square&labelColor=0b0e0f)
+![Sürüm](https://img.shields.io/badge/sürüm-1.0.1-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Python](https://img.shields.io/badge/Python-3-53FC18?style=flat-square&labelColor=0b0e0f)
 
@@ -334,7 +334,18 @@ Ayarlarda *Canlı kaydı mp4'e çevir* kapalıdır. Uygulamanın oynatıcısı `
 Arayüz HTML / CSS / JS (`web/`), motor Python. Pencereyi **pywebview** (Edge WebView2) çizer; indirme `yt-dlp`, ağ istekleri `curl_cffi`, kesme ve birleştirme `ffmpeg` ile yapılır.
 
 ```
-kick_indir.py     Python motoru: Kick API, indirme kuyruğu, canlı kayıt, kesit, sohbet
+kick_indir.py     Giriş noktası (yalnızca kickindir.app.main'i çağırır)
+kickindir/        Python motoru
+  config.py         Sabitler, dosya yolları, uygulama klasörleri
+  kick.py           Kick API'si: kanal, VOD, klip, canlı yayın, HLS listeleri
+  engine.py         Hız sınırlayıcı, otomatik ayar, indirme kaydı
+  chat.py           Sohbeti çekme ve .ass altyazıya çevirme
+  media.py          Şerit önizlemeleri ve yerel medya sunucusu
+  storage.py        Ayarlar, kuyruk, geçmiş, kayıtlı kesitler
+  prefs.py, util.py, notify.py   Ayar tanımları, küçük yardımcılar, bildirimler
+  api.py            Arayüze açılan Api (api_*.py karışımlarından oluşur:
+                    app, queue, workers, library, favorites, cuts, browse)
+  app.py            Pencere, tek kopya denetimi, main()
 web/              Arayüz (index.html, app.css, app.js, vendor/ içinde hls.js)
 assets/           Logo ve uygulama ikonu
 tools/make_logo.py  Logo ve ikonu üreten betik
@@ -351,9 +362,9 @@ exe_yap.bat
 python -m PyInstaller --noconfirm KickIndirici.spec
 ```
 
-Çıktı `dist\KickIndirici.exe`. Kurucuyu (`dist\KickIndirici-Setup-<sürüm>.exe`) [Inno Setup 6](https://jrsoftware.org/isinfo.php) ile `ISCC /DAppVersion=1.0.0 installer\KickIndirici.iss` derler.
+Çıktı `dist\KickIndirici.exe`. Kurucuyu (`dist\KickIndirici-Setup-<sürüm>.exe`) [Inno Setup 6](https://jrsoftware.org/isinfo.php) ile `ISCC /DAppVersion=1.0.1 installer\KickIndirici.iss` derler.
 
-**Sürüm çıkarmak:** `kick_indir.py` içindeki `VERSION`'ı artır, commit'le, `git tag v1.0.1 && git push --tags`. `.github/workflows/release.yml` exe'yi, kurucuyu ve zip'i derleyip [kick-indirici](https://github.com/Cabro57/kick-indirici) deposuna sürüm olarak yükler. Bunun için bu depoda `RELEASE_TOKEN` secret'ı (kick-indirici'ye *Contents: write* yetkili bir fine-grained token) tanımlı olmalı. Hız denemelerinin kaydı için [PERF.md](PERF.md)'ye bak.
+**Sürüm çıkarmak:** `kick_indir.py` içindeki `VERSION`'ı artır, commit'le, `git tag v1.0.2 && git push --tags`. `.github/workflows/release.yml` exe'yi, kurucuyu ve zip'i derleyip [kick-indirici](https://github.com/Cabro57/kick-indirici) deposuna sürüm olarak yükler. Bunun için bu depoda `RELEASE_TOKEN` secret'ı (kick-indirici'ye *Contents: write* yetkili bir fine-grained token) tanımlı olmalı. Hız denemelerinin kaydı için [PERF.md](PERF.md)'ye bak.
 
 <br>
 
