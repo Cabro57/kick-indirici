@@ -42,5 +42,7 @@ Name: "{autoprograms}\Kick İndirici"; Filename: "{app}\KickIndirici.exe"
 Name: "{autodesktop}\Kick İndirici"; Filename: "{app}\KickIndirici.exe"; Tasks: desktopicon
 
 [Run]
-; sessiz kurulumda (otomatik guncelleme) de calisir: uygulama kendiliginden yeniden acilir
-Filename: "{app}\KickIndirici.exe"; Description: "Kick İndirici'yi aç"; Flags: nowait postinstall
+; Sessiz kurulumda (otomatik guncelleme) de calisir: uygulama kendiliginden yeniden acilir.
+; Guncelleyen eski exe'nin PyInstaller ortam degiskenleri temizlenir; yoksa yeni exe, kapanan surumun
+; gecici klasorunu (_MEI...) kullanmaya calisir ve "Failed to load Python DLL" der.
+Filename: "{cmd}"; Parameters: "/c set _PYI_APPLICATION_HOME_DIR=& set _PYI_ARCHIVE_FILE=& set _PYI_PARENT_PROCESS_LEVEL=& set _MEIPASS2=& set PYINSTALLER_RESET_ENVIRONMENT=1& start """" ""{app}\KickIndirici.exe"""; Description: "Kick İndirici'yi aç"; Flags: runhidden nowait postinstall

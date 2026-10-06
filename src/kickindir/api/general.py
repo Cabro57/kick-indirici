@@ -100,9 +100,12 @@ class AppMixin:
         except Exception as e:  # noqa: BLE001
             log.info("guncelleme indirilemedi: %s", e)
             return {"ok": False, "error": "Güncelleme indirilemedi. İnterneti kontrol et."}
+        # kurucunun actigi yeni exe bu surecin PyInstaller ortamini miras almasin
+        env = {k: v for k, v in os.environ.items() if not k.startswith("_PYI") and k != "_MEIPASS2"}
+        env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
         subprocess.Popen([path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
                           "/LOG=" + os.path.join(DATA_DIR, "update.log")],
-                         creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP, close_fds=True)
+                         creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP, close_fds=True, env=env)
         self.exit_now()
         return {"ok": True}
 
