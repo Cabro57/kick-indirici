@@ -34,7 +34,7 @@ Name: "desktopicon"; Description: "Masaüstüne kısayol koy"; Flags: unchecked
 
 [Files]
 Source: "..\dist\KickIndirici.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\dist\ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion comparetimestamp
 Source: "LICENSE-ffmpeg.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
