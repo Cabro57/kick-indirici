@@ -6,7 +6,6 @@ import re
 import subprocess
 import tempfile
 import threading
-import time
 import urllib.parse
 import urllib.request
 import webview
@@ -88,26 +87,68 @@ class AppMixin:
                 "setup": setup if installed else None, "notes": (rel.get("body") or "")[:600]}
 
     _update_state = {"phase": "idle", "done": 0, "total": 0, "error": ""}
+    _update_setup = None        # indirilmis, kurulmayi bekleyen kurucu
+    _update_launched = False
 
-    def install_update(self, url):
-        """Guncellemeyi arka planda baslatir ve hemen doner. Ilerleme update_progress() ile sorulur:
-        indirme biter, kurucu sessizce calisir, uygulama kapanir ve kurucu yeni surumu acar."""
+    def install_update(self, url, restart=True):
+        """Guncellemeyi arka planda indirir ve hemen doner; ilerleme update_progress() ile sorulur.
+        restart: indirme bitince kurucu calisir, program kapanir ve yeni surum acilir.
+        Degilse "ready" olur: restart_to_update() ile ya da program kapanirken sessizce kurulur."""
         prefix = f"https://github.com/{UPDATE_REPO}/releases/download/"
         if not (isinstance(url, str) and url.startswith(prefix) and url.endswith(".exe")):
             return {"ok": False, "error": "Geçersiz güncelleme adresi."}
-        if any(d.status in ACTIVE_ALL for d in self._downloads.values()):
+        if restart and any(d.status in ACTIVE_ALL for d in self._downloads.values()):
             return {"ok": False, "error": "Sürmekte olan indirmeler var. Bitince ya da durdurunca güncelle."}
         if self._update_state["phase"] in ("downloading", "installing"):
             return {"ok": True, "started": False}
+        if self._update_state["phase"] == "ready":
+            return self.restart_to_update() if restart else {"ok": True, "started": False}
         self._update_state = {"phase": "downloading", "done": 0, "total": 0, "error": ""}
-        threading.Thread(target=self._update_worker, args=(url,), daemon=True).start()
+        threading.Thread(target=self._update_worker, args=(url, bool(restart)), daemon=True).start()
         return {"ok": True, "started": True}
 
     def update_progress(self):
-        """{"phase": idle|downloading|installing|error, "done": bayt, "total": bayt (0 = bilinmiyor), "error": metin}"""
+        """{"phase": idle|downloading|ready|installing|error, "done": bayt, "total": bayt (0 = bilinmiyor), "error": metin}"""
         return dict(self._update_state)
 
-    def _update_worker(self, url):
+    def restart_to_update(self):
+        """Indirilmis guncellemeyi simdi kurar: kurucu ilerleme penceresini gosterir, program kapanip yeni surumle acilir."""
+        if not self._update_setup:
+            return {"ok": False, "error": "Kurulacak güncelleme yok."}
+        if any(d.status in ACTIVE_ALL for d in self._downloads.values()):
+            return {"ok": False, "error": "Sürmekte olan indirmeler var. Bitince ya da durdurunca yeniden başlat."}
+        if not self._launch_setup(relaunch=True):
+            self._update_state.update(phase="error", error="Kurucu başlatılamadı.")
+            return {"ok": False, "error": "Kurucu başlatılamadı."}
+        self._update_state["phase"] = "installing"
+        threading.Timer(1.5, self.exit_now).start()     # arayuz "kuruluyor" durumunu bir an gosterebilsin
+        return {"ok": True}
+
+    def _apply_pending_update(self):
+        """Program kapanirken: indirilmis ama kurulmamis guncelleme varsa pencere gostermeden kurar,
+        programi yeniden acmaz. Bir sonraki acilis yeni surumle olur."""
+        if self._update_setup and not self._update_launched:
+            self._launch_setup(relaunch=False)
+
+    def _launch_setup(self, relaunch):
+        # kurucunun actigi yeni exe bu surecin PyInstaller ortamini miras almasin
+        env = {k: v for k, v in os.environ.items() if not k.startswith("_PYI") and k != "_MEIPASS2"}
+        env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+        # /SILENT: kurucu kendi ilerleme penceresini gosterir; kapanista ise /VERYSILENT ve yeniden acilmaz
+        args = [self._update_setup, "/SILENT" if relaunch else "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
+                "/CLOSEAPPLICATIONS", "/LOG=" + os.path.join(DATA_DIR, "update.log")]
+        if not relaunch:
+            args.append("/NORUN=1")
+        try:
+            subprocess.Popen(args, creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+                             close_fds=True, env=env)
+        except OSError as e:
+            log.info("kurucu baslatilamadi: %s", e)
+            return False
+        self._update_launched = True
+        return True
+
+    def _update_worker(self, url, restart):
         state = self._update_state
         path = os.path.join(tempfile.gettempdir(), os.path.basename(urllib.parse.urlparse(url).path))
         try:
@@ -121,22 +162,12 @@ class AppMixin:
             log.info("guncelleme indirilemedi: %s", e)
             state.update(phase="error", error="Güncelleme indirilemedi. İnterneti kontrol et.")
             return
-        state["phase"] = "installing"
-        # kurucunun actigi yeni exe bu surecin PyInstaller ortamini miras almasin
-        env = {k: v for k, v in os.environ.items() if not k.startswith("_PYI") and k != "_MEIPASS2"}
-        env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
-        try:
-            subprocess.Popen([path, "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
-                              "/LOG=" + os.path.join(DATA_DIR, "update.log")],
-                             creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
-                             close_fds=True, env=env)
-        except OSError as e:
-            log.info("kurucu baslatilamadi: %s", e)
-            state.update(phase="error", error="Kurucu başlatılamadı.")
-            return
-        # /SILENT: kurucu kendi ilerleme penceresini gosterir; pencere kapaninca arada bos ekran kalmaz
-        time.sleep(1.5)     # arayuz "kuruluyor" durumunu bir an gosterebilsin
-        self.exit_now()
+        self._update_setup = path
+        state["phase"] = "ready"
+        if restart:
+            r = self.restart_to_update()
+            if not r["ok"]:
+                state.update(phase="error", error=r["error"])
 
     def open_url(self, url):
         """Tarayicida acar. Yalnizca GitHub surum sayfasi ve kick.com: arayuz baska adres acamaz."""

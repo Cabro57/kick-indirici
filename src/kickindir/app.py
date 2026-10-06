@@ -164,6 +164,7 @@ def main():
             return False
         api._closing = True
         api._dirty.set()
+        api._apply_pending_update()
         for d in list(api._downloads.values()):
             d.cancel = True
         # pencere kapandiktan sonra bazi thread'ler (WebView2 .NET) sureci acik tutabiliyor; kurucu
