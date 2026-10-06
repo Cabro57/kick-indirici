@@ -46,7 +46,7 @@ from curl_cffi import requests as cffi_requests
 from yt_dlp.downloader.common import FileDownloader
 from yt_dlp.utils import DownloadCancelled
 
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 UPDATE_REPO = "Cabro57/kick-indirici"         # surumler bu GitHub deposunun release'lerinden okunur
 QUALITIES = ["En iyi", "1080p60", "720p60", "480p", "360p", "160p"]
 # Dosya adi sablonu: kullanici {kanal} {baslik} {tarih} {id} yazar, yt-dlp sablonuna cevrilir.
@@ -660,6 +660,27 @@ class Download:
                 "sections": [list(x) for x in self.sections] if self.sections else None}
 
 
+def clean_cut_set(url, raw):
+    """Diskten ya da dosyadan gelen bir kesit kumesini dogrular; kullanilamazsa None."""
+    if not isinstance(url, str) or not url.startswith("http") or not isinstance(raw, dict):
+        return None
+    clips = []
+    for c in raw.get("clips") or []:
+        try:
+            a, b = int(c["a"]), int(c["b"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if 0 <= a < b:
+            clips.append({"a": a, "b": b, "name": str(c.get("name") or "")[:80], "note": str(c.get("note") or "")[:300]})
+    if not clips:
+        return None
+    clips.sort(key=lambda c: (c["a"], c["b"]))
+    text = lambda k: str(raw.get(k) or "")[:300]   # noqa: E731
+    return {"uuid": text("uuid"), "title": text("title"), "thumb": text("thumb"), "start": text("start"),
+            "channel": text("channel"), "duration": max(0, int(raw["duration"])) if isinstance(raw.get("duration"), (int, float)) else 0,
+            "updated": raw["updated"] if isinstance(raw.get("updated"), (int, float)) else 0, "clips": clips}
+
+
 def load_queue():
     try:
         with open(QUEUE_PATH, encoding="utf-8") as f:
@@ -893,6 +914,14 @@ class Api:
         # favori: {"slug", "name", "avatar", "seen": en son gorulen VOD'un baslangic zamani}
         self._favorites = [f for f in s.get("favorites") or [] if isinstance(f, dict) and f.get("slug")]
         self._fav_lock = threading.Lock()
+        # kayitli kesitler: {vod url: {"uuid", "title", "thumb", "start", "duration", "channel", "updated",
+        #                              "clips": [{"a", "b", "name", "note"}]}}
+        self._cuts = {}
+        for url, entry in (s.get("cuts") or {}).items() if isinstance(s.get("cuts"), dict) else ():
+            entry = clean_cut_set(url, entry)
+            if entry:
+                self._cuts[url] = entry
+        self._cuts_lock = threading.Lock()
         self._ffmpeg = find_ffmpeg()
         self._downloads = {}
         self._lock = threading.Lock()
@@ -995,9 +1024,33 @@ class Api:
 
         def parts(v):
             return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
+        setup = next((a.get("browser_download_url") for a in rel.get("assets") or []
+                      if re.fullmatch(r"KickIndirici-Setup-.*\.exe", a.get("name") or "")), None)
+        # uygulama-ici kurulum yalnizca kurucuyla kurulmus surumde (yaninda unins000.exe var) sunulur
+        installed = os.path.exists(os.path.join(app_dir(), "unins000.exe"))
         return {"ok": True, "update": bool(latest) and parts(latest) > parts(VERSION), "current": VERSION,
                 "version": latest, "url": rel.get("html_url") or f"https://github.com/{UPDATE_REPO}/releases",
-                "notes": (rel.get("body") or "")[:600]}
+                "setup": setup if installed else None, "notes": (rel.get("body") or "")[:600]}
+
+    def install_update(self, url):
+        """Kurucuyu indirir, sessizce calistirir ve uygulamayi kapatir; kurucu bitince yeni surumu acar."""
+        prefix = f"https://github.com/{UPDATE_REPO}/releases/download/"
+        if not (isinstance(url, str) and url.startswith(prefix) and url.endswith(".exe")):
+            return {"ok": False, "error": "Geçersiz güncelleme adresi."}
+        if any(d.status in ACTIVE_ALL for d in self._downloads.values()):
+            return {"ok": False, "error": "Sürmekte olan indirmeler var. Bitince ya da durdurunca güncelle."}
+        path = os.path.join(tempfile.gettempdir(), os.path.basename(urllib.parse.urlparse(url).path))
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": f"KickIndirici/{VERSION}"})
+            with urllib.request.urlopen(req, timeout=30) as r, open(path, "wb") as f:
+                shutil.copyfileobj(r, f)
+        except Exception as e:  # noqa: BLE001
+            log.info("guncelleme indirilemedi: %s", e)
+            return {"ok": False, "error": "Güncelleme indirilemedi. İnterneti kontrol et."}
+        subprocess.Popen([path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"],
+                         creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP, close_fds=True)
+        self.exit_now()
+        return {"ok": True}
 
     def open_url(self, url):
         """Tarayicida acar. Yalnizca GitHub surum sayfasi ve kick.com: arayuz baska adres acamaz."""
@@ -1054,6 +1107,80 @@ class Api:
         self._free = (0.0, None)        # klasor degismis olabilir: bos alan yeniden olculsun
         self._save()
         return {**self.get_settings(), "rejected": rejected}
+
+    # ---------- kayitli kesitler ----------
+    def _cuts_snapshot(self):
+        with self._cuts_lock:
+            return copy.deepcopy(self._cuts)
+
+    def cuts_list(self):
+        """Kayitli kesit kumeleri, en son degisen once."""
+        sets = [{"url": u, **e} for u, e in self._cuts_snapshot().items()]
+        return sorted(sets, key=lambda e: e["updated"], reverse=True)
+
+    def cuts_save(self, url, meta, clips):
+        """Bir VOD'un kesit listesini saklar; liste bossa kaydi siler."""
+        entry = clean_cut_set(url, {**(meta or {}), "clips": clips, "updated": time.time()})
+        with self._cuts_lock:
+            if entry:
+                self._cuts[url] = entry
+            else:
+                self._cuts.pop(url, None)
+        self._save()
+        return self.cuts_list()
+
+    def cuts_delete(self, url):
+        with self._cuts_lock:
+            self._cuts.pop(url, None)
+        self._save()
+        return self.cuts_list()
+
+    def cuts_export(self):
+        """Tum kayitli kesitleri kullanicinin sectigi JSON dosyasina yazar."""
+        if not self._cuts_snapshot():
+            return {"ok": False, "error": "Dışa aktarılacak kayıtlı kesit yok."}
+        res = self._window.create_file_dialog(webview.FileDialog.SAVE, directory=self._folder,
+                                              save_filename="kick-kesitler.json",
+                                              file_types=("Kesit dosyası (*.json)",))
+        if not res:
+            return {"ok": False}
+        path = res if isinstance(res, str) else res[0]
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"kickKesitler": 1, "cuts": self._cuts_snapshot()}, f, ensure_ascii=False, indent=1)
+        except OSError as e:
+            return {"ok": False, "error": f"Dosya yazılamadı: {e.strerror or e}"}
+        return {"ok": True, "count": len(self._cuts_snapshot())}
+
+    def cuts_import(self):
+        """Dosyadaki kesitleri mevcutlara ekler: ayni VOD'da ayni aralik ikinci kez eklenmez."""
+        res = self._window.create_file_dialog(webview.FileDialog.OPEN, directory=self._folder,
+                                              file_types=("Kesit dosyası (*.json)",))
+        if not res:
+            return {"ok": False}
+        path = res if isinstance(res, str) else res[0]
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            incoming = data["cuts"]
+            if data.get("kickKesitler") != 1 or not isinstance(incoming, dict):
+                raise ValueError
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            return {"ok": False, "error": "Bu dosya bir Kick İndirici kesit dosyası değil."}
+        added = 0
+        with self._cuts_lock:
+            for url, raw in incoming.items():
+                entry = clean_cut_set(url, raw)
+                if not entry:
+                    continue
+                have = self._cuts.setdefault(url, {**entry, "clips": []})
+                known = {(c["a"], c["b"]) for c in have["clips"]}
+                new = [c for c in entry["clips"] if (c["a"], c["b"]) not in known]
+                have["clips"] = sorted(have["clips"] + new, key=lambda c: (c["a"], c["b"]))
+                have["updated"] = time.time()
+                added += len(new)
+        self._save()
+        return {"ok": True, "added": added, "cuts": self.cuts_list()}
 
     # ---------- favori yayincilar ----------
     def favorites(self):
@@ -1412,7 +1539,8 @@ class Api:
     # ---------- ic isler ----------
     def _save(self):
         save_settings({"folder": self._folder, "quality": self._quality, "parallel": self._parallel,
-                       "fragThreads": self._threads, **self._prefs, "favorites": self.favorites()})
+                       "fragThreads": self._threads, **self._prefs, "favorites": self.favorites(),
+                       "cuts": self._cuts_snapshot()})
 
     def _frag_threads(self):
         return FRAG_THREADS if self._threads == "auto" else self._threads

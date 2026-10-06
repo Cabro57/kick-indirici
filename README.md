@@ -7,7 +7,7 @@
 **Kick yayınlarını, kliplerini ve canlı yayınlarını hattın izin verdiği hızla indir.**
 İzle, içinden istediğin anı kes, canlıyı kaydet. Hepsi tek pencerede.
 
-![Sürüm](https://img.shields.io/badge/sürüm-1.0.4-53FC18?style=flat-square&labelColor=0b0e0f)
+![Sürüm](https://img.shields.io/badge/sürüm-1.0.5-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Python](https://img.shields.io/badge/Python-3-53FC18?style=flat-square&labelColor=0b0e0f)
 
@@ -147,10 +147,12 @@ Bitenler güne göre gruplanır. Dosya uygulamanın içinde oynar, Windows oynat
 
 ## Kurulum
 
-### Hazır sürüm (önerilen)
+### Tek tıkla kurulum (önerilen)
 
-1. [**Releases**](https://github.com/Cabro57/kick-indirici/releases) sayfasından son `KickIndirici-…-windows.zip` dosyasını indir.
-2. Bir klasöre çıkar ve **`KickIndirici.exe`**'yi aç. Kurulum yok. `ffmpeg.exe` zip'in içinde, exe'nin yanında durmalı.
+1. [**Releases**](https://github.com/Cabro57/kick-indirici/releases/latest) sayfasından **`KickIndirici-Setup-….exe`** dosyasını indir.
+2. Aç ve **Kur**'a bas. Yönetici izni gerekmez, `ffmpeg` içinde hazır gelir. Yeni sürümler program içinden **Güncelle ve yeniden başlat** ile kendiliğinden kurulur.
+
+Kurulumsuz kullanmak için `KickIndirici-…-windows.zip`'i bir klasöre çıkar ve **`KickIndirici.exe`**'yi aç. `ffmpeg.exe` exe'nin yanında durmalı.
 
 > ffmpeg olmadan videolar iner ama kesit, canlı kayıt ve son mp4 düzeltmesi çalışmaz. Kaynaktan çalıştırıyorsan ffmpeg'i kendin kur: `winget install Gyan.FFmpeg`, ya da [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) üzerinden "release essentials".
 
@@ -349,7 +351,9 @@ exe_yap.bat
 python -m PyInstaller --noconfirm KickIndirici.spec
 ```
 
-Çıktı `dist\KickIndirici.exe`. Hız denemelerinin kaydı için [PERF.md](PERF.md)'ye bak.
+Çıktı `dist\KickIndirici.exe`. Kurucuyu (`dist\KickIndirici-Setup-<sürüm>.exe`) [Inno Setup 6](https://jrsoftware.org/isinfo.php) ile `ISCC /DAppVersion=1.0.5 installer\KickIndirici.iss` derler.
+
+**Sürüm çıkarmak:** `kick_indir.py` içindeki `VERSION`'ı artır, commit'le, `git tag v1.0.5 && git push --tags`. `.github/workflows/release.yml` exe'yi, kurucuyu ve zip'i derleyip [kick-indirici](https://github.com/Cabro57/kick-indirici) deposuna sürüm olarak yükler. Bunun için bu depoda `RELEASE_TOKEN` secret'ı (kick-indirici'ye *Contents: write* yetkili bir fine-grained token) tanımlı olmalı. Hız denemelerinin kaydı için [PERF.md](PERF.md)'ye bak.
 
 <br>
 

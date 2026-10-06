@@ -1,0 +1,51 @@
+name: release
+
+# v1.2.3 etiketi atilinca: exe + kurucu + zip derlenir, herkese acik surum deposuna yuklenir.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Surum etiketle ayni mi
+        shell: bash
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          grep -q "^VERSION = \"$v\"" kick_indir.py || { echo "kick_indir.py icindeki VERSION $v degil"; exit 1; }
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+
+      - name: Bagimliliklar
+        run: pip install -r requirements.txt
+
+      - name: ffmpeg
+        shell: bash
+        run: |
+          curl -fsSL -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+          7z e ffmpeg.zip "*/bin/ffmpeg.exe" -odist -y
+
+      - name: exe
+        run: python -m PyInstaller --noconfirm KickIndirici.spec
+
+      - name: Kurucu ve zip
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" installer\KickIndirici.iss
+          Compress-Archive -Path dist\KickIndirici.exe, dist\ffmpeg.exe, installer\LICENSE-ffmpeg.txt -DestinationPath "dist\KickIndirici-$env:VERSION-windows.zip"
+
+      - name: Surumu yayinla
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/KickIndirici-Setup-$VERSION.exe" "dist/KickIndirici-$VERSION-windows.zip" \
+            -R Cabro57/kick-indirici --title "Kick İndirici $VERSION" --generate-notes

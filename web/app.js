@@ -41,6 +41,7 @@ const state = {
   libQuery: "",
   libFocus: null,            // oynatici penceresinde oynayan dosya
   cuts: new Map(),           // vod url -> kesit listesi (kesit secici)
+  cutSets: [],               // diskte kayitli kesit kumeleri (ana sayfadaki liste); cutSet(url) ile aranir
   lastClip: "",              // panodan en son onerilen link: ayni link ikinci kez sorulmaz
   notices: new Map(),        // ust seritteki bildirimler: anahtar -> eleman
 };
@@ -228,6 +229,10 @@ function liveCutVod() {
   const l = liveItem(), v = state.liveVod;
   return l && v ? { ...v, title: l.title, thumb: l.thumb || v.thumb, start: l.start, duration: 0, live: true } : null;
 }
+/* Kick sitesi VOD sayfalarini artik API'nin verdigi kimlikle acmiyor ("Oops, something went wrong"
+   ve bu kimligi sitenin kendi kimligine ceviren acik bir yol yok); klip ve canli linkleri calisiyor.
+   VOD icin yayincinin Yayinlar sayfasi acilir. */
+const kickPage = (v) => (kindOf(v) === "vod" && state.channel ? `https://kick.com/${state.channel.slug}/videos` : v.url);
 const cutTarget = (v) => (v && v.kind === "live" ? liveCutVod() : v);
 /* kanalin suren ya da sirada bekleyen canli kaydi */
 const liveRec = (url) => state.downloads.find((x) => x.live && x.url === url && ACTIVE.concat("queued").includes(x.status));
@@ -925,8 +930,8 @@ async function onCardMenu(act) {
   else if (act === "cut") openCutter(cutTarget(v));
   else if (act === "chat") downloadChat(v);
   else if (act === "select") { toggleSel(url); state.anchor = url; selectionChanged(); }
-  else if (act === "kick") state.api.open_url(v.url);
-  else if (act === "copy") copyText(v.url).then((ok) => toast(ok ? "Link kopyalandı" : "Link kopyalanamadı"));
+  else if (act === "kick") state.api.open_url(kickPage(v));
+  else if (act === "copy") copyText(kickPage(v)).then((ok) => toast(ok ? "Link kopyalandı" : "Link kopyalanamadı"));
 }
 
 async function copyText(text) {
@@ -1109,8 +1114,44 @@ function renderHome() {
   }).join("");
   const rec = state.library.filter((e) => e.exists && !e.chat).slice(0, 6);
   $("recentBox").hidden = !rec.length;
+  renderCutSets();
   $("recentRow").innerHTML = rec.map((e) => `<button class="rtile" type="button" data-file="${esc(e.file)}">
     <img src="${esc(e.thumb || BLANK)}" alt=""><p>${esc(cleanTitle(e.title))}</p><span class="num">${esc(e.channel)} · ${fmtBytes(e.size)}</span></button>`).join("");
+}
+
+/* ana sayfadaki "Kayitli kesitler": bir kartla editor o VOD'un kesitleriyle acilir */
+function renderCutSets() {
+  const sets = state.cutSets;
+  $("cutSetEmpty").hidden = sets.length > 0;
+  $("cutSetExport").hidden = !sets.length;
+  $("cutSetRow").innerHTML = sets.map((e) => {
+    const total = e.clips.reduce((n, c) => n + c.b - c.a, 0);
+    return `<div class="rtile cset" data-url="${esc(e.url)}">
+      <button class="csetopen" type="button" data-cs="open"><img src="${esc(e.thumb || BLANK)}" alt=""><p>${esc(cleanTitle(e.title))}</p>
+        <span class="num">${e.clips.length} kesit · ${fmtDuration(total)}${e.channel ? ` · ${esc(e.channel)}` : ""}</span></button>
+      <button class="iconbtn danger csetdel" type="button" data-cs="del" title="Kayıtlı kesitleri sil" aria-label="Kayıtlı kesitleri sil">${icon("trash")}</button></div>`;
+  }).join("");
+}
+
+function openCutSet(url) {
+  const e = cutSet(url);
+  if (!e) return;
+  openCutter({ url: e.url, uuid: e.uuid, title: e.title, thumb: e.thumb, start: e.start, duration: e.duration, channel: e.channel });
+}
+
+async function importCuts() {
+  const res = await state.api.cuts_import();
+  if (res.error) { toast(res.error); return; }
+  if (!res.ok) return;
+  state.cutSets = res.cuts;
+  renderCutSets();
+  toast(res.added ? `${res.added} kesit içe aktarıldı` : "Dosyadaki kesitler zaten kayıtlı");
+}
+
+async function exportCuts() {
+  const res = await state.api.cuts_export();
+  if (res.error) toast(res.error);
+  else if (res.ok) toast(`${res.count} videonun kesitleri dışa aktarıldı`);
 }
 
 /* ---------- indirmeler ---------- */
@@ -1731,11 +1772,14 @@ async function openCutter(vod) {
   cut.stopAt = null;
   cut.chain = null;
   cut.markIn = null;
-  if (!state.cuts.has(vod.url)) state.cuts.set(vod.url, []);
+  if (!state.cuts.has(vod.url)) {
+    const saved = cutSet(vod.url);
+    state.cuts.set(vod.url, saved ? saved.clips.map((c) => ({ id: cut.seq++, a: c.a, b: c.b, name: c.name, note: c.note })) : []);
+  }
   $("cutTitle").textContent = cleanTitle(vod.title);
   $("cutTitle").title = vod.title;
   const ch = state.channel;
-  $("cutMeta").textContent = [ch && (ch.name || ch.slug), vod.live ? `canlı · ${fmtAgo(vod.start)} başladı` : vod.start && fmtDate(vod.start),
+  $("cutMeta").textContent = [vod.channel || (ch && (ch.name || ch.slug)), vod.live ? `canlı · ${fmtAgo(vod.start)} başladı` : vod.start && fmtDate(vod.start),
     vod.duration && fmtDuration(vod.duration)].filter(Boolean).join(" · ");
   $("cutLive").hidden = !vod.live;
   const video = $("cutVideo");
@@ -1825,7 +1869,10 @@ function closeCutter() {
   closeDD(false);
   showKeys(false);
   if ($("cutter").open) $("cutter").close();
-  if (cut.vod && !cutClips().length) state.cuts.delete(cut.vod.url);
+  if (cut.vod) {
+    persistCuts(cut.vod, true);
+    if (!cutClips().length) state.cuts.delete(cut.vod.url);
+  }
   cut.vod = null;
 }
 
@@ -1852,6 +1899,31 @@ function seekTo(t) {
   if (cut.chain) { cut.chain = null; renderCutter(); }
   cut.main.to(t);
   followView(t, true);
+}
+
+/* ---------- kayitli kesitler ----------
+   Kesit listesi her degistiginde kisa bir beklemeyle diske yazilir; editor yeniden acilinca
+   (ya da program kapanip acilinca) geri gelir. Canli yayinlarin kesitleri saklanmaz: suren
+   yayinin saatleri sonradan anlamsiz kalir. */
+const cutSet = (url) => state.cutSets.find((e) => e.url === url);
+let persistTimer = 0, persistSig = "";
+
+function persistCuts(vod, now = false) {
+  if (!vod || vod.live || !state.cuts.has(vod.url)) return;
+  if (!state.cuts.get(vod.url).length && !cutSet(vod.url)) return;
+  const clips = state.cuts.get(vod.url).map((c) => ({ a: c.a, b: c.b, name: c.name || "", note: c.note || "" }));
+  const sig = vod.url + JSON.stringify(clips);
+  if (sig === persistSig) return;
+  clearTimeout(persistTimer);
+  const run = async () => {
+    persistSig = sig;
+    const ch = state.channel;
+    const meta = { uuid: vod.uuid, title: vod.title, thumb: vod.thumb, start: vod.start || "",
+      duration: Math.round(vod.duration || 0), channel: vod.channel || (ch && (ch.name || ch.slug)) || "" };
+    state.cutSets = await state.api.cuts_save(vod.url, meta, clips);
+    if (state.view === "home") renderCutSets();
+  };
+  if (now) run(); else persistTimer = setTimeout(run, 500);
 }
 
 /* ---------- kesitler ---------- */
@@ -2400,8 +2472,9 @@ function renderCutter() {
         <button class="cutpick" type="button" data-act="select" aria-pressed="${sel}">
           <span class="cthumb"><b class="no num">${i + 1}</b></span>
           <span class="ctext">
+            ${c.name ? `<span class="cname">${esc(c.name)}</span>` : ""}
             <span class="rng num">${fmtDuration(c.a)} – ${fmtDuration(c.b)}</span>
-            <span class="len num">${fmtDuration(c.b - c.a)}</span>
+            <span class="len num">${fmtDuration(c.b - c.a)}${c.note ? ` · ${esc(c.note)}` : ""}</span>
           </span>
         </button>
         <div class="cacts">
@@ -2410,6 +2483,8 @@ function renderCutter() {
         </div>
       </div>` + (sel ? `
       <div class="cutedit">
+        <input class="cfield" data-field="name" maxlength="80" spellcheck="false" placeholder="Kesit adı (dosya adında kullanılır)" aria-label="Kesit adı" value="${esc(c.name || "")}">
+        <input class="cfield" data-field="note" maxlength="300" placeholder="Not" aria-label="Kesit notu" value="${esc(c.note || "")}">
         ${["a", "b"].map((k) => `
         <div class="edgerow">
           <span class="edgelbl">${k === "a" ? "Başlangıç" : "Bitiş"}</span>
@@ -2434,6 +2509,7 @@ function renderCutter() {
   $("cutDownload").disabled = !list.length;
   $("cutDownloadLabel").textContent = merge ? "Birleştirip indir" : list.length > 1 ? `${list.length} kesiti indir` : "Kesiti indir";
   $("cutDel").disabled = cut.sel == null;
+  persistCuts(cut.vod);
   $("cutChain").disabled = !list.length;
   $("cutChain").innerHTML = cut.chain ? `${icon("pause")}<span>Durdur</span>` : `${icon("play")}<span>Sırayla oynat</span>`;
   $("cutAdd").title = `Bulunduğun anın etrafına ${fmtSpan(cut.len)} kesit ekle (K): ` +
@@ -2451,7 +2527,7 @@ async function downloadCuts() {
     ? [{ url: vod.url, thumb: vod.thumb, sections: list.map((c) => [c.a, c.b]), title: `${list.length} kesit · ${title}` }]
     : list.map((c) => ({
       url: vod.url, thumb: vod.thumb, start: c.a, end: c.b,
-      title: `${fmtDuration(c.a)}–${fmtDuration(c.b)} · ${title}`,
+      title: `${c.name ? `${c.name} · ` : ""}${fmtDuration(c.a)}–${fmtDuration(c.b)} · ${title}`,
     }));
   const n = await state.api.enqueue(items);
   state.cuts.delete(vod.url);
@@ -2719,6 +2795,20 @@ function bindCutter() {
     again && again.focus();
   });
   list.addEventListener("change", (e) => {
+    const field = e.target.closest("input[data-field]");
+    if (field) {
+      const c = cutClips().find((x) => x.id === Number(field.closest("li").dataset.id));
+      if (!c) return;
+      c[field.dataset.field] = field.value.trim();
+      // yeniden cizmek Tab ile gecilen sonraki alani silerdi: yalnizca satirin yazisini guncelle
+      const li = field.closest("li");
+      let nm = li.querySelector(".cname");
+      if (c.name && !nm) { nm = document.createElement("span"); nm.className = "cname"; li.querySelector(".ctext").prepend(nm); }
+      if (nm) { nm.textContent = c.name; nm.hidden = !c.name; }
+      li.querySelector(".len").textContent = fmtDuration(c.b - c.a) + (c.note ? ` · ${c.note}` : "");
+      persistCuts(cut.vod);
+      return;
+    }
     const inp = e.target.closest("input[data-edge]");
     if (!inp) return;
     const c = cutClips().find((x) => x.id === Number(inp.closest("li").dataset.id));
@@ -2728,7 +2818,7 @@ function bindCutter() {
     renderCutter();
   });
   list.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && e.target.matches("input[data-edge]")) e.target.blur();
+    if (e.key === "Enter" && e.target.matches("input[data-edge], input[data-field]")) e.target.blur();
   });
   window.addEventListener("resize", () => cut.vod && drawTimeline());
 }
@@ -2783,7 +2873,14 @@ async function checkUpdate(manual) {
   if (r.update) {
     notice("update", {
       icon: "gift", text: `Yeni sürüm çıktı: <b>${esc(r.version)}</b> <span class="num">(şu an ${esc(r.current)})</span>`,
-      actions: [["İndirme sayfasını aç", () => state.api.open_url(r.url), "primary"]],
+      actions: r.setup
+        ? [["Güncelle ve yeniden başlat", async () => {
+              toast("Güncelleme indiriliyor…");
+              const u = await state.api.install_update(r.setup);
+              if (!u.ok) toast(u.error);
+            }, "primary"],
+           ["Sürüm notları", () => state.api.open_url(r.url)]]
+        : [["İndirme sayfasını aç", () => state.api.open_url(r.url), "primary"]],
     });
   } else if (manual) toast(r.ok ? `Güncel sürümü kullanıyorsun (${r.current})` : "Güncelleme denetlenemedi. İnterneti kontrol et.");
 }
@@ -2891,6 +2988,15 @@ function bind() {
     if (t) playFile(t.dataset.file);
   });
   $("recentAll").addEventListener("click", () => showView("library"));
+  $("cutSetRow").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-cs]");
+    if (!b) return;
+    const url = b.closest("[data-url]").dataset.url;
+    if (b.dataset.cs === "open") openCutSet(url);
+    else { state.cutSets = await state.api.cuts_delete(url); state.cuts.delete(url); renderCutSets(); }
+  });
+  $("cutSetImport").addEventListener("click", importCuts);
+  $("cutSetExport").addEventListener("click", exportCuts);
 
   // kanal
   $("favToggle").addEventListener("click", toggleFavorite);
@@ -3078,6 +3184,7 @@ async function start(api) {
   state.cfg = cfg;
   state.settings = cfg.settings;
   state.favorites = cfg.favorites || [];
+  state.cutSets = await api.cuts_list();
   for (const id of ["quality", "selQuality"]) {
     $(id).innerHTML = cfg.qualities.map((q) => `<option>${q}</option>`).join("");
     $(id).value = cfg.quality;
