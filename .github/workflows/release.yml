@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: |
           v="${GITHUB_REF_NAME#v}"
-          grep -q "^VERSION = \"$v\"" kick_indir.py || { echo "kick_indir.py icindeki VERSION $v degil"; exit 1; }
+          grep -q "^VERSION = \"$v\"" src/kickindir/config.py || { echo "src/kickindir/config.py icindeki VERSION $v degil"; exit 1; }
           echo "VERSION=$v" >> "$GITHUB_ENV"
 
       - name: Bagimliliklar
