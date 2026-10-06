@@ -6,10 +6,10 @@ import shutil
 import subprocess
 import tempfile
 
-from .config import log
-from .media import MediaServer
-from .storage import save_history
-from .util import recycle
+from kickindir.config import log
+from kickindir.services.media import MediaServer
+from kickindir.core.storage import save_history
+from kickindir.core.util import recycle
 
 
 class LibraryMixin:

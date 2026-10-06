@@ -3,7 +3,7 @@
 import json
 import os
 
-from .config import DATA_DIR, HISTORY_PATH, QUEUE_PATH, SETTINGS_PATH, log
+from kickindir.config import DATA_DIR, HISTORY_PATH, QUEUE_PATH, SETTINGS_PATH, log
 
 
 def load_settings():

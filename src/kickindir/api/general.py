@@ -9,11 +9,11 @@ import tempfile
 import urllib.request
 import webview
 
-from .config import ACTIVE_ALL, AFTER_DONE, FRAG_THREADS, FRAG_THREADS_MAX, MAX_PARALLEL, NAME_DEFAULT, NAME_TOKENS, QUALITIES, UPDATE_REPO, VERSION, app_dir, log
-from .engine import LIMITER
-from .kick import fetch_channel, kick_error, parse_link, vod_channel
-from .prefs import PREFS, int_or_auto
-from .util import clipboard_text
+from kickindir.config import ACTIVE_ALL, AFTER_DONE, FRAG_THREADS, FRAG_THREADS_MAX, MAX_PARALLEL, NAME_DEFAULT, NAME_TOKENS, QUALITIES, UPDATE_REPO, VERSION, app_dir, log
+from kickindir.core.engine import LIMITER
+from kickindir.services.kick import fetch_channel, kick_error, parse_link, vod_channel
+from kickindir.core.prefs import PREFS, int_or_auto
+from kickindir.core.util import clipboard_text
 
 
 class AppMixin:

@@ -5,7 +5,7 @@ import re
 import urllib.request
 from curl_cffi import requests as cffi_requests
 
-from .config import QUALITIES
+from kickindir.config import QUALITIES
 
 
 # ---------- Kick API ----------

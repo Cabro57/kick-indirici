@@ -8,12 +8,12 @@ import subprocess
 import threading
 import time
 
-from .config import ACTIVE_ALL, ACTIVE_NET, DISK_RESERVE, FRAG_THREADS, HISTORY_MAX, MAX_PARALLEL, QUALITIES, log
-from .engine import Download
-from .kick import parse_link
-from .notify import toast
-from .storage import save_history, save_queue, save_settings
-from .util import fmt_size, free_space
+from kickindir.config import ACTIVE_ALL, ACTIVE_NET, DISK_RESERVE, FRAG_THREADS, HISTORY_MAX, MAX_PARALLEL, QUALITIES, log
+from kickindir.core.engine import Download
+from kickindir.services.kick import parse_link
+from kickindir.services.notify import toast
+from kickindir.core.storage import save_history, save_queue, save_settings
+from kickindir.core.util import fmt_size, free_space
 
 
 class QueueMixin:

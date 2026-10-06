@@ -334,18 +334,14 @@ Ayarlarda *Canlı kaydı mp4'e çevir* kapalıdır. Uygulamanın oynatıcısı `
 Arayüz HTML / CSS / JS (`web/`), motor Python. Pencereyi **pywebview** (Edge WebView2) çizer; indirme `yt-dlp`, ağ istekleri `curl_cffi`, kesme ve birleştirme `ffmpeg` ile yapılır.
 
 ```
-kick_indir.py     Giriş noktası (yalnızca kickindir.app.main'i çağırır)
-kickindir/        Python motoru
+kick_indir.py     Giriş noktası (src/ klasörünü yola ekleyip kickindir.app.main'i çağırır)
+src/kickindir/    Python motoru
   config.py         Sabitler, dosya yolları, uygulama klasörleri
-  kick.py           Kick API'si: kanal, VOD, klip, canlı yayın, HLS listeleri
-  engine.py         Hız sınırlayıcı, otomatik ayar, indirme kaydı
-  chat.py           Sohbeti çekme ve .ass altyazıya çevirme
-  media.py          Şerit önizlemeleri ve yerel medya sunucusu
-  storage.py        Ayarlar, kuyruk, geçmiş, kayıtlı kesitler
-  prefs.py, util.py, notify.py   Ayar tanımları, küçük yardımcılar, bildirimler
-  api.py            Arayüze açılan Api (api_*.py karışımlarından oluşur:
-                    app, queue, workers, library, favorites, cuts, browse)
   app.py            Pencere, tek kopya denetimi, main()
+  api/              Arayüze açılan Api: __init__.py birleştirir; general, queue_control,
+                    workers, library, favorites, cuts, browse parçalarından oluşur
+  services/         kick (Kick API'si), chat (sohbet), media (önizleme, medya sunucusu), notify (bildirim)
+  core/             engine (hız sınırlayıcı, indirme kaydı), storage (ayarlar, kuyruk, geçmiş), prefs, util
 web/              Arayüz (index.html, app.css, app.js, vendor/ içinde hls.js)
 assets/           Logo ve uygulama ikonu
 tools/make_logo.py  Logo ve ikonu üreten betik

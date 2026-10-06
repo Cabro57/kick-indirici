@@ -7,8 +7,8 @@ import threading
 import time
 from yt_dlp.downloader.common import FileDownloader
 
-from .config import MAX_PARALLEL, NAME_TOKENS
-from .util import fmt_hms
+from kickindir.config import MAX_PARALLEL, NAME_TOKENS
+from kickindir.core.util import fmt_hms
 
 
 class AutoTuner:

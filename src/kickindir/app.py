@@ -9,9 +9,9 @@ import tempfile
 import threading
 import webview
 
-from .api import Api
-from .config import ACTIVE_ALL, DATA_DIR, INSTANCE_PID, LOG_PATH, WEBVIEW2_PAGE, WEBVIEW2_URL, log, resource_dir
-from .notify import register_toast_app
+from kickindir.api import Api
+from kickindir.config import ACTIVE_ALL, DATA_DIR, INSTANCE_PID, LOG_PATH, WEBVIEW2_PAGE, WEBVIEW2_URL, log, resource_dir
+from kickindir.services.notify import register_toast_app
 
 
 def webview2_ok():

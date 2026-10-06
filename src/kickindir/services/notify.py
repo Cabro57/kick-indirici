@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from xml.sax.saxutils import escape as xml_escape
 
-from .config import DATA_DIR, TOAST_APP_ID, log, resource_dir
+from kickindir.config import DATA_DIR, TOAST_APP_ID, log, resource_dir
 
 
 def register_toast_app():

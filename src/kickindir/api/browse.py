@@ -4,9 +4,9 @@ import re
 import time
 from curl_cffi import requests as cffi_requests
 
-from .config import log
-from .kick import fetch_clips, kick_get, playlist_duration
-from .media import MediaStrip
+from kickindir.config import log
+from kickindir.services.kick import fetch_clips, kick_get, playlist_duration
+from kickindir.services.media import MediaStrip
 
 
 class BrowseMixin:

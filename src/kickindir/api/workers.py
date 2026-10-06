@@ -14,11 +14,11 @@ import yt_dlp
 from concurrent.futures import ThreadPoolExecutor
 from yt_dlp.utils import DownloadCancelled
 
-from .chat import chat_ass, chat_entry, chat_window
-from .config import CHAT_WINDOW, log
-from .engine import out_template
-from .kick import kick_get, kick_time, live_info, live_variant, parse_link, playlist_duration
-from .util import fill_name, trim_playlist
+from kickindir.services.chat import chat_ass, chat_entry, chat_window
+from kickindir.config import CHAT_WINDOW, log
+from kickindir.core.engine import out_template
+from kickindir.services.kick import kick_get, kick_time, live_info, live_variant, parse_link, playlist_duration
+from kickindir.core.util import fill_name, trim_playlist
 
 
 class WorkerMixin:

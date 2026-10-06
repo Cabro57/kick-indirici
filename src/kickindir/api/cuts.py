@@ -5,7 +5,7 @@ import json
 import time
 import webview
 
-from .storage import clean_cut_set
+from kickindir.core.storage import clean_cut_set
 
 
 class CutsMixin:

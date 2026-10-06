@@ -2,7 +2,7 @@
 
 import re
 
-from .config import NAME_DEFAULT, NAME_TOKENS
+from kickindir.config import NAME_DEFAULT, NAME_TOKENS
 
 
 def int_or_auto(value, lo, hi):

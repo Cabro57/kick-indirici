@@ -74,7 +74,7 @@ WEBVIEW2_PAGE = "https://developer.microsoft.com/microsoft-edge/webview2/#downlo
 
 log = logging.getLogger("kick")
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # kaynaktan calisirken web/ ve assets/ burada
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # kaynaktan calisirken web/ ve assets/ burada
 
 
 def app_dir():

@@ -2,9 +2,9 @@
 
 from concurrent.futures import ThreadPoolExecutor
 
-from .config import LIVE_POLL, log
-from .kick import fetch_channel, kick_error, kick_get, live_info, parse_link, vod_channel
-from .notify import toast
+from kickindir.config import LIVE_POLL, log
+from kickindir.services.kick import fetch_channel, kick_error, kick_get, live_info, parse_link, vod_channel
+from kickindir.services.notify import toast
 
 
 class FavoritesMixin:

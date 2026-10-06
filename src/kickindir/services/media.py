@@ -14,8 +14,8 @@ import threading
 import urllib.request
 from curl_cffi import requests as cffi_requests
 
-from .config import log
-from .kick import hls_variants, kick_get
+from kickindir.config import log
+from kickindir.services.kick import hls_variants, kick_get
 
 
 class MediaStrip:

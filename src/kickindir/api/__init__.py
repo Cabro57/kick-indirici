@@ -4,17 +4,17 @@ import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
-from .config import FRAG_THREADS_MAX, MAX_PARALLEL, QUALITIES, find_ffmpeg
-from .engine import AutoTuner, Download, LIMITER
-from .prefs import PREFS, int_or_auto
-from .storage import clean_cut_set, load_history, load_queue, load_settings
-from .api_app import AppMixin
-from .api_cuts import CutsMixin
-from .api_favorites import FavoritesMixin
-from .api_browse import BrowseMixin
-from .api_queue import QueueMixin
-from .api_library import LibraryMixin
-from .api_workers import WorkerMixin
+from kickindir.config import FRAG_THREADS_MAX, MAX_PARALLEL, QUALITIES, find_ffmpeg
+from kickindir.core.engine import AutoTuner, Download, LIMITER
+from kickindir.core.prefs import PREFS, int_or_auto
+from kickindir.core.storage import clean_cut_set, load_history, load_queue, load_settings
+from kickindir.api.general import AppMixin
+from kickindir.api.cuts import CutsMixin
+from kickindir.api.favorites import FavoritesMixin
+from kickindir.api.browse import BrowseMixin
+from kickindir.api.queue_control import QueueMixin
+from kickindir.api.library import LibraryMixin
+from kickindir.api.workers import WorkerMixin
 
 
 class Api(AppMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMixin, LibraryMixin, WorkerMixin):

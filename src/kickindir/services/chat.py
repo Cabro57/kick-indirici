@@ -4,7 +4,7 @@ import collections
 import re
 import time
 
-from .kick import kick_get, kick_time
+from kickindir.services.kick import kick_get, kick_time
 
 
 def chat_window(channel_id, start, tries=3):
