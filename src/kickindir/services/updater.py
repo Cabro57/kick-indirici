@@ -131,6 +131,11 @@ def apply(need, remove, root):
     shutil.rmtree(os.path.join(root, STAGE), ignore_errors=True)
 
 
+def just_updated(root):
+    """Uygulama-ici guncelleme exe'yi degistirdiyse eski kopya .old olarak durur; cleanup() silmeden once bakilir."""
+    return os.path.exists(os.path.join(root, "KickIndirici.exe.old"))
+
+
 def cleanup(root):
     """Acilista: onceki guncellemeden kalan .old dosyalarini ve yarim .update/ klasorunu siler."""
     shutil.rmtree(os.path.join(root, STAGE), ignore_errors=True)

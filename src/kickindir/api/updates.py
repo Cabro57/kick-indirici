@@ -49,6 +49,7 @@ class UpdateMixin:
     _update_state = {"phase": "idle", "done": 0, "total": 0, "error": ""}
     _update_ready = None        # "ready" olunca uygulanacak is: ("files", need, remove) ya da ("installer", yol)
     _update_applied = False
+    _just_updated = False      # bu acilis bir guncellemeden hemen sonra mi (app.main koyar)
     _apply_lock = threading.Lock()
 
     def check_update(self):
@@ -89,6 +90,12 @@ class UpdateMixin:
         return {"ok": True, "update": True, "current": VERSION, "version": latest,
                 "url": rel.get("html_url") or f"https://github.com/{UPDATE_REPO}/releases",
                 "auto": bool(self._release["mode"]), "notes": (rel.get("body") or "")[:600]}
+
+    def just_updated(self):
+        """Guncellemeden sonraki ilk acilissa {"version", "url"}: arayuz "guncellendi" bildirimi gosterir."""
+        if not self._just_updated:
+            return None
+        return {"version": VERSION, "url": f"https://github.com/{UPDATE_REPO}/releases/tag/v{VERSION}"}
 
     def install_update(self, restart=True):
         """Guncellemeyi arka planda indirir ve hemen doner; ilerleme update_progress() ile sorulur.

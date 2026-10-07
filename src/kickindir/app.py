@@ -128,6 +128,7 @@ def main():
     if not single_instance():
         return
     setup_logging()
+    just_updated = getattr(sys, "frozen", False) and updater.just_updated(app_dir())
     if getattr(sys, "frozen", False):     # onceki guncellemeden kalan .old dosyalari
         threading.Thread(target=updater.cleanup, args=(app_dir(),), daemon=True).start()
     build = sys.getwindowsversion().build
@@ -146,6 +147,7 @@ def main():
     register_toast_app()
 
     api = Api()
+    api._just_updated = just_updated
     window = webview.create_window(
         "Kick İndirici", os.path.join(resource_dir(), "web", "index.html"), js_api=api,
         width=1360, height=880, min_size=(980, 660), background_color="#101010")

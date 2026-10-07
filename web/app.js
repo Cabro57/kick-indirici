@@ -2932,6 +2932,14 @@ function updateReady(r) {
   });
 }
 
+/* guncellemeden sonraki ilk acilis: hangi surume gecildigini soyler */
+function updatedNotice(u) {
+  notice("updated", {
+    icon: "gift", text: `<b>${esc(u.version)}</b> sürümüne güncellendi.`,
+    actions: [["Sürüm notları", () => state.api.open_url(u.url)]],
+  });
+}
+
 function updateFailed(r, msg) {
   notice("update", {
     icon: "alert", warn: true, text: `Güncelleme tamamlanamadı. ${esc(msg)}`,
@@ -3254,6 +3262,7 @@ async function start(api) {
   setInterval(refreshFavorites, 10 * 60 * 1000);
   if (!state.favorites.length) $("linkInput").focus();   // ilk acilista nereden baslanacagi belli olsun
   if (cfg.restored) offerRestored(cfg.restored);
+  state.api.just_updated().then((u) => u && updatedNotice(u));
   if (state.settings.updateCheck) setTimeout(() => checkUpdate(false), 3000);
   checkClipboard();
 }
