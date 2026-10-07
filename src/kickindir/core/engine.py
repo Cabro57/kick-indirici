@@ -99,7 +99,7 @@ FileDownloader.slow_down = _slow_down
 class Download:
     _ids = itertools.count(1)
 
-    def __init__(self, url, title, thumb, section=None, live=False, sections=None, chat=False):
+    def __init__(self, url, title, thumb, section=None, live=False, sections=None, chat=False, with_chat=None):
         self.id = next(self._ids)
         self.url = url
         self.sections = sections        # birden fazla kesit tek videoda: [(bas, son), ...] ya da None
@@ -107,12 +107,16 @@ class Download:
             section = (sections[0][0], sections[-1][1])
         self.section = section          # (baslangic_sn, bitis_sn) ya da None = tum video
         self.live = live                # canli yayin kaydi (beta)
-        self.chat = chat                # yalnizca VOD'un sohbet kaydi (.json + .ass)
+        self.chat = chat                # sohbet kaydi (VOD, kesit, klip ya da canli kayit); bicimler ayarlardan
+        self.with_chat = with_chat      # video inince sohbeti de: True / False bu indirme icin, None = ayara uy (chatAuto)
+        self.chat_range = None          # canli kaydin sohbeti: (baslangic, bitis) epoch sn
+        self.chat_base = ""             # sohbet dosyalarinin yolu (uzantisiz): videoyla ayni ad
         self.duration = 0               # sohbet: arayuzden gelen VOD suresi (sn), yoksa API'den
-        self.key = url + ("#live" if live else "#chat" if chat else
-                          "#" + ",".join(f"{a}-{b}" for a, b in sections) if sections
-                          else f"#{section[0]}-{section[1]}" if section else "")
+        span = ("#" + ",".join(f"{a}-{b}" for a, b in sections) if sections
+                else f"#{section[0]}-{section[1]}" if section else "")
+        self.key = url + ("#live" if live else "#chat" + span if chat else span)
         self.started = None             # canli kaydin basladigi an (epoch sn)
+        self.ended = None               # canli kaydin bittigi an (epoch sn): sohbeti bu araliktan cekilir
         self.proc = None                # canli kaydi yapan ffmpeg
         self.title = title
         self.thumb = thumb
@@ -137,7 +141,8 @@ class Download:
 
     def to_saved(self):
         """queue.json kaydi: sonraki acilista ayni indirme yeniden kurulur (.part'tan devam eder)."""
-        return {"url": self.url, "title": self.title, "thumb": self.thumb, "chat": self.chat,
+        return {"url": self.url, "title": self.title, "thumb": self.thumb, "chat": self.chat, "withChat": self.with_chat,
+                "chatRange": list(self.chat_range) if self.chat_range else None, "chatBase": self.chat_base,
                 "duration": self.duration, "section": list(self.section) if self.section and not self.sections else None,
                 "sections": [list(x) for x in self.sections] if self.sections else None}
 

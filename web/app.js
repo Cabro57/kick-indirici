@@ -847,7 +847,8 @@ function renderInspector(start) {
       : `<button class="btn primary span" data-ins="record">${icon("record")}${t("live.startRec")}</button>`)
       + (state.liveVod ? `<button class="btn span" data-ins="cut">${icon("scissors")}${t("card.cut")}</button>` : "");
   } else if (kind === "clip") {
-    btns.innerHTML = `<button class="btn primary span" data-ins="dl">${icon("download")}${t("act.dlClip")}</button>`;
+    btns.innerHTML = `<button class="btn primary span" data-ins="dl">${icon("download")}${t("act.dlClip")}</button>
+      ${chatButton(v)}`;
   } else {
     btns.innerHTML = `<button class="btn primary" data-ins="dl">${icon("download")}${t("act.dlAll")}</button>
       <button class="btn" data-ins="cut">${icon("scissors")}${t("card.cut")}</button>
@@ -872,9 +873,9 @@ function cardMenuItems(v) {
   else if (["stopped", "error"].includes(d.status)) items.push(["retry", "retry", d.status === "error" ? t("act.retry") : t("act.resume"), "go"]);
   else items.push(["cancel", "stop", t("act.stopDl"), "danger"]);
   if (d && d.status !== "done" && !d.live) items.push(["abort", "trash", t("act.abortDelete"), "danger"]);
-  if (kind === "vod") {
-    items.push(["cut", "scissors", t("card.cut")]);
-    const c = state.downloads.find((x) => x.chat && x.url === v.url);
+  if (kind === "vod") items.push(["cut", "scissors", t("card.cut")]);
+  if (kind === "vod" || kind === "clip") {
+    const c = chatJob(v.url);
     if (!c || ["error", "stopped"].includes(c.status)) items.push(["chat", "chat", t("act.dlChat")]);
   }
   items.push("-", ["select", "check", state.selected.has(v.url) ? t("sel.remove") : t("card.select"), "", t("act.ctrlClick")]);
@@ -968,8 +969,11 @@ function bindCardMenu() {
 }
 
 /* VOD'un sohbeti: videoyla ayni adla .ass + .json; durum dugmenin uzerinde */
+/* videonun tamaminin sohbet isi (kesit sohbetleri ayri) */
+const chatJob = (url) => state.downloads.find((x) => x.chat && x.url === url && !x.section);
+
 function chatButton(v) {
-  const c = state.downloads.find((x) => x.chat && x.url === v.url);
+  const c = chatJob(v.url);
   const busy = c && ["queued", ...ACTIVE].includes(c.status);
   const label = busy ? t("chat.downloadingPct", { p: Math.floor(c.pct) }) : c && c.status === "done" ? t("chat.done") : c && c.status === "error" ? t("chat.failedRetry") : t("act.dlChat");
   return `<button class="btn ghost span" data-ins="chat" data-k="${c ? `${c.status}:${Math.floor(c.pct)}` : ""}"${busy ? " disabled" : ""}
@@ -1491,6 +1495,7 @@ function renderSettings() {
   fillSelect($("setThreads"), [["auto", t("set.autoN", { n: s.autoFragThreads })], ...th.map((x) => [String(x), String(x)])], String(s.fragThreads));
   fillSelect($("setSection"), [...$("setSection").options].map((o) => [o.value, o.textContent]), String(s.sectionLength === "auto" ? 30 : s.sectionLength));
   for (const [id, key] of SWITCHES) $(id).setAttribute("aria-checked", !!s[key]);
+  renderChatFormats();
   fillSelect($("setLimit"), [["0", t("set.unlimited")], ...[1, 2, 5, 10, 20, 50, 100].map((x) => [String(x), `${x} MB/s`])], String(s.speedLimit || 0));
   $("setVersion").textContent = t("set.version", { v: state.cfg.version });
   $("setVolume").value = s.volume;
@@ -1527,7 +1532,14 @@ async function saveSetting(patch, quiet) {
 }
 
 const SWITCHES = [["setHover", "hoverPreview"], ["setMuted", "previewMuted"], ["setNotifyDone", "notifyDone"], ["setNotifyLive", "notifyLive"],
-  ["setRemux", "liveRemux"], ["setClip", "clipboardWatch"], ["setUpdate", "updateCheck"]];
+  ["setRemux", "liveRemux"], ["setClip", "clipboardWatch"], ["setUpdate", "updateCheck"], ["setChatAuto", "chatAuto"]];
+const CHAT_FORMATS = ["ass", "txt", "json", "html"];
+
+function renderChatFormats() {
+  const on = state.settings.chatFormats || [];
+  $("setChatFormats").innerHTML = CHAT_FORMATS.map((f) => `<button class="btn sm chiptoggle" type="button" data-fmt="${f}"
+    aria-pressed="${on.includes(f)}" title="${esc(t(`chat.fmtTip.${f}`))}">${esc(t(`chat.fmt.${f}`))}</button>`).join("");
+}
 
 function bindSettings() {
   for (const [id, key] of SWITCHES) {
@@ -1546,6 +1558,15 @@ function bindSettings() {
   // dil degisince arayuz bastan kurulur; indirmeler arka uctadir, kesilmez
   $("setLang").addEventListener("change", async (e) => { if (await saveSetting({ lang: e.target.value }, true)) location.reload(); });
   $("checkUpdBtn").addEventListener("click", () => checkUpdate(true));
+  $("setChatFormats").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-fmt]");
+    if (!b) return;
+    const cur = state.settings.chatFormats || [];
+    const next = cur.includes(b.dataset.fmt) ? cur.filter((f) => f !== b.dataset.fmt) : [...cur, b.dataset.fmt];
+    if (!next.length) { toast(t("toast.chatFormatMin")); return; }
+    await saveSetting({ chatFormats: next });
+    renderChatFormats();
+  });
   $("setSection").addEventListener("change", async (e) => {
     await saveSetting({ sectionLength: Number(e.target.value) });
     applySectionLength();
@@ -1774,6 +1795,7 @@ async function openCutter(vod) {
   cut.stopAt = null;
   cut.chain = null;
   cut.markIn = null;
+  cut.withChat = !!state.settings.chatAuto;    // varsayilan ayardan; bu kesitler icin degistirilebilir
   if (!state.cuts.has(vod.url)) {
     const saved = cutSet(vod.url);
     state.cuts.set(vod.url, saved ? saved.clips.map((c) => ({ id: cut.seq++, a: c.a, b: c.b, name: c.name, note: c.note })) : []);
@@ -2506,6 +2528,7 @@ function renderCutter() {
   const total = list.reduce((s, c) => s + c.b - c.a, 0);
   const merge = cut.mode === "merge" && list.length > 1;
   for (const b of document.querySelectorAll(".outmode [data-mode]")) b.setAttribute("aria-checked", String(b.dataset.mode === cut.mode));
+  $("cutChat").setAttribute("aria-pressed", String(!!cut.withChat));
   const q = qualityName($("quality").value);
   $("cutInfo").textContent = !list.length ? t("cut.infoEmpty", { q, n: MIN_CUT })
     : merge ? t("cut.infoMerge", { n: list.length, d: fmtDuration(total), q })
@@ -2527,9 +2550,9 @@ async function downloadCuts() {
   const title = cleanTitle(vod.title);
   const merge = cut.mode === "merge" && list.length > 1;
   const items = merge
-    ? [{ url: vod.url, thumb: vod.thumb, sections: list.map((c) => [c.a, c.b]), title: `${t("cut.count", { n: list.length })} · ${title}` }]
+    ? [{ url: vod.url, thumb: vod.thumb, sections: list.map((c) => [c.a, c.b]), title: `${t("cut.count", { n: list.length })} · ${title}`, withChat: !!cut.withChat }]
     : list.map((c) => ({
-      url: vod.url, thumb: vod.thumb, start: c.a, end: c.b,
+      url: vod.url, thumb: vod.thumb, start: c.a, end: c.b, withChat: !!cut.withChat,
       title: `${c.name ? `${c.name} · ` : ""}${fmtDuration(c.a)}–${fmtDuration(c.b)} · ${title}`,
     }));
   const n = await state.api.enqueue(items);
@@ -2667,6 +2690,7 @@ function bindCutter() {
   $("cutDel").addEventListener("click", () => cut.sel != null && removeClip(cut.sel));
   $("cutChain").addEventListener("click", toggleChain);
   $("cutDownload").addEventListener("click", downloadCuts);
+  $("cutChat").addEventListener("click", () => { cut.withChat = !cut.withChat; renderCutter(); });
   for (const b of document.querySelectorAll(".outmode [data-mode]")) b.addEventListener("click", () => {
     cut.mode = b.dataset.mode;
     try { localStorage.setItem("cutMode", cut.mode); } catch { /* depolama kapali */ }

@@ -2,7 +2,7 @@
 
 import re
 
-from kickindir.config import NAME_DEFAULT, NAME_TOKENS, norm_name
+from kickindir.config import CHAT_FORMATS, NAME_DEFAULT, NAME_TOKENS, norm_name
 from kickindir.core.i18n import LANGS, detect_lang
 
 
@@ -22,6 +22,13 @@ def valid_name(value):
     if any(t not in NAME_TOKENS for t in re.findall(r"\{([a-z]+)\}", norm)):
         return None
     return value if "{title}" in norm or "{id}" in norm else None
+
+
+def chat_formats(value):
+    """Sohbet bicimleri: CHAT_FORMATS'tan en az biri, sirasi sabit."""
+    if not isinstance(value, list) or not value or any(v not in CHAT_FORMATS for v in value):
+        return None
+    return [f for f in CHAT_FORMATS if f in value]
 
 
 def flag(value):
@@ -46,5 +53,7 @@ PREFS = {
     "speedLimit": (0, ranged(0, 1000)),      # toplam indirme hizi siniri, MB/s (0 = sinirsiz)
     "clipboardWatch": (True, flag),          # pencereye donunce panodaki Kick linkini oner
     "updateCheck": (True, flag),             # acilista yeni surum var mi bak
+    "chatAuto": (False, flag),               # video / kesit / klip / canli kayit inince sohbeti de indir
+    "chatFormats": (["ass", "json"], chat_formats),   # sohbetin yazilacagi bicimler
     "lang": (detect_lang(), lambda v: v if v in LANGS else None),   # arayuz dili; ilk acilista Windows'tan
 }

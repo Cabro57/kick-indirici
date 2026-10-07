@@ -895,7 +895,9 @@ kbd { font: 600 11px var(--font); padding: 1px 5px; border-radius: 4px; backgrou
 .edgerow .iconbtn { margin-left: auto; }
 
 .cutfoot { padding: 12px 14px 14px; border-top: 1px solid var(--line); display: grid; gap: 10px; }
-.cutfoot > p { color: var(--muted); font-size: 12.5px; }
+.cutfoot > p, .cutopts > p { color: var(--muted); font-size: 12.5px; }
+.cutopts { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.fmtbox { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .cutfoot .btn.primary { height: 40px; }
 .outmode { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; gap: 3px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line2); }
 .outmode button {
@@ -1053,9 +1055,9 @@ kbd { font: 600 11px var(--font); padding: 1px 5px; border-radius: 4px; backgrou
 
 /* ---------- favori otomatik isleri ---------- */
 .autobox { display: flex; gap: 6px; }
-.autotoggle { color: var(--muted); background: transparent; border-color: var(--line2); }
-.autotoggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
-.autotoggle[aria-pressed="true"]:hover { background: var(--accent-soft); }
+.autotoggle, .chiptoggle { color: var(--muted); background: transparent; border-color: var(--line2); }
+.autotoggle[aria-pressed="true"], .chiptoggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.autotoggle[aria-pressed="true"]:hover, .chiptoggle[aria-pressed="true"]:hover { background: var(--accent-soft); }
 .autotoggle.busy { opacity: .6; pointer-events: none; }
 .fav .fauto { position: absolute; right: -3px; top: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 2px var(--s1); }
 

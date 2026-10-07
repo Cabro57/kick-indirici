@@ -74,10 +74,12 @@ class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMi
                 d = Download(e["url"], e.get("title") or e["url"], e.get("thumb") or "",
                              tuple(e["section"]) if e.get("section") else None,
                              sections=[tuple(x) for x in e["sections"]] if e.get("sections") else None,
-                             chat=bool(e.get("chat")))
+                             chat=bool(e.get("chat")), with_chat=e.get("withChat") if isinstance(e.get("withChat"), bool) else None)
             except (TypeError, ValueError, IndexError):
                 continue
             d.duration = e.get("duration") or 0
+            d.chat_range = tuple(e["chatRange"]) if e.get("chatRange") else None
+            d.chat_base = e.get("chatBase") or ""
             d.status = "stopped"            # kendiliginden baslamaz; kullanici "devam" der
             self._downloads[d.id] = d
             self._restored += 1

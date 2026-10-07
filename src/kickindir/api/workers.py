@@ -3,7 +3,6 @@
 import copy
 import glob
 import hashlib
-import json
 import os
 import re
 import shutil
@@ -11,15 +10,14 @@ import subprocess
 import tempfile
 import time
 import yt_dlp
-from concurrent.futures import ThreadPoolExecutor
 from yt_dlp.utils import DownloadCancelled
 
-from kickindir.services.chat import chat_ass, chat_entry, chat_window
-from kickindir.config import CHAT_WINDOW, log
+from kickindir.services.chat import chat_entry, fetch_range, write_chat
+from kickindir.config import LIVE_CHAT_LAG, log
 from kickindir.core.engine import out_template
 from kickindir.core.i18n import t
 from kickindir.services.kick import kick_get, kick_time, live_info, live_variant, parse_link, playlist_duration
-from kickindir.core.util import UserError, fill_name, trim_playlist
+from kickindir.core.util import UserError, fill_name, fmt_hms, trim_playlist
 
 
 class WorkerMixin:
@@ -312,6 +310,7 @@ class WorkerMixin:
                 size = os.path.getsize(ts) if os.path.exists(ts) else 0
                 now = time.monotonic()
                 d.speed, d.size, last, tick = (size - last) / (now - tick), size, size, now
+            d.ended = time.time()
             if not os.path.exists(ts) or os.path.getsize(ts) == 0:
                 if d.cancel:
                     raise DownloadCancelled()
@@ -352,72 +351,86 @@ class WorkerMixin:
             self._push(force=True)
 
     def _download_chat(self, d):
-        """VOD'un sohbetini indirir: Kick'in tekrar oynatma API'si 5 sn'lik pencereler verir, bunlar
-        paralel cekilir. Cikti videoyla ayni adla: .ass (oynatici videonun ustunde gosterir) ve
-        .chat.json (ham kayit). Video daha once indiyse onun dosya adi kullanilir."""
+        """Sohbeti indirir: tam VOD, kesit(ler), klip ya da biten canli kayit. Kick'in sohbet gecmisi API'si
+        araligi parca parca paralel verir (services.chat.fetch_range). Dosyalar videoyla ayni adla, ayarlardaki
+        bicimlerde yazilir; zamanlar videonun basina gore (birlesik kesitte her parca kendi yerinde)."""
         try:
-            m = re.search(r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", d.url)
-            if not m:
-                raise UserError(t("err.chatVodOnly"))
-            uuid = m.group(1)
-            v = kick_get(f"https://kick.com/api/v1/video/{uuid}")
-            ls = v.get("livestream") or {}
-            if ls.get("is_live"):
-                raise UserError(t("err.chatStillLive"))
-            slug = (ls.get("channel") or {}).get("slug") or parse_link(d.url)[0] or "kick"
-            if d.title == d.url:
-                d.title = ls.get("session_title") or uuid
-            vod_start = kick_time(ls.get("start_time") or ls.get("created_at"))
-            duration = d.duration or round((ls.get("duration") or 0) / 1000) or playlist_duration(v["source"])
-            with self._lock:
-                video = next((e["file"] for e in reversed(self._history) if e.get("url") == d.url and not e.get("section")
-                              and not e.get("chat") and os.path.isfile(e["file"])), None)
-            if video:
-                base = os.path.splitext(video)[0]
-            else:
-                os.makedirs(self._folder, exist_ok=True)
-                base = os.path.join(self._folder, fill_name(self._prefs["nameTemplate"], slug, d.title,
-                                                            time.strftime("%Y-%m-%d", time.gmtime(vod_start)), uuid[:12]))
+            d.status = "preparing"
+            self._push(force=True)
+            vid = ""
+            if d.chat_range:                                    # biten canli kayit
+                slug = parse_link(d.url)[0] or "kick"
+                channel_id = kick_get(f"https://kick.com/api/v2/channels/{slug}")["id"]
+                a, b = d.chat_range
+                while time.time() < b + LIVE_CHAT_LAG:          # API canliyi geriden verir: son mesajlar gelsin
+                    if d.cancel:
+                        raise DownloadCancelled()
+                    time.sleep(1)
+                ranges, when = [(a, b, 0.0)], a
+            elif "/clips/" in d.url or "clip=" in d.url:      # klip: yayindaki ani klip bilgisinde
+                m = re.search(r"(clip_[A-Za-z0-9]+)", d.url)
+                if not m:
+                    raise UserError(t("err.chatClipNoTime"))
+                c = kick_get(f"https://kick.com/api/v2/clips/{m.group(1)}").get("clip") or {}
+                try:
+                    a = kick_time(c.get("started_at"))
+                except ValueError:
+                    a = 0
+                if a < 946684800 or not c.get("channel_id"):  # bazi kliplerde bos (0001-01-01)
+                    raise UserError(t("err.chatClipNoTime"))
+                channel_id, vid = c["channel_id"], m.group(1)[5:17]
+                slug = (c.get("channel") or {}).get("slug") or parse_link(d.url)[0] or "kick"
+                if d.title == d.url:
+                    d.title = c.get("title") or vid
+                ranges, when = [(a, a + (c.get("duration") or 60), 0.0)], a
+            else:                                               # VOD: tamami ya da kesit(ler)
+                m = re.search(r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", d.url)
+                if not m:
+                    raise UserError(t("err.chatVodOnly"))
+                v = kick_get(f"https://kick.com/api/v1/video/{m.group(1)}")
+                ls = v.get("livestream") or {}
+                channel_id, vid = ls["channel_id"], m.group(1)[:12]
+                slug = (ls.get("channel") or {}).get("slug") or parse_link(d.url)[0] or "kick"
+                if d.title == d.url:
+                    d.title = ls.get("session_title") or m.group(1)
+                when = kick_time(ls.get("start_time") or ls.get("created_at"))
+                if ls.get("is_live"):                           # suren yayin: sohbeti API'nin verdigi yere kadar
+                    duration = max(0, time.time() - when - LIVE_CHAT_LAG)
+                else:
+                    duration = d.duration or round((ls.get("duration") or 0) / 1000) or playlist_duration(v["source"])
+                spans = d.sections or ([d.section] if d.section else [(0, duration)])
+                ranges, off = [], 0.0
+                for sa, sb in spans:
+                    ranges.append((when + sa, when + min(sb, duration or sb), off))
+                    off += sb - sa
+            base = d.chat_base or self._chat_base(d, slug, when, vid)
             d.filename = base + ".ass"
-            starts = list(range(0, int(duration) + 1, CHAT_WINDOW))
             d.status = "downloading"
             self._push(force=True)
-
-            def fetch(offset):
-                if d.cancel:
-                    raise DownloadCancelled()
-                return chat_window(ls["channel_id"], vod_start + offset)
-
-            seen, messages, t0 = set(), [], time.monotonic()
-            pool = ThreadPoolExecutor(max_workers=8)
-            try:
-                for i, batch in enumerate(pool.map(fetch, starts), 1):
-                    for msg in batch:
-                        if msg.get("id") in seen or not msg.get("content"):
-                            continue
-                        seen.add(msg.get("id"))
-                        try:
-                            messages.append(chat_entry(msg, vod_start))
-                        except ValueError:
-                            continue
-                    d.pct = 100 * i / len(starts)
-                    elapsed = time.monotonic() - t0
-                    d.eta = elapsed / i * (len(starts) - i)
-            finally:        # hata ya da durdurmada kalan binlerce istek beklenmesin
-                pool.shutdown(wait=False, cancel_futures=True)
-            messages.sort(key=lambda x: x["t"])
+            messages, t0 = [], time.monotonic()
+            for i, (a, b, off) in enumerate(ranges):
+                def progress(done, total, i=i):
+                    frac = (i + done / total) / len(ranges)
+                    d.pct = 100 * frac
+                    d.eta = (time.monotonic() - t0) / frac * (1 - frac) if frac else None
+                for msg in fetch_range(channel_id, a, b, cancelled=lambda: d.cancel, progress=progress):
+                    try:
+                        e = chat_entry(msg, a)
+                    except ValueError:
+                        continue
+                    e["t"] = round(e["t"] + off, 1)
+                    messages.append(e)
             d.status = "merging"
             self._push(force=True)
-            with open(base + ".chat.json", "w", encoding="utf-8") as f:
-                json.dump({"url": d.url, "channel": slug, "title": d.title, "start": ls.get("start_time"),
-                           "duration": duration, "messages": messages}, f, ensure_ascii=False)
-            with open(d.filename, "w", encoding="utf-8-sig") as f:
-                f.write(chat_ass(messages))
-            d.size = os.path.getsize(d.filename)
+            os.makedirs(os.path.dirname(base) or ".", exist_ok=True)
+            files = write_chat(base, messages, {"url": d.url, "channel": slug, "title": d.title,
+                                                "ranges": [[a, b] for a, b, _ in ranges]}, self._prefs["chatFormats"])
+            d.filename = files[0]
+            d.size = sum(os.path.getsize(f) for f in files)
             d.status, d.pct, d.eta = "done", 100.0, 0
-            log.info("sohbet indi: %s, %d mesaj", uuid, len(messages))
+            log.info("sohbet indi: %s, %d mesaj, %s", d.url, len(messages), ", ".join(os.path.basename(f) for f in files))
         except Exception as e:  # noqa: BLE001 - hatayi kullaniciya goster
-            if d.cancel or isinstance(e, DownloadCancelled):
+            if d.cancel or isinstance(e, (DownloadCancelled, InterruptedError)):
                 d.status = "stopped"
             else:
                 d.status = "error"
@@ -428,6 +441,23 @@ class WorkerMixin:
             if d.status == "done":
                 self._remember(d)
             self._push(force=True)
+
+    def _chat_base(self, d, slug, when, vid):
+        """Sohbet dosyalarinin yolu (uzantisiz): ayni video / kesit daha once indiyse onun adi,
+        yoksa dosya adi sablonundan (kesitte sona saat araligi)."""
+        span = [list(x) for x in d.sections] if d.sections else None
+        one = list(d.section) if d.section and not d.sections else None
+        with self._lock:
+            video = next((e["file"] for e in reversed(self._history)
+                          if e.get("url") == d.url and not e.get("chat") and e.get("sections") == span
+                          and e.get("section") == one and os.path.isfile(e["file"])), None)
+        if video:
+            return os.path.splitext(video)[0]
+        name = fill_name(self._prefs["nameTemplate"], slug, d.title, time.strftime("%Y-%m-%d", time.gmtime(when)), vid)
+        if d.section:
+            count = len(d.sections) if d.sections else 1
+            name += (" " + t("file.cuts", n=count) if count > 1 else "") + f" {fmt_hms(d.section[0])}-{fmt_hms(d.section[1])}"
+        return os.path.join(self._folder, name)
 
     @staticmethod
     def _stop_proc(proc):

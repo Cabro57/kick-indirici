@@ -348,7 +348,7 @@
   "chat.downloadingPct": "Chat downloading {p}%",
   "chat.done": "Chat downloaded",
   "chat.failedRetry": "Chat failed · retry",
-  "chat.tip": "Saves the chat with the same name as the video, as an .ass subtitle and .json. When VLC or MPC opens the video, the chat scrolls on screen.",
+  "chat.tip": "Saves the chat with the same name as the video, in the file types chosen in Settings → Chat.",
   "pct": "{p}%",
   "rec.recorded": "{d} recorded",
   "dl.resumeHint": "Restarting continues from where it stopped.",
@@ -408,7 +408,7 @@
   "herr.disk": "The disk is full. Free up space and retry; it continues from where it stopped.",
   "herr.network": "The connection dropped. Check the internet and retry; it continues from where it stopped.",
   "herr.generic": "The download failed. Retry. ({e})",
-  "lib.chatSubs": "chat subtitles",
+  "lib.chatSubs": "chat",
   "lib.mergedCuts": {
     "one": "{n} cut merged",
     "other": "{n} cuts merged"
@@ -595,5 +595,21 @@
   "err.liveNeedsFfmpeg": "ffmpeg is required for live recording.",
   "err.recFailed": "Recording failed: {e}",
   "err.chatVodOnly": "Chat can only be downloaded from a stream (VOD) link.",
-  "err.chatStillLive": "The stream is still running; the chat can be downloaded when it ends."
+  "err.chatClipNoTime": "This clip has no start time on Kick, so its chat cannot be found.",
+  "cut.withChat": "With chat",
+  "cut.withChatTip": "Also download each cut's chat, with the same name as the video",
+  "set.chat": "Chat",
+  "set.chatAuto": "Download chat with videos",
+  "set.chatAutoDesc": "When a stream, cut, clip or live recording finishes, its chat downloads too, with the same name. The cut editor can turn this off per download.",
+  "set.chatFormats": "Chat files",
+  "set.chatFormatsDesc": "Which files the chat is saved as. At least one.",
+  "chat.fmt.ass": "Subtitle (.ass)",
+  "chat.fmt.txt": "Text (.txt)",
+  "chat.fmt.json": "Data (.json)",
+  "chat.fmt.html": "Web page (.html)",
+  "chat.fmtTip.ass": "VLC and MPC show the chat over the video when it has the same name",
+  "chat.fmtTip.txt": "Readable text: [time] user: message",
+  "chat.fmtTip.json": "All data: times, users, colours, badges, emotes",
+  "chat.fmtTip.html": "Opens in the browser with colours, badges and emotes",
+  "toast.chatFormatMin": "At least one chat file type must stay on"
 }

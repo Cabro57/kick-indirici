@@ -73,7 +73,10 @@ QUEUE_PATH = os.path.join(DATA_DIR, "queue.json")   # bitmemis indirmeler: sonra
 DISK_RESERVE = 512 * 1024 * 1024             # indirme sonrasi diskte kalmasi gereken en az bos alan
 
 
-CHAT_WINDOW = 5                              # sohbet API'si her istekte bu kadar saniyelik mesaj verir
+CHAT_FORMATS = ("ass", "txt", "json", "html")   # sohbet dosya bicimleri; hangileri yazilacagi ayarlardan
+
+
+LIVE_CHAT_LAG = 30                           # sohbet API'si canliyi bu kadar sn geriden verir
 
 
 WEBVIEW2_URL = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"

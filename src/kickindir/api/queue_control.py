@@ -30,8 +30,13 @@ class QueueMixin:
                     continue
                 if it.get("live") or it.get("chat"):
                     # canli: ayni kanal ayni anda bir kez kaydedilir; bitmis kayit engel degil. sohbet de oyle.
+                    secs, section = self._spans(it)
+                    if secs is False:
+                        continue
                     d = Download(it["url"], it.get("title") or it["url"], it.get("thumb") or "",
-                                 live=bool(it.get("live")), chat=bool(it.get("chat")) and not it.get("live"))
+                                 section=None if it.get("live") else section, sections=None if it.get("live") else secs,
+                                 live=bool(it.get("live")), chat=bool(it.get("chat")) and not it.get("live"),
+                                 with_chat=it.get("withChat") if isinstance(it.get("withChat"), bool) else None)
                     if d.chat:
                         d.duration = it.get("duration") if type(it.get("duration")) is int else 0
                     if d.key not in active:
@@ -39,32 +44,36 @@ class QueueMixin:
                         active.add(d.key)
                         added += 1
                     continue
-                if it.get("sections"):   # birden fazla kesit, tek video
-                    try:
-                        secs = sorted((max(0, int(a)), int(b)) for a, b in it["sections"])
-                    except (TypeError, ValueError):
-                        continue
-                    secs = [x for x in secs if x[1] > x[0]]
-                    if not secs:
-                        continue
-                    d = Download(it["url"], it.get("title") or it["url"], it.get("thumb") or "", sections=secs)
-                    if d.key not in known:
-                        self._downloads[d.id] = d
-                        known.add(d.key)
-                        added += 1
+                secs, section = self._spans(it)
+                if secs is False:
                     continue
-                section = None
-                if it.get("end"):
-                    section = (max(0, int(it.get("start") or 0)), int(it["end"]))
-                    if section[1] <= section[0]:
-                        continue
-                d = Download(it["url"], it.get("title") or it["url"], it.get("thumb") or "", section)
+                d = Download(it["url"], it.get("title") or it["url"], it.get("thumb") or "", section, sections=secs,
+                             with_chat=it.get("withChat") if isinstance(it.get("withChat"), bool) else None)
                 if d.key not in known:
                     self._downloads[d.id] = d
                     known.add(d.key)
                     added += 1
         self._push(force=True)
         return added
+
+    @staticmethod
+    def _spans(it):
+        """Arayuzden gelen aralik: (birden fazla kesit ya da None, tek kesit ya da None).
+        Gecersizse (False, None)."""
+        if it.get("sections"):   # birden fazla kesit, tek video
+            try:
+                secs = sorted((max(0, int(a)), int(b)) for a, b in it["sections"])
+            except (TypeError, ValueError):
+                return False, None
+            secs = [x for x in secs if x[1] > x[0]]
+            return (secs, None) if secs else (False, None)
+        if it.get("end"):
+            try:
+                section = (max(0, int(it.get("start") or 0)), int(it["end"]))
+            except (TypeError, ValueError):
+                return False, None
+            return (None, section) if section[1] > section[0] else (False, None)
+        return None, None
 
     def cancel(self, did, discard=False):
         """Durdurur (yarim dosya kalir, devam edilebilir). discard: iptal; yarim dosyalar silinir, satir kalkar."""
@@ -302,6 +311,26 @@ class QueueMixin:
             self._history = [e for e in self._history if e["file"] != d.filename] + [entry]
             self._history = self._history[-HISTORY_MAX:]
             save_history(self._history)
+        self._queue_chat_for(d)
+
+    def _queue_chat_for(self, d):
+        """Video (tam, kesit, klip ya da canli kayit) bitti: istendiyse sohbeti de ayni adla sirada.
+        Program kapanirken durdurulan canli kayit da buraya gelir; sohbeti queue.json'la sonraki acilisa kalir."""
+        want = d.with_chat if d.with_chat is not None else self._prefs["chatAuto"]
+        if d.chat or not want:
+            return
+        c = Download(d.url, d.title, d.thumb, section=None if d.sections else d.section, sections=d.sections, chat=True)
+        c.chat_base = os.path.splitext(d.filename)[0]
+        if d.live:
+            if not d.started:
+                return
+            c.chat_range = (d.started, d.ended or time.time())
+            c.key += f"@{int(d.started)}"
+        with self._lock:
+            if any(o.key == c.key and o.status in ("queued",) + ACTIVE_ALL for o in self._downloads.values()):
+                return
+            self._downloads[c.id] = c
+        self._push(force=True)
 
     def _stop_recordings(self):
         """Program kapanirken: ffmpeg alt surecleri programdan sonra da calismaya devam eder."""

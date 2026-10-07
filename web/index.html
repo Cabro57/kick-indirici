@@ -250,6 +250,17 @@
         </div>
       </section>
       <section class="setgroup">
+        <h2 data-i18n="set.chat"></h2>
+        <div class="setrow">
+          <div class="setlbl"><b data-i18n="set.chatAuto"></b><p data-i18n="set.chatAutoDesc"></p></div>
+          <button class="switch" id="setChatAuto" type="button" role="switch" aria-checked="false"><i></i></button>
+        </div>
+        <div class="setrow">
+          <div class="setlbl"><b data-i18n="set.chatFormats"></b><p data-i18n="set.chatFormatsDesc"></p></div>
+          <div class="fmtbox" id="setChatFormats" role="group" data-i18n-aria="set.chatFormats"></div>
+        </div>
+      </section>
+      <section class="setgroup">
         <h2 data-i18n="set.cutsLive"></h2>
         <div class="setrow">
           <div class="setlbl"><b data-i18n="set.sectionLen"></b><p data-i18n-html="set.sectionLenDesc"></p></div>
@@ -460,7 +471,10 @@
           <button type="button" role="radio" data-mode="split" aria-checked="true"><svg class="ic"><use href="#i-files"/></svg><span data-i18n="cut.split"></span></button>
           <button type="button" role="radio" data-mode="merge" aria-checked="false"><svg class="ic"><use href="#i-merge"/></svg><span data-i18n="cut.merge"></span></button>
         </div>
-        <p class="num" id="cutInfo"></p>
+        <div class="cutopts">
+          <p class="num" id="cutInfo"></p>
+          <button class="btn sm chiptoggle" id="cutChat" type="button" aria-pressed="false" data-i18n-title="cut.withChatTip"><svg class="ic"><use href="#i-chat"/></svg><span data-i18n="cut.withChat"></span></button>
+        </div>
         <button class="btn primary" id="cutDownload" type="button" disabled><svg class="ic"><use href="#i-download"/></svg><span id="cutDownloadLabel"></span></button>
       </footer>
     </aside>
