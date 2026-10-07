@@ -15,13 +15,11 @@ Watch, cut out the moments you want, record live. All in one window.
 
 <br>
 
-<img src="docs/img/kanal.jpg" alt="A streamer's page: live strip and stream grid" width="900">
+<img src="docs/img/en/channel.jpg" alt="A streamer's page: live strip and stream grid" width="900">
 
 </div>
 
 <br>
-
-> The screenshots show the Turkish interface. The app opens in English unless Windows is set to Turkish.
 
 ## Contents
 
@@ -37,7 +35,7 @@ Type a channel name in the top box, or paste a **channel / stream / clip link**.
 
 If the streamer is **live**, a full-width **live strip** leads the list: live preview, title, viewer count and two buttons (**Start recording**, **Cut**).
 
-<img src="docs/img/canli-seridi.jpg" alt="Live strip with the preview playing" width="900">
+<img src="docs/img/en/live-strip.jpg" alt="Live strip with the preview playing" width="900">
 
 <table>
 <tr>
@@ -47,7 +45,7 @@ If the streamer is **live**, a full-width **live strip** leads the list: live pr
 
 Rest the pointer on a card and the video plays muted. Click it and the watch window continues from the same moment.
 
-<img src="docs/img/onizleme.jpg" alt="Preview playing on a card with a loading ring">
+<img src="docs/img/en/preview.jpg" alt="Preview playing on a card with a loading ring">
 
 </td>
 <td width="50%" valign="top">
@@ -56,7 +54,7 @@ Rest the pointer on a card and the video plays muted. Click it and the watch win
 
 Press the star and the streamer joins the left rail. A green ring shows when they go live, and a count shows new streams. Optionally, new streams download automatically and recording starts automatically when they go live.
 
-<img src="docs/img/ana-sayfa.jpg" alt="Home: favourite streamers and recent downloads">
+<img src="docs/img/en/home.jpg" alt="Home: favourite streamers and recent downloads">
 
 </td>
 </tr>
@@ -70,7 +68,7 @@ Click a video and a large window opens over a dimmed background. On the side are
 
 **← →** or the side arrows step to the previous / next video. **Esc** closes the window and stops playback.
 
-<img src="docs/img/izleme-penceresi.jpg" alt="The watch window in the middle" width="900">
+<img src="docs/img/en/watch.jpg" alt="The watch window in the middle" width="900">
 
 <br>
 
@@ -80,7 +78,7 @@ Press the box in a card's corner (or **Ctrl+click**) to start a selection. While
 
 A bar appears at the bottom: how many you picked, the **total length**, quality and **Download (n)**. Click the count to list your picks and remove any of them.
 
-<img src="docs/img/secim.jpg" alt="Selection bar and the list of picks" width="900">
+<img src="docs/img/en/selection.jpg" alt="Selection bar and the list of picks" width="900">
 
 <br>
 
@@ -88,7 +86,7 @@ A bar appears at the bottom: how many you picked, the **total length**, quality 
 
 The **⋮** button beside the title, or **right-click**. The menu follows the video's state: *Download* if not downloaded, *Stop* while downloading, *Resume* when stopped, *Play* and *Show in folder* when done. Also *Cut*, *Download chat*, *Open on Kick* and *Copy link*.
 
-<img src="docs/img/kart-menusu.jpg" alt="The card's three-dot menu" width="900">
+<img src="docs/img/en/card-menu.jpg" alt="The card's three-dot menu" width="900">
 
 <br>
 
@@ -101,7 +99,7 @@ The **⋮** button beside the title, or **right-click**. The menu follows the vi
 - Only the parts covering the range are downloaded. A 30-second cut from a 4-hour stream does not fetch 4 hours of data.
 - You can cut from a live stream too: go back while it is still running and cut the moment you want.
 
-<img src="docs/img/kesit-editoru.jpg" alt="Cut editor: timeline and cut list" width="900">
+<img src="docs/img/en/cut-editor.jpg" alt="Cut editor: timeline and cut list" width="900">
 
 <br>
 
@@ -115,7 +113,7 @@ The **⋮** button beside the title, or **right-click**. The menu follows the vi
 
 Cards show their state (*Downloading 37%*, *Queued*, *Downloaded*). The bottom bar shows total progress, time left, speed and free disk space.
 
-<img src="docs/img/indirme.jpg" alt="Cards while downloading and the bottom bar">
+<img src="docs/img/en/downloading.jpg" alt="Cards while downloading and the bottom bar">
 
 </td>
 <td width="50%" valign="top">
@@ -124,7 +122,7 @@ Cards show their state (*Downloading 37%*, *Queued*, *Downloaded*). The bottom b
 
 Finished files are grouped by day. A file plays inside the app, opens in the Windows player, is shown in its folder or goes to the Recycle Bin.
 
-<img src="docs/img/indirilenler.jpg" alt="Downloads list">
+<img src="docs/img/en/downloads.jpg" alt="Downloads list">
 
 </td>
 </tr>
@@ -248,7 +246,7 @@ All editor shortcuts are under the **Shortcuts** button at its top right.
 </table>
 
 <div align="center">
-<img src="docs/img/kisayollar.jpg" alt="Shortcut list" width="760">
+<img src="docs/img/en/shortcuts.jpg" alt="Shortcut list" width="760">
 </div>
 
 <br>
@@ -266,7 +264,7 @@ Open Settings with the gear at the bottom left: interface language, download fol
 </td>
 <td width="45%" valign="top">
 
-<img src="docs/img/ayarlar.jpg" alt="Settings page">
+<img src="docs/img/en/settings.jpg" alt="Settings page">
 
 </td>
 </tr>
@@ -355,6 +353,7 @@ assets/           Logo and app icon
 tools/make_logo.py  Script that builds the logo and icon
 tools/make_manifest.py  Script that builds a release's manifest.json
 tools/check_i18n.py  Checks the language files (missing keys, mismatched placeholders)
+tools/screenshots.py  Takes the README screenshots: python tools/screenshots.py en <channel> ... (uses a temporary data folder, downloads nothing)
 PRODUCT.md        What the product does and its constraints
 DESIGN.md         Visual design system
 PERF.md           Speed experiments and results

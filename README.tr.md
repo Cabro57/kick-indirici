@@ -352,6 +352,7 @@ assets/           Logo ve uygulama ikonu
 tools/make_logo.py  Logo ve ikonu üreten betik
 tools/make_manifest.py  Sürümün manifest.json'unu üreten betik
 tools/check_i18n.py  Dil dosyalarını denetler (eksik anahtar, farklı yer tutucu)
+tools/screenshots.py  README ekran görüntülerini alır: python tools/screenshots.py tr <kanal> ... (geçici veri klasörü kullanır, indirme yapmaz)
 PRODUCT.md        Ürünün ne yaptığı ve kısıtları
 DESIGN.md         Görsel tasarım sistemi
 PERF.md           Hız denemeleri ve sonuçları
