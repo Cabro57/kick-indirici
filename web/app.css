@@ -513,6 +513,58 @@ body:has(.selbar:not([hidden])) .toast { bottom: calc(var(--sb) + 86px); }
 .wnav.prev:active:not(:disabled) { transform: translateX(-2px); }
 .wnav.next:active:not(:disabled) { transform: translateX(2px); }
 .wnav:disabled { opacity: .2; cursor: default; }
+/* sohbet acikken panel saga 340px genisler; video ayni boyda kalir */
+.wpanel.chat {
+  width: calc(max(560px, min(1180px, calc(100vw - 500px), calc((100vh - 250px) * 16 / 9))) + 340px);
+  grid-template-columns: minmax(0, 1fr) clamp(240px, calc((100% - 340px) * .26), 280px) 340px;
+}
+.wpanel.chat .player { grid-column: 1 / 3; }
+.wpanel.chat .facts dd { white-space: normal; }
+.wpanel.chat .facts .chips { flex-wrap: wrap; }
+.wchat { grid-column: 3; grid-row: 1 / 3; contain: size; display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; border-left: 1px solid var(--line); background: var(--s1); }
+.wchat > header { display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 56px 0 14px; border-bottom: 1px solid var(--line); color: var(--muted); }
+.wchat > header h3 { font: 600 14px var(--font-display); color: var(--text); }
+.wchat > header .ic { width: 16px; height: 16px; }
+.pbar .iconbtn[aria-pressed="true"] { color: var(--accent); }
+
+/* ---------- sohbet paneli (izleme penceresi + kesit editoru) ---------- */
+.chatp { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; height: 100%; }
+.chatp-scroll { overflow-y: auto; overflow-x: hidden; min-height: 0; padding: 6px 0; }
+.chatp-list { list-style: none; margin: 0; padding: 0; }
+.chatp-list li {
+  padding: 3px 12px 3px 10px; border-left: 2px solid transparent; font-size: 13px; line-height: 1.6;
+  overflow-wrap: anywhere; cursor: pointer; transition: background .12s;
+}
+.chatp-list li:hover { background: var(--s2); }
+.chatp-list li.sel { background: var(--accent-soft); border-left-color: var(--accent); }
+.chatp-list b { font-weight: 600; }
+.chatp-list .ct { all: unset; margin-right: 6px; color: var(--faint); font-size: 11.5px; cursor: pointer; }
+.chatp-list .ct:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
+.chatp-list .ct:disabled { cursor: inherit; }
+.chatp-list .cb { height: 16px; vertical-align: -3px; margin-right: 3px; }
+.chatp-list .ce { height: 24px; vertical-align: middle; margin: -3px 0; }
+.chatp-msg { position: absolute; inset: 40% 20px auto; margin: 0; text-align: center; color: var(--muted); font-size: 13px; pointer-events: none; }
+.chatp-now { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); background: var(--s3); box-shadow: 0 6px 20px -6px #000; white-space: nowrap; }
+.chatp-foot { position: relative; min-height: 48px; display: grid; align-items: center; padding: 6px 8px 6px 12px; border-top: 1px solid var(--line); }
+.chatp-hint { margin: 0; color: var(--faint); font-size: 12px; }
+.chatp-sel { display: flex; align-items: center; gap: 4px; }
+.chatp-count { flex: 1; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.chatp-sel .iconbtn[aria-expanded="true"] { color: var(--accent); }
+.chatp-opts {
+  position: absolute; left: 8px; right: 8px; bottom: calc(100% + 6px); z-index: 4; display: grid; gap: 6px; padding: 12px;
+  background: var(--s2); border: 1px solid var(--line2); border-radius: 10px; box-shadow: 0 16px 40px -12px #000;
+}
+.chatp-opts p { margin: 4px 0 0; color: var(--faint); font-size: 12px; }
+.chatp-opts .seg { display: flex; padding: 3px; gap: 3px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line2); }
+.chatp-opts .seg button { flex: 1; padding: 5px 6px; border: 0; border-radius: 6px; background: none; color: var(--muted); font-size: 12.5px; }
+.chatp-opts .seg button:hover { color: var(--text); }
+.chatp-opts .seg button[aria-checked="true"] { background: var(--s3); color: var(--text); box-shadow: inset 0 0 0 1px var(--line2); }
+.chatp-opts .chks { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
+.chatp-opts .chk { display: flex; align-items: center; gap: 6px; padding: 4px 0; border: 0; background: none; color: var(--muted); font-size: 12.5px; }
+.chatp-opts .chk .ic { width: 14px; height: 14px; padding: 1px; border: 1px solid var(--line2); border-radius: 4px; color: transparent; }
+.chatp-opts .chk[aria-checked="true"] { color: var(--text); }
+.chatp-opts .chk[aria-checked="true"] .ic { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+
 @media (max-height: 760px) {
   .wpanel .insbody { padding: 14px 20px 16px; }
   .wpanel .insbody h2 { font-size: 16px; }
@@ -850,8 +902,14 @@ kbd { font: 600 11px var(--font); padding: 1px 5px; border-radius: 4px; backgrou
 .cutside { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--s1); border-left: 1px solid var(--line); min-height: 0; }
 .cutside > .cutempty { grid-row: 2; }
 .sidehead { display: flex; align-items: center; gap: 8px; padding: 12px 10px 8px 16px; }
-.sidehead h3 { flex: 1; font: 600 15px var(--font-display); }
-.sidehead h3 span { color: var(--faint); font: 400 14px var(--font); margin-left: 4px; }
+.sidetabs { flex: 1; display: flex; gap: 2px; min-width: 0; margin-left: -8px; }
+.sidetabs [role="tab"] { padding: 6px 10px; border: 0; border-radius: 6px; background: none; color: var(--faint); font: 600 15px var(--font-display); white-space: nowrap; }
+.sidetabs [role="tab"]:hover { color: var(--text); }
+.sidetabs [role="tab"][aria-selected="true"] { color: var(--text); background: var(--s2); }
+.sidetabs .num { color: var(--faint); font: 400 14px var(--font); margin-left: 2px; }
+.cutchatpane { grid-row: 2 / 4; min-height: 0; display: none; border-top: 1px solid var(--line); }
+.cutside.chattab .cutchatpane { display: grid; }
+.cutside.chattab > :is(.cutlist, .cutempty, .cutfoot), .cutside.chattab #cutChain { display: none !important; }
 .cutlist { list-style: none; padding: 2px 8px 8px; margin: 0; overflow-y: auto; overflow-x: hidden; min-height: 0; }
 .cutlist:empty { display: none; }
 .cutempty { padding: 6px 16px; color: var(--muted); font-size: 13px; display: grid; gap: 12px; align-content: start; }

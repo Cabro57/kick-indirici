@@ -780,6 +780,8 @@ function closeWatch() {
 
 function onWatchClosed() {
   player.stop();
+  watchChat.stop();
+  watchChat.key = null;
   const lib = state.libFocus;
   state.focus = null;
   state.libFocus = null;
@@ -854,6 +856,42 @@ function renderInspector(start) {
       <button class="btn" data-ins="cut">${icon("scissors")}${t("card.cut")}</button>
       ${chatButton(v)}`;
   }
+  syncWatchChat();
+}
+
+/* izleme penceresinin sohbet paneli: videonun sagindaki sutun; acik / kapali ayarlarda kalir */
+let watchChat = null;
+function watchChatSpec() {
+  if (state.libFocus) {
+    const e = libEntry(state.libFocus);
+    return e && e.exists && !e.chat ? { file: e.file } : null;
+  }
+  const v = state.focus && state.channel && itemByUrl(state.focus);
+  if (!v) return null;
+  const kind = kindOf(v);
+  return kind === "live" ? { live: state.channel.slug } : kind === "clip" ? { clip: v.uuid } : v.uuid ? { vod: v.uuid } : null;
+}
+
+function syncWatchChat() {
+  const spec = watchChatSpec(), on = !!(spec && state.settings.chatPanel);
+  $("inspector").classList.toggle("chat", on);
+  $("wChat").hidden = !on;
+  $("pChat").hidden = !spec;
+  $("pChat").setAttribute("aria-pressed", String(on));
+  const key = on ? JSON.stringify(spec) : null;
+  if (key === watchChat.key) return;
+  watchChat.key = key;
+  if (on) watchChat.start(spec); else watchChat.stop();
+}
+
+/* oynatilan an: VOD'da videodaki saniye; canlida ekrandaki karenin gercek zamani (epoch sn) */
+function watchChatNow() {
+  const v = player.el();
+  if (!player.key || v.readyState < 1) return null;
+  if (!player.live) return v.currentTime;
+  const h = player.hls;
+  if (h && h.playingDate) return h.playingDate.getTime() / 1000;
+  return Date.now() / 1000 - ((h && h.latency) || 10);
 }
 
 async function downloadChat(v) {
@@ -1443,6 +1481,7 @@ function renderLibraryInspector() {
        <button class="btn" data-ins="lopen" data-file="${esc(e.file)}">${icon("external")}${t("lib.openOutside")}</button>
        <button class="btn ghost danger span" data-ins="ldel" data-file="${esc(e.file)}">${icon("trash")}${t("keys.deleteFile")}</button>`
     : `<button class="btn ghost span" data-ins="ldel" data-file="${esc(e.file)}">${icon("x")}${t("act.removeFromList")}</button>`;
+  syncWatchChat();
 }
 
 /* onay penceresi: true/false doner. Varsayilan odak "Vazgec"te; Esc ve disari tik de vazgecer. */
@@ -1812,6 +1851,7 @@ async function openCutter(vod) {
   cut.view = [0, Math.min(WAVE_MAX, vod.duration || WAVE_MAX)];   // 15 dk'lik yakin gorunumle ac
   cut.strip = { uuid: vod.uuid, segs: null, data: new Map(), thumbs: new Map(), busy: 0, tbusy: 0, note: "" };
   loadStrip(cut.strip);
+  setSideTab(cut.tab);
   setRate(Number($("cutRate").value));
   cutterMsg(t("cut.loadingVideo"));
   $("cutter").showModal();
@@ -1897,7 +1937,24 @@ function closeCutter() {
     persistCuts(cut.vod, true);
     if (!cutClips().length) state.cuts.delete(cut.vod.url);
   }
+  cutChat.stop();
+  cutChat.uuid = null;
   cut.vod = null;
+}
+
+/* sag panel sekmesi: kesitler ya da sohbet. Sohbet yalnizca sekmesi acilinca cekilir. */
+let cutChat = null;
+function setSideTab(tab) {
+  cut.tab = tab;
+  try { localStorage.setItem("cutTab", tab); } catch { /* depolama kapali */ }
+  const chat = tab === "chat";
+  $("sideTabCuts").setAttribute("aria-selected", String(!chat));
+  $("sideTabChat").setAttribute("aria-selected", String(chat));
+  document.querySelector(".cutside").classList.toggle("chattab", chat);
+  if (chat && cut.vod && cutChat.uuid !== cut.vod.uuid) {
+    cutChat.uuid = cut.vod.uuid;
+    cutChat.start({ vod: cut.vod.uuid });
+  }
 }
 
 function cutterMsg(msg) {
@@ -2689,6 +2746,10 @@ function bindCutter() {
   $("markOut").addEventListener("click", markOut);
   $("cutDel").addEventListener("click", () => cut.sel != null && removeClip(cut.sel));
   $("cutChain").addEventListener("click", toggleChain);
+  try { cut.tab = localStorage.getItem("cutTab") === "chat" ? "chat" : "cuts"; } catch { cut.tab = "cuts"; }
+  cutChat = new ChatPanel($("cutChatPane"), { now: () => (cut.vod ? nowTime() : null), seek: seekTo });
+  $("sideTabCuts").addEventListener("click", () => setSideTab("cuts"));
+  $("sideTabChat").addEventListener("click", () => setSideTab("chat"));
   $("cutDownload").addEventListener("click", downloadCuts);
   $("cutChat").addEventListener("click", () => { cut.withChat = !cut.withChat; renderCutter(); });
   for (const b of document.querySelectorAll(".outmode [data-mode]")) b.addEventListener("click", () => {
@@ -3192,6 +3253,12 @@ function bind() {
   });
   for (const id of ["quality", "selQuality"]) $(id).addEventListener("change", (e) => setQuality(e.target.value));
   bindPlayer();
+  watchChat = new ChatPanel($("wChatBody"), { now: watchChatNow, seek: (sec) => { player.el().currentTime = sec; } });
+  $("pChat").addEventListener("click", () => {
+    state.settings.chatPanel = !state.settings.chatPanel;
+    state.api.set_settings({ chatPanel: state.settings.chatPanel });
+    syncWatchChat();
+  });
   $("insPoster").addEventListener("error", (e) => {
     const l = player.live && liveItem();
     const fb = l && l.avatar && e.target.src !== l.avatar;

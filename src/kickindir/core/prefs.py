@@ -31,6 +31,15 @@ def chat_formats(value):
     return [f for f in CHAT_FORMATS if f in value]
 
 
+def chat_image(value):
+    """Sohbet resmi secenekleri: arka plan, saat, rozetler, emote'lar, genislik."""
+    if not isinstance(value, dict) or value.get("bg") not in ("dark", "transparent") or value.get("width") not in (360, 480, 640):
+        return None
+    if any(not isinstance(value.get(k), bool) for k in ("time", "badges", "emotes")):
+        return None
+    return {k: value[k] for k in ("bg", "time", "badges", "emotes", "width")}
+
+
 def flag(value):
     return value if isinstance(value, bool) else None
 
@@ -55,5 +64,7 @@ PREFS = {
     "updateCheck": (True, flag),             # acilista yeni surum var mi bak
     "chatAuto": (False, flag),               # video / kesit / klip / canli kayit inince sohbeti de indir
     "chatFormats": (["ass", "json"], chat_formats),   # sohbetin yazilacagi bicimler
+    "chatPanel": (True, flag),               # izleme penceresinde sohbet paneli acik
+    "chatImage": ({"bg": "dark", "time": True, "badges": True, "emotes": True, "width": 480}, chat_image),
     "lang": (detect_lang(), lambda v: v if v in LANGS else None),   # arayuz dili; ilk acilista Windows'tan
 }

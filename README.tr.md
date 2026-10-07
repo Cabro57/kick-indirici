@@ -68,6 +68,8 @@ Bir videoya tıkla: karartılmış bir arka plan üstünde büyük bir pencere a
 
 **← →** tuşları ya da kenarlardaki oklar bir önceki / sonraki videoya geçer. **Esc** kapatır ve videoyu durdurur.
 
+**Sohbet** videonun yanında, oynatmayla eşzamanlı akar: yayın geçmişlerinde, kliplerde, canlı yayında ve indirilen dosyalarda (oynatıcı çubuğundaki sohbet düğmesi gizler). Geriye okumak için yukarı kaydır; *Şimdiye dön* yeniden videoyu takip eder. Saate tıklayınca video o ana gider. Mesajlara tıklayıp seç (**Shift** ile aralık), sonra **Kopyala** ya da **Kaydet** ile PNG resmi al; dişli düğmesi arka planı (koyu / saydam), genişliği ve saat, rozet, emote çizilip çizilmeyeceğini ayarlar. Kesit editöründe aynı sohbet *Sohbet* sekmesinde.
+
 <img src="docs/img/izleme-penceresi.jpg" alt="Ortada açılan izleme penceresi" width="900">
 
 <br>

@@ -17,9 +17,10 @@ from kickindir.api.browse import BrowseMixin
 from kickindir.api.queue_control import QueueMixin
 from kickindir.api.library import LibraryMixin
 from kickindir.api.workers import WorkerMixin
+from kickindir.api.chat import ChatMixin
 
 
-class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMixin, LibraryMixin, WorkerMixin):
+class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMixin, LibraryMixin, WorkerMixin, ChatMixin):
     """JS tarafinin cagirdigi metotlar. '_' ile baslayan ozellikler JS'e acilmaz."""
 
     def __init__(self):
@@ -52,6 +53,8 @@ class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMi
         self._ready = False
         self._last_push = ""
         self._strips = {}
+        self._chats = {}                # sohbet paneli kaynaklari (api.chat)
+        self._chat_lock = threading.Lock()
         # ilk kareler (strip_thumbs) 32'li gruplar halinde gelir; CDN gecikmesi belirleyici oldugundan
         # cok paralel istek: 8 -> 32 is parcacigi ilk karelerde 17-21 -> 50-65 parca/sn (PERF.md)
         self._strip_pool = ThreadPoolExecutor(max_workers=32)

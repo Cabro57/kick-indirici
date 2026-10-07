@@ -325,6 +325,7 @@
             <button class="iconbtn" id="pPlay" type="button" data-i18n-title="player.playPause" data-i18n-aria="player.playPause"><svg class="ic"><use href="#i-play"/></svg></button>
             <span class="ptime num" id="pTime">0:00</span>
             <span class="grow"></span>
+            <button class="iconbtn" id="pChat" type="button" aria-pressed="false" data-i18n-title="chat.panel.toggleTip" data-i18n-aria="chat.panel.title"><svg class="ic"><use href="#i-chat"/></svg></button>
             <button class="iconbtn" id="pMute" type="button" data-i18n-title="player.muteTip" data-i18n-aria="player.mute"><svg class="ic"><use href="#i-volume"/></svg></button>
             <input type="range" class="pvol" id="pVol" min="0" max="100" step="1" data-i18n-aria="common.volume">
             <button class="iconbtn" id="pFull" type="button" data-i18n-title="player.fullTip" data-i18n-aria="player.full"><svg class="ic"><use href="#i-full"/></svg></button>
@@ -336,6 +337,7 @@
         <div class="select" data-i18n-label="common.quality" id="qualityBox"><select id="quality"></select></div>
         <div class="insbtns" id="insBtns"></div>
       </footer>
+      <aside class="wchat" id="wChat" data-i18n-aria="chat.panel.title" hidden><header><svg class="ic"><use href="#i-chat"/></svg><h3 data-i18n="chat.panel.title"></h3></header><div id="wChatBody"></div></aside>
     <button class="iconbtn wclose" id="wClose" type="button" data-i18n-title="common.closeTip" data-i18n-aria="common.close"><svg class="ic"><use href="#i-x"/></svg></button>
   </div>
   <button class="wnav next" id="wNext" type="button" data-i18n-title="watch.nextTip" data-i18n-aria="watch.next"><svg class="ic"><use href="#i-chevron"/></svg></button>
@@ -453,10 +455,14 @@
     <aside class="cutside">
       <div class="split v" id="splitSide" role="separator" aria-orientation="vertical" data-i18n-aria="cut.panelWidth" data-i18n-title="cut.panelWidthTip"></div>
       <header class="sidehead">
-        <h3><span data-i18n="cut.sections"></span> <span class="num" id="cutCount"></span></h3>
+        <div class="sidetabs" role="tablist">
+          <button type="button" role="tab" id="sideTabCuts" aria-selected="true" aria-controls="cutList"><span data-i18n="cut.sections"></span> <span class="num" id="cutCount"></span></button>
+          <button type="button" role="tab" id="sideTabChat" aria-selected="false" aria-controls="cutChatPane"><span data-i18n="chat.panel.title"></span></button>
+        </div>
         <button class="btn ghost sm" id="cutChain" type="button" data-i18n-title="cut.chainTip" disabled><svg class="ic"><use href="#i-play"/></svg><span data-i18n="cut.chain"></span></button>
       </header>
       <ol class="cutlist" id="cutList"></ol>
+      <div class="cutchatpane" id="cutChatPane" role="tabpanel"></div>
       <div class="cutempty" id="cutEmpty">
         <p data-i18n="cut.empty.find"></p>
         <ol>
@@ -592,6 +598,7 @@
 
 <script src="vendor/hls.light.min.js"></script>
 <script src="i18n.js"></script>
+<script src="chat.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

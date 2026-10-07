@@ -68,6 +68,8 @@ Click a video and a large window opens over a dimmed background. On the side are
 
 **← →** or the side arrows step to the previous / next video. **Esc** closes the window and stops playback.
 
+The **chat** runs beside the video, in step with playback, for VODs, clips, live streams and downloaded files (the chat button in the player bar hides it). Scroll up to read back; *Back to now* follows the video again. Click a timestamp to jump there. Click messages to select them (**Shift** for a range), then **Copy** or **Save** them as a PNG image; the gear sets the background (dark / transparent), width, and whether time, badges and emotes are drawn. The cut editor has the same chat under its *Chat* tab.
+
 <img src="docs/img/en/watch.jpg" alt="The watch window in the middle" width="900">
 
 <br>

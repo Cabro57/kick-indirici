@@ -28,11 +28,11 @@ def chat_page(channel_id, cursor, tries=3):
     return [], None
 
 
-def fetch_range(channel_id, start, end, cancelled=lambda: False, progress=lambda done, total: None):
+def fetch_range(channel_id, start, end, cancelled=lambda: False, progress=lambda done, total: None, part=CHUNK, workers=WORKERS):
     """[start, end) araligindaki (epoch sn) tum mesajlar, zamana gore sirali. Aralik CHUNK'lik parcalara
-    bolunur; her parca kendi sonundan geriye sayfa sayfa paralel cekilir. Cursor zamandan uretildigi icin
+    bolunur (part: parca uzunlugu); her parca kendi sonundan geriye sayfa sayfa paralel cekilir. Cursor zamandan uretildigi icin
     parcalar birbirini beklemez. (Eski 5 sn'lik start_time pencereleri kalabalik sohbette mesaj kaciriyordu.)"""
-    parts = [(max(a, start), min(a + CHUNK, end)) for a in range(int(start), int(end) + 1, CHUNK) if max(a, start) < min(a + CHUNK, end)]
+    parts = [(max(a, start), min(a + part, end)) for a in range(int(start), int(end) + 1, part) if max(a, start) < min(a + part, end)]
 
     def walk(part):
         a, b = part
@@ -59,7 +59,7 @@ def fetch_range(channel_id, start, end, cancelled=lambda: False, progress=lambda
     if not parts:
         return []
     seen, out = set(), []
-    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+    with ThreadPoolExecutor(max_workers=workers) as pool:
         for i, got in enumerate(pool.map(walk, parts), 1):
             for m in got:
                 if m.get("id") not in seen and m.get("content"):
