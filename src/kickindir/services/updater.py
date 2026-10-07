@@ -18,6 +18,7 @@ manifest.json (schema 1), tools/make_manifest.py uretir:
 import hashlib
 import os
 import shutil
+import time
 import urllib.request
 import winreg
 
@@ -131,21 +132,44 @@ def apply(need, remove, root):
     shutil.rmtree(os.path.join(root, STAGE), ignore_errors=True)
 
 
-def just_updated(root):
-    """Uygulama-ici guncelleme exe'yi degistirdiyse eski kopya .old olarak durur; cleanup() silmeden once bakilir."""
-    return os.path.exists(os.path.join(root, "KickIndirici.exe.old"))
+MARKER = "updated.txt"
 
 
-def cleanup(root):
-    """Acilista: onceki guncellemeden kalan .old dosyalarini ve yarim .update/ klasorunu siler."""
+def mark_updated(data_dir, version):
+    """Guncelleme uygulandi: yeni surum ilk acilista "guncellendi" der. Kapanirken cagrilir; yalnizca yerlesik islemler."""
+    try:
+        with open(os.path.join(data_dir, MARKER), "w", encoding="utf-8") as f:
+            f.write(version)
+    except OSError:
+        pass
+
+
+def just_updated(data_dir):
+    """Bu acilis bir guncellemeden hemen sonra mi? Isaret bir kez okunur ve silinir."""
+    path = os.path.join(data_dir, MARKER)
+    try:
+        os.remove(path)
+        return True
+    except OSError:
+        return False
+
+
+def cleanup(root, tries=30):
+    """Acilista: onceki guncellemeden kalan .old dosyalarini ve yarim .update/ klasorunu siler.
+    Eski surec birkac saniye daha kapaniyor olabilir; silinemeyenler saniyede bir yeniden denenir."""
     shutil.rmtree(os.path.join(root, STAGE), ignore_errors=True)
-    for folder, _dirs, files in os.walk(root):
-        for name in files:
-            if name.endswith(".old"):
-                try:
-                    os.remove(os.path.join(folder, name))
-                except OSError:
-                    pass    # eski surec hala kapaniyor olabilir; bir sonraki acilista silinir
+    for _ in range(tries):
+        left = 0
+        for folder, _dirs, files in os.walk(root):
+            for name in files:
+                if name.endswith(".old"):
+                    try:
+                        os.remove(os.path.join(folder, name))
+                    except OSError:
+                        left += 1
+        if not left:
+            return
+        time.sleep(1)
 
 
 def writable(root):

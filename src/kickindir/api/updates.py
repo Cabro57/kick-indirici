@@ -157,6 +157,7 @@ class UpdateMixin:
             need, remove = rest
             updater.apply(need, remove, app_dir())
             updater.set_installed_version(self._release["version"])
+            updater.mark_updated(DATA_DIR, self._release["version"])
             if relaunch:
                 _spawn([sys.executable, "--after-update"])
         else:

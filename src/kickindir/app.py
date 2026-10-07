@@ -128,8 +128,10 @@ def main():
     if not single_instance():
         return
     setup_logging()
-    just_updated = getattr(sys, "frozen", False) and updater.just_updated(app_dir())
-    if getattr(sys, "frozen", False):     # onceki guncellemeden kalan .old dosyalari
+    # isaret dosyasi (1.0.2+) ya da eski exe kopyasi (isareti yazmayan eski surumden gecis)
+    frozen = getattr(sys, "frozen", False)
+    just_updated = updater.just_updated(DATA_DIR) or (frozen and os.path.exists(os.path.join(app_dir(), "KickIndirici.exe.old")))
+    if frozen:     # onceki guncellemeden kalan .old dosyalari
         threading.Thread(target=updater.cleanup, args=(app_dir(),), daemon=True).start()
     build = sys.getwindowsversion().build
     ok, what = webview2_ok()
