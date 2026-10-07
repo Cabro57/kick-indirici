@@ -3,6 +3,7 @@
 from concurrent.futures import ThreadPoolExecutor
 
 from kickindir.config import LIVE_POLL, log
+from kickindir.core.i18n import t
 from kickindir.services.kick import fetch_channel, kick_error, kick_get, live_info, parse_link, vod_channel
 from kickindir.services.notify import toast
 
@@ -18,7 +19,7 @@ class FavoritesMixin:
         """Kanal adi, kanal linki ya da VOD linkiyle favori ekler."""
         slug, uuid, is_clip = parse_link(text or "")
         if is_clip or (not slug and not uuid):
-            return {"ok": False, "error": "Kanal anlaşılamadı. Kanal adı ya da kanal linki yaz."}
+            return {"ok": False, "error": t("err.badChannel")}
         try:
             channel, vods = fetch_channel(slug or vod_channel(uuid))
         except Exception as e:  # noqa: BLE001
@@ -39,7 +40,7 @@ class FavoritesMixin:
         with self._fav_lock:
             fav = next((f for f in self._favorites if f["slug"] == slug), None)
         if fav is None:
-            return {"ok": False, "error": "Favori bulunamadı."}
+            return {"ok": False, "error": t("err.favNotFound")}
         auto_seen = None
         if data.get("autoDownload") is True and not fav.get("autoDownload"):
             try:
@@ -145,7 +146,7 @@ class FavoritesMixin:
                     if live and f["slug"] not in now:
                         now.add(f["slug"])
                         if not first and self._prefs["notifyLive"]:
-                            toast(f"{f['name']} canlı yayında", live["title"] or f["name"])
+                            toast(t("live.isLive", name=f["name"]), live["title"] or f["name"])
                     elif not live:
                         now.discard(f["slug"])
                     if live and f.get("autoRecord") and self._auto_started.get(f["slug"]) != live["start"]:
@@ -179,5 +180,5 @@ class FavoritesMixin:
                 if fav["slug"] == f["slug"]:
                     fav["autoSeen"] = max(v["start"] for v in ready)
         self._save()
-        toast(f"{f['name']}: yeni yayın indiriliyor",
-              ready[0]["title"] if len(ready) == 1 else f"{len(ready)} yeni yayın kuyruğa eklendi")
+        toast(t("toast.autoDlTitle", name=f["name"]),
+              ready[0]["title"] if len(ready) == 1 else t("toast.autoDlQueued", n=len(ready)))

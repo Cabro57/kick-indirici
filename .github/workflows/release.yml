@@ -28,6 +28,9 @@ jobs:
           grep -q "^VERSION = \"$v\"" src/kickindir/config.py || { echo "src/kickindir/config.py icindeki VERSION $v degil"; exit 1; }
           echo "VERSION=$v" >> "$GITHUB_ENV"
 
+      - name: Dil dosyalari eksiksiz mi
+        run: python tools/check_i18n.py
+
       - name: Bagimliliklar
         run: pip install -r requirements.txt
 

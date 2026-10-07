@@ -1,58 +1,62 @@
 <div align="center">
 
-<img src="assets/logo-1024.png" alt="Kick İndirici" width="128">
+<img src="assets/logo-1024.png" alt="Kick Downloader" width="128">
 
-# Kick İndirici
+# Kick Downloader
 
-**Kick yayınlarını, kliplerini ve canlı yayınlarını hattın izin verdiği hızla indir.**
-İzle, içinden istediğin anı kes, canlıyı kaydet. Hepsi tek pencerede.
+**English** · [Türkçe](README.tr.md)
 
-![Sürüm](https://img.shields.io/badge/sürüm-1.0.0-53FC18?style=flat-square&labelColor=0b0e0f)
+**Download Kick streams, clips and live streams as fast as your connection allows.**
+Watch, cut out the moments you want, record live. All in one window.
+
+![Version](https://img.shields.io/badge/version-1.0.0-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Python](https://img.shields.io/badge/Python-3-53FC18?style=flat-square&labelColor=0b0e0f)
 
 <br>
 
-<img src="docs/img/kanal.jpg" alt="Bir yayıncının sayfası: canlı yayın şeridi ve yayın ızgarası" width="900">
+<img src="docs/img/kanal.jpg" alt="A streamer's page: live strip and stream grid" width="900">
 
 </div>
 
 <br>
 
-## İçindekiler
+> The screenshots show the Turkish interface. The app opens in English unless Windows is set to Turkish.
 
-[Neler yapar](#neler-yapar) · [Kurulum](#kurulum) · [Nasıl kullanılır](#nasıl-kullanılır) · [Kısayollar](#kısayollar) · [Ayarlar ve dosyalar](#ayarlar-ve-dosyalar) · [Sorun giderme](#sorun-giderme) · [Geliştirme](#geliştirme)
+## Contents
+
+[What it does](#what-it-does) · [Install](#install) · [How to use](#how-to-use) · [Shortcuts](#shortcuts) · [Settings and files](#settings-and-files) · [Troubleshooting](#troubleshooting) · [Development](#development)
 
 <br>
 
-## Neler yapar
+## What it does
 
-### Yayıncıyı aç, hepsini bir bakışta gör
+### Open a streamer, see everything at a glance
 
-Üstteki kutuya kanal adını ya da bir **kanal / yayın / klip linkini** yapıştır. Yayınlar ve klipler küçük resimleriyle gelir. Kartın üzerine gelince önizleme sessizce oynar, kartı tıklayınca büyük pencerede açılır.
+Type a channel name in the top box, or paste a **channel / stream / clip link**. Streams and clips appear with thumbnails. Hover a card and a preview plays muted; click it to open the large window.
 
-Yayıncı **canlıysa**, listenin en üstünde tam genişlikte bir **canlı şeridi** çıkar: canlı önizleme, başlık, izleyici sayısı ve iki düğme (**Kaydı başlat**, **Kesit al**).
+If the streamer is **live**, a full-width **live strip** leads the list: live preview, title, viewer count and two buttons (**Start recording**, **Cut**).
 
-<img src="docs/img/canli-seridi.jpg" alt="Canlı yayın şeridi: önizleme oynuyor" width="900">
+<img src="docs/img/canli-seridi.jpg" alt="Live strip with the preview playing" width="900">
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-**Üzerine gelince önizleme**
+**Preview on hover**
 
-Kartın üzerinde bekleyince video sessizce oynar. Tıkladığında izleme penceresi aynı andan devam eder.
+Rest the pointer on a card and the video plays muted. Click it and the watch window continues from the same moment.
 
-<img src="docs/img/onizleme.jpg" alt="Kartın üzerinde oynayan önizleme ve yükleme halkası">
+<img src="docs/img/onizleme.jpg" alt="Preview playing on a card with a loading ring">
 
 </td>
 <td width="50%" valign="top">
 
-**Favori yayıncılar**
+**Favourite streamers**
 
-Yıldıza basınca yayıncı soldaki şeride eklenir. Canlıya geçince yeşil halka yanar, yeni yayın gelince sayısı görünür. İstersen yeni yayınlar kendiliğinden iner, canlıya geçince kayıt kendiliğinden başlar.
+Press the star and the streamer joins the left rail. A green ring shows when they go live, and a count shows new streams. Optionally, new streams download automatically and recording starts automatically when they go live.
 
-<img src="docs/img/ana-sayfa.jpg" alt="Ana sayfa: favori yayıncılar ve son indirilenler">
+<img src="docs/img/ana-sayfa.jpg" alt="Home: favourite streamers and recent downloads">
 
 </td>
 </tr>
@@ -60,112 +64,113 @@ Yıldıza basınca yayıncı soldaki şeride eklenir. Canlıya geçince yeşil h
 
 <br>
 
-### Ortada büyük pencerede izle
+### Watch in a large window
 
-Bir videoya tıkla: karartılmış bir arka plan üstünde büyük bir pencere açılır. Sağ tarafta **kalite seçimi** ve işlemler durur: *Tamamını indir*, *Kesit al*, *Sohbeti indir*.
+Click a video and a large window opens over a dimmed background. On the side are the **quality picker** and the actions: *Download all*, *Cut*, *Download chat*.
 
-**← →** tuşları ya da kenarlardaki oklar bir önceki / sonraki videoya geçer. **Esc** kapatır ve videoyu durdurur.
+**← →** or the side arrows step to the previous / next video. **Esc** closes the window and stops playback.
 
-<img src="docs/img/izleme-penceresi.jpg" alt="Ortada açılan izleme penceresi" width="900">
-
-<br>
-
-### Çok sayıda videoyu seç, tek tıkla indir
-
-Kartın köşesindeki kutuya (ya da **Ctrl+tık**) basınca seçim başlar. Seçim varken düz tık seçime ekler / çıkarır; izlemek istersen kartın ortasındaki **▶** düğmesini kullan. **Shift+tık** aradakileri seçer.
-
-Altta bir çubuk belirir: kaç video seçtiğin, **toplam süre**, kalite ve **İndir (n)**. Sayıya tıklarsan seçtiklerin listelenir, her birini tek tek çıkarabilirsin.
-
-<img src="docs/img/secim.jpg" alt="Seçim çubuğu ve seçilenlerin listesi" width="900">
+<img src="docs/img/izleme-penceresi.jpg" alt="The watch window in the middle" width="900">
 
 <br>
 
-### Her kartta ⋮ menüsü
+### Select many videos, download with one click
 
-Başlığın yanındaki **⋮** düğmesi ya da **sağ tık**. Menü videonun durumuna göre değişir: henüz inmediyse *İndir*, iniyorsa *Durdur*, durmuşsa *Devam ettir*, inmişse *Oynat* ve *Klasörde göster*. Ayrıca *Kesit al*, *Sohbeti indir*, *Kick'te aç* ve *Linki kopyala*.
+Press the box in a card's corner (or **Ctrl+click**) to start a selection. While selecting, a plain click adds or removes; to watch, use the **▶** in the card's centre. **Shift+click** selects everything in between.
 
-<img src="docs/img/kart-menusu.jpg" alt="Kartın üç nokta menüsü" width="900">
+A bar appears at the bottom: how many you picked, the **total length**, quality and **Download (n)**. Click the count to list your picks and remove any of them.
 
-<br>
-
-### Yayının içinden istediğin anı kes
-
-**Kesit al** ile video editörü gibi bir pencere açılır: yakınlaştırılabilir zaman çizelgesi (kare şeridi ve ses dalgası), üzerine gelince kare önizleme, sürükleyerek gezinme, **0,25× – 4×** oynatma hızı.
-
-- **K** ile playhead'in çevresine otomatik uzunlukta kesit eklenir. Kenarları sürükleyerek ya da saat yazarak ayarlarsın.
-- Kesitler **ayrı dosyalar** ya da **tek video** olarak iner.
-- Yalnızca o aralığı kapsayan parçalar indirilir. 4 saatlik yayından 30 saniyelik kesit için 4 saatlik veri çekilmez.
-- Canlı yayından da kesit alabilirsin: yayın sürerken geçmişe dönüp istediğin anı kes.
-
-<img src="docs/img/kesit-editoru.jpg" alt="Kesit editörü: zaman çizelgesi ve kesit listesi" width="900">
+<img src="docs/img/secim.jpg" alt="Selection bar and the list of picks" width="900">
 
 <br>
 
-### İndirmeler: hızlı, okunaklı, kaldığı yerden devam eder
+### A ⋮ menu on every card
+
+The **⋮** button beside the title, or **right-click**. The menu follows the video's state: *Download* if not downloaded, *Stop* while downloading, *Resume* when stopped, *Play* and *Show in folder* when done. Also *Cut*, *Download chat*, *Open on Kick* and *Copy link*.
+
+<img src="docs/img/kart-menusu.jpg" alt="The card's three-dot menu" width="900">
+
+<br>
+
+### Cut any moment out of a stream
+
+**Cut** opens an editor-like window: a zoomable timeline (frame strip and audio waveform), frame preview on hover, drag scrubbing, **0.25× – 4×** playback speed.
+
+- **K** adds a cut of preset length around the playhead. Adjust the edges by dragging or by typing times.
+- Cuts download as **separate files** or as **a single video**.
+- Only the parts covering the range are downloaded. A 30-second cut from a 4-hour stream does not fetch 4 hours of data.
+- You can cut from a live stream too: go back while it is still running and cut the moment you want.
+
+<img src="docs/img/kesit-editoru.jpg" alt="Cut editor: timeline and cut list" width="900">
+
+<br>
+
+### Downloads: fast, readable, resumable
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-**Sırada ve inenler**
+**Queued and downloading**
 
-Kartlar üzerinde durum görünür (*İniyor %37*, *Sırada*, *İndirildi*). Alt çubuk toplam ilerlemeyi, kalan süreyi, hızı ve diskteki boş yeri gösterir.
+Cards show their state (*Downloading 37%*, *Queued*, *Downloaded*). The bottom bar shows total progress, time left, speed and free disk space.
 
-<img src="docs/img/indirme.jpg" alt="İniyor durumundaki kartlar ve alt çubuk">
+<img src="docs/img/indirme.jpg" alt="Cards while downloading and the bottom bar">
 
 </td>
 <td width="50%" valign="top">
 
-**İndirilenler**
+**Downloads**
 
-Bitenler güne göre gruplanır. Dosya uygulamanın içinde oynar, Windows oynatıcısında açılır, klasörde gösterilir ya da Geri Dönüşüm Kutusu'na gönderilir.
+Finished files are grouped by day. A file plays inside the app, opens in the Windows player, is shown in its folder or goes to the Recycle Bin.
 
-<img src="docs/img/indirilenler.jpg" alt="İndirilenler listesi">
+<img src="docs/img/indirilenler.jpg" alt="Downloads list">
 
 </td>
 </tr>
 </table>
 
-### Daha neler var
+### More
 
 | | |
 |---|---|
-| **Hız ayarı gerektirmez** | Aynı anda kaç video ineceğini (1–6) program, toplam hızı ölçerek kendisi ayarlar. Her video parçalarını 8–32 bağlantıyla çeker. |
-| **Hız sınırı** | Oyun ya da yayın izlerken hattı doldurmasın diye toplam hıza üst sınır koyabilirsin. |
-| **Canlı kayıt** | Canlı yayını şu andan itibaren kaydeder. Bitince `.ts` dosyası `.mp4`'e çevrilir. |
-| **Sohbeti indir** | VOD'un sohbetini `.ass` altyazı (VLC / MPC videonun üstünde akıtır) ve `.chat.json` olarak kaydeder. |
-| **Kaldığı yerden devam** | Program kapanırsa yarım kalanlar bir sonraki açılışta *Devam et* ile sürer. |
-| **Disk koruması** | İndirmeden önce boş yer kontrol edilir. Sığmayan indirme açık bir mesajla başarısız olur, kuyruğun geri kalanı sürer. |
-| **Bitince** | Kuyruk bitince hiçbir şey yapma, uykuya al ya da bilgisayarı kapat (60 sn geri sayım, iptal edilebilir). |
-| **Pano ve sürükle-bırak** | Panoda Kick linki varsa pencereye dönünce önerir. Tarayıcıdan linki pencereye bırakabilir ya da Ctrl+V ile yapıştırabilirsin. |
-| **Windows bildirimleri** | Kuyruk bitince ve favorin canlıya geçince bildirim. İkisi de ayarlardan kapatılır. |
-| **Dosya adı şablonu** | `{kanal} - {baslik} [{id}]` gibi: `{kanal}` `{baslik}` `{tarih}` `{id}` kullanılabilir. |
-| **Tek örnek** | Program zaten açıksa ikinci kez açmak mevcut pencereyi öne getirir. |
-| **Güncelleme denetimi** | Açılışta GitHub'daki son sürümü denetler, yenisi varsa şeritte haber verir. |
+| **No speed tuning** | The app measures total speed and decides how many videos download at once (1–6). Each video fetches its parts over 8–32 connections. |
+| **Speed limit** | Cap the total speed so the line is not full while you game or watch streams. |
+| **Live recording** | Records a live stream from now on. When it ends, the `.ts` file becomes `.mp4`. |
+| **Download chat** | Saves a VOD's chat as an `.ass` subtitle (VLC / MPC scroll it over the video) and `.chat.json`. |
+| **Resume** | If the app closes, unfinished downloads continue on next start with *Resume*. |
+| **Disk guard** | Free space is checked before a download starts. A download that does not fit fails with a clear message; the rest of the queue continues. |
+| **When done** | When the queue finishes: do nothing, sleep, or shut down (60 s countdown, cancellable). |
+| **Clipboard and drag-and-drop** | When you return to the window with a Kick link on the clipboard, the app offers to open it. Drop a link from the browser onto the window, or paste it with Ctrl+V. |
+| **Windows notifications** | When the queue finishes and when a favourite goes live. Both can be turned off in Settings. |
+| **File name template** | For example `{channel} - {title} [{id}]`: `{channel}` `{title}` `{date}` `{id}` are available. The older `{kanal}` `{baslik}` `{tarih}` names still work. |
+| **Interface language** | English and Turkish. Picked from the Windows language on first start; change it in Settings → App → Language. |
+| **Single instance** | Opening the app again brings the existing window to the front. |
+| **Update check** | Checks the latest release on GitHub at startup and shows a notice when a new one is out. |
 
 <br>
 
-## Kurulum
+## Install
 
-### Tek tıkla kurulum (önerilen)
+### One-click installer (recommended)
 
-1. [**Releases**](https://github.com/Cabro57/kick-indirici/releases/latest) sayfasından **`KickIndirici-Setup-….exe`** dosyasını indir.
-2. Aç ve **Kur**'a bas. Yönetici izni gerekmez, `ffmpeg` içinde hazır gelir. Yeni sürümler program içinden **Güncelle ve yeniden başlat** ile kendiliğinden kurulur.
+1. Download **`KickIndirici-Setup-….exe`** from the [**Releases**](https://github.com/Cabro57/kick-indirici/releases/latest) page.
+2. Open it and press **Install**. No administrator rights needed; `ffmpeg` is included. New versions install themselves from inside the app with **Update and restart**.
 
-Kurulumsuz kullanmak için `KickIndirici-…-windows.zip`'i bir klasöre çıkar ve **`KickIndirici.exe`**'yi aç. `ffmpeg.exe` exe'nin yanında durmalı.
+To use it without installing, extract `KickIndirici-…-windows.zip` to a folder and open **`KickIndirici.exe`**. `ffmpeg.exe` must stay next to the exe.
 
-> ffmpeg olmadan videolar iner ama kesit, canlı kayıt ve son mp4 düzeltmesi çalışmaz. Kaynaktan çalıştırıyorsan ffmpeg'i kendin kur: `winget install Gyan.FFmpeg`, ya da [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) üzerinden "release essentials".
+> Without ffmpeg, videos still download, but cuts, live recording and the final mp4 fix-up do not work. When running from source, install ffmpeg yourself: `winget install Gyan.FFmpeg`, or the "release essentials" build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/).
 
-### Gereksinimler
+### Requirements
 
 | | |
 |---|---|
-| **İşletim sistemi** | Windows 10 ya da 11 |
-| **WebView2 Runtime** | Windows 11'de hazır gelir. Yoksa program açılışta indirme sayfasını önerir. |
-| **.NET Framework 4.6.2+** | Windows'ta hazır gelir. |
-| **ffmpeg** | Kesit, canlı kayıt ve mp4 düzeltmesi için (zip'te hazır) |
+| **Operating system** | Windows 10 or 11 |
+| **WebView2 Runtime** | Included in Windows 11. If missing, the app offers the download page at startup. |
+| **.NET Framework 4.6.2+** | Included in Windows. |
+| **ffmpeg** | For cuts, live recording and the mp4 fix-up (included in the zip) |
 
-### Kaynaktan çalıştır
+### Run from source
 
 ```bash
 git clone https://github.com/Cabro57/kick-indirici-src.git
@@ -174,200 +179,205 @@ pip install -r requirements.txt
 python kick_indir.py
 ```
 
-`baslat.bat` da aynı şeyi konsol penceresi açmadan yapar.
+`baslat.bat` does the same without a console window.
 
 <br>
 
-## Nasıl kullanılır
+## How to use
 
-1. **Aç.** Üstteki kutuya `kick.com/xqc`, sadece `xqc`, bir yayın linki ya da bir klip linki yaz. Klip linki doğrudan indirmeye gider.
-2. **Seç.** Yayınlar sekmesinde videoya tıkla ve izle, ya da kartların köşesindeki kutularla çoklu seç.
-3. **İndir.** *Tamamını indir*, *Klibi indir* ya da *Kesit al*. Gerisini program halleder.
-4. **Bul.** *İndirilenler* düğmesi (Ctrl+J) bitenleri gösterir. Dosyalar varsayılan olarak `Kullanıcı\İndirilenler\Kick` klasörüne gider.
+1. **Open.** Type `kick.com/xqc`, just `xqc`, a stream link or a clip link in the top box. A clip link goes straight to downloading.
+2. **Pick.** On the Streams tab, click a video to watch it, or multi-select with the boxes in the card corners.
+3. **Download.** *Download all*, *Download clip* or *Cut*. The app does the rest.
+4. **Find.** The *Downloads* button (Ctrl+J) shows finished files. Files go to `User\Downloads\Kick` by default.
 
-> **İpucu:** Yayının neresinde ne olduğunu bakmak için kartın üzerinde bekle. Uzun yayınlarda önizleme baştan değil, yaklaşık %20'sinden başlar.
+> **Tip:** To see what happens where in a stream, rest the pointer on its card. On long streams the preview starts at about 20%, not at the beginning.
 
 <br>
 
-## Kısayollar
+## Shortcuts
 
-Listeyi uygulamada **?** tuşuyla da görebilirsin.
+Press **?** in the app to see the list.
 
 <table>
 <tr>
 <td valign="top" width="50%">
 
-**Genel**
+**General**
 
-| Tuş | İş |
+| Key | Action |
 |---|---|
-| `Ctrl` `L` | Link kutusuna git |
-| `Ctrl` `V` | Linki yapıştırıp aç |
-| `Ctrl` `J` | İndirilenler |
-| `?` | Kısayol listesi |
+| `Ctrl` `L` | Go to the link box |
+| `Ctrl` `V` | Paste a link and open it |
+| `Ctrl` `J` | Downloads |
+| `?` | Shortcut list |
 
-**Videolar**
+**Videos**
 
-| Tuş | İş |
+| Key | Action |
 |---|---|
-| Tık | İzle (seçim varken: seçime ekle / çıkar) |
-| `Ctrl` tık · `Boşluk` | Seçime ekle / çıkar |
-| `Shift` tık | Aradakileri seç |
-| `Ctrl` `A` | Tümünü seç |
-| `Esc` | Seçimi bırak |
+| Click | Watch (while selecting: add / remove) |
+| `Ctrl` click · `Space` | Add to / remove from selection |
+| `Shift` click | Select everything in between |
+| `Ctrl` `A` | Select all |
+| `Esc` | Clear selection |
 
 </td>
 <td valign="top" width="50%">
 
-**Oynatıcı**
+**Player**
 
-| Tuş | İş |
+| Key | Action |
 |---|---|
-| `K` | Oynat / durdur |
-| `M` | Sesi kapat / aç |
-| `F` | Tam ekran |
-| `←` `→` | Önceki / sonraki video |
-| `Esc` | Kapat |
+| `K` | Play / pause |
+| `M` | Mute / unmute |
+| `F` | Full screen |
+| `←` `→` | Previous / next video |
+| `Esc` | Close |
 
-**Kesit editörü**
+**Cut editor**
 
-| Tuş | İş |
+| Key | Action |
 |---|---|
-| `K` | Kesit ekle |
-| `I` / `O` | Giriş / çıkış noktası |
+| `K` | Add cut |
+| `I` / `O` | In / out point |
 
-Editördeki tüm kısayollar sağ üstteki **Kısayollar** düğmesinde.
+All editor shortcuts are under the **Shortcuts** button at its top right.
 
 </td>
 </tr>
 </table>
 
 <div align="center">
-<img src="docs/img/kisayollar.jpg" alt="Kısayol listesi" width="760">
+<img src="docs/img/kisayollar.jpg" alt="Shortcut list" width="760">
 </div>
 
 <br>
 
-## Ayarlar ve dosyalar
+## Settings and files
 
 <table>
 <tr>
 <td width="55%" valign="top">
 
-Ayarlar sol alttaki dişli ile açılır: indirme klasörü, varsayılan kalite, dosya adı şablonu, aynı anda inen video sayısı, video başına bağlantı, hız sınırı, önizleme ve oynatıcı davranışı, bildirimler, varsayılan kesit uzunluğu ve güncelleme denetimi.
+Open Settings with the gear at the bottom left: interface language, download folder, default quality, file name template, videos at once, connections per video, speed limit, preview and player behaviour, notifications, default cut length and update check.
 
-**Kalite:** En iyi · 1080p60 · 720p60 · 480p · 360p · 160p. İstenen kalite yoksa en yakın düşük kalite iner.
+**Quality:** Best · 1080p60 · 720p60 · 480p · 360p · 160p. If the requested quality is missing, the nearest lower one downloads.
 
 </td>
 <td width="45%" valign="top">
 
-<img src="docs/img/ayarlar.jpg" alt="Ayarlar sayfası">
+<img src="docs/img/ayarlar.jpg" alt="Settings page">
 
 </td>
 </tr>
 </table>
 
-Program verisini şurada tutar: `%APPDATA%\KickIndirici\`
+The app keeps its data in `%APPDATA%\KickIndirici\`
 
-| Dosya | İçerik |
+| File | Contents |
 |---|---|
-| `settings.json` | Ayarlar ve favori yayıncılar |
-| `history.json` | İndirilenler geçmişi |
-| `queue.json` | Yarım kalan indirmeler |
-| `log.txt` | Hata ayıklama günlüğü |
+| `settings.json` | Settings and favourite streamers |
+| `history.json` | Download history |
+| `queue.json` | Unfinished downloads |
+| `log.txt` | Debug log |
 
 <br>
 
-## Sorun giderme
+## Troubleshooting
 
 <details>
-<summary><b>Pencere siyah açılıyor</b></summary>
+<summary><b>The window opens black</b></summary>
 
 <br>
 
-WebView2 Runtime eksik ya da bozuk olabilir. Program açılışta bunu denetler ve indirme sayfasını önerir. "Zaten kurulu" diyorsa önce *Uygulamalar* bölümünden WebView2 Runtime'ı kaldırıp bağımsız kurucuyla yeniden kur.
+WebView2 Runtime may be missing or broken. The app checks this at startup and offers the download page. If the installer says "already installed", first uninstall WebView2 Runtime from *Apps*, then reinstall it with the standalone installer.
 
-Windows 10'da bazı ekran kartı sürücüleri WebView2'yi siyah çizer. Program bu durumda GPU'yu kendiliğinden kapatır; elle seçmek için `--gpu` / `--no-gpu` parametreleri var.
+On Windows 10, some graphics drivers draw WebView2 black. The app then turns the GPU off by itself; the `--gpu` / `--no-gpu` flags choose manually.
 
 </details>
 
 <details>
-<summary><b>"ffmpeg bulunamadı" uyarısı</b></summary>
+<summary><b>"ffmpeg not found" warning</b></summary>
 
 <br>
 
-`ffmpeg.exe` dosyasını `KickIndirici.exe`'nin yanına koy ya da PATH'e ekle. Terminalde `ffmpeg -version` çalışıyorsa program da bulur.
+Put `ffmpeg.exe` next to `KickIndirici.exe` or add it to PATH. If `ffmpeg -version` works in a terminal, the app finds it too.
 
 </details>
 
 <details>
-<summary><b>İndirme "403" ile başarısız oluyor</b></summary>
+<summary><b>A download fails with "403"</b></summary>
 
 <br>
 
-Kick erişimi reddetti. Tekrar dene; sürerse video silinmiş ya da abonelere özel olabilir.
+Kick denied access. Retry; if it continues, the video may be deleted or subscriber-only.
 
 </details>
 
 <details>
-<summary><b>Canlı kayıt <code>.ts</code> olarak kaldı</b></summary>
+<summary><b>A live recording stayed <code>.ts</code></b></summary>
 
 <br>
 
-Ayarlarda *Canlı kaydı mp4'e çevir* kapalıdır. Uygulamanın oynatıcısı `.ts` açamaz; Windows oynatıcısında aç ya da ayarı aç.
+*Convert live recordings to mp4* is off in Settings. The app's player cannot open `.ts`; open it in the Windows player or turn the setting on.
 
 </details>
 
 <details>
-<summary><b>Bir şey ters gidiyor</b></summary>
+<summary><b>Something goes wrong</b></summary>
 
 <br>
 
-`%APPDATA%\KickIndirici\log.txt` dosyasına bak. Kaynaktan çalıştırırken `python kick_indir.py --debug` geliştirici araçlarını açar.
+Check `%APPDATA%\KickIndirici\log.txt`. When running from source, `python kick_indir.py --debug` opens the developer tools.
 
 </details>
 
 <br>
 
-## Geliştirme
+## Development
 
-Arayüz HTML / CSS / JS (`web/`), motor Python. Pencereyi **pywebview** (Edge WebView2) çizer; indirme `yt-dlp`, ağ istekleri `curl_cffi`, kesme ve birleştirme `ffmpeg` ile yapılır.
+The interface is HTML / CSS / JS (`web/`), the engine is Python. **pywebview** (Edge WebView2) draws the window; downloads use `yt-dlp`, network requests `curl_cffi`, cutting and merging `ffmpeg`.
 
 ```
-kick_indir.py     Giriş noktası (src/ klasörünü yola ekleyip kickindir.app.main'i çağırır)
-src/kickindir/    Python motoru
-  config.py         Sabitler, dosya yolları, uygulama klasörleri
-  app.py            Pencere, tek kopya denetimi, main()
-  api/              Arayüze açılan Api: __init__.py birleştirir; general, updates, queue_control,
-                    workers, library, favorites, cuts, browse parçalarından oluşur
-  services/         kick (Kick API'si), chat (sohbet), media (önizleme, medya sunucusu), notify (bildirim),
-                    updater (manifest'e göre dosya güncelleme)
-  core/             engine (hız sınırlayıcı, indirme kaydı), storage (ayarlar, kuyruk, geçmiş), prefs, util
-web/              Arayüz (index.html, app.css, app.js, vendor/ içinde hls.js)
-assets/           Logo ve uygulama ikonu
-tools/make_logo.py  Logo ve ikonu üreten betik
-tools/make_manifest.py  Sürümün manifest.json'unu üreten betik
-PRODUCT.md        Ürünün ne yaptığı ve kısıtları
-DESIGN.md         Görsel tasarım sistemi
-PERF.md           Hız denemeleri ve sonuçları
+kick_indir.py     Entry point (adds src/ to the path and calls kickindir.app.main)
+src/kickindir/    Python engine
+  config.py         Constants, file paths, app folders
+  app.py            Window, single-instance check, main()
+  api/              The Api exposed to the interface: __init__.py combines the general, updates,
+                    queue_control, workers, library, favorites, cuts and browse parts
+  services/         kick (Kick API), chat, media (previews, media server), notify (notifications),
+                    updater (manifest-based file updates)
+  core/             engine (speed limiter, download record), storage (settings, queue, history), prefs,
+                    i18n (interface language), util
+web/              Interface (index.html, app.css, app.js, i18n.js, hls.js in vendor/)
+  i18n/             Language files: en.json (source), tr.json
+assets/           Logo and app icon
+tools/make_logo.py  Script that builds the logo and icon
+tools/make_manifest.py  Script that builds a release's manifest.json
+tools/check_i18n.py  Checks the language files (missing keys, mismatched placeholders)
+PRODUCT.md        What the product does and its constraints
+DESIGN.md         Visual design system
+PERF.md           Speed experiments and results
 ```
 
-**Tek dosyalık exe derlemek:**
+**Interface text:** never hard-code text; use keys. In JS `t("key", { n })`, in HTML `data-i18n="key"`, in Python `t("key", n=1)`. Add each new key to both `web/i18n/en.json` and `tr.json`, then run `python tools/check_i18n.py`. For English plurals the value can be `{"one": "…", "other": "…"}`. For a new language, add `web/i18n/<code>.json` and list it in `LANGS` in `src/kickindir/core/i18n.py`.
+
+**Build the single-file exe:**
 
 ```bash
 exe_yap.bat
-# ya da
+# or
 python -m PyInstaller --noconfirm KickIndirici.spec
 ```
 
-Çıktı `dist\KickIndirici.exe`. Kurucuyu (`dist\KickIndirici-Setup-<sürüm>.exe`) [Inno Setup 6](https://jrsoftware.org/isinfo.php) ile `ISCC /DAppVersion=1.0.0 installer\KickIndirici.iss` derler.
+The output is `dist\KickIndirici.exe`. [Inno Setup 6](https://jrsoftware.org/isinfo.php) builds the installer (`dist\KickIndirici-Setup-<version>.exe`) with `ISCC /DAppVersion=1.0.0 installer\KickIndirici.iss`. The installer is English and Turkish and follows the Windows language.
 
-**Sürüm çıkarmak:** `src/kickindir/config.py` içindeki `VERSION`'ı artır, commit'le, `git tag v1.0.1 && git push --tags`. `.github/workflows/release.yml` exe'yi, kurucuyu ve zip'i derleyip [kick-indirici](https://github.com/Cabro57/kick-indirici) deposuna sürüm olarak yükler. Uygulama içi güncelleme bu sürümdeki `manifest.json`'a bakar ve yalnızca değişen dosyaları (SHA-256 ile doğrulayarak) indirir; manifest okunamazsa kurucuya döner. Yeni bir dosya eklemek için workflow'daki `make_manifest.py` satırına eklemek yeter. Bunun için bu depoda `RELEASE_TOKEN` secret'ı (kick-indirici'ye *Contents: write* yetkili bir fine-grained token) tanımlı olmalı. Hız denemelerinin kaydı için [PERF.md](PERF.md)'ye bak.
+**Releasing:** bump `VERSION` in `src/kickindir/config.py`, commit, then `git tag v1.0.1 && git push --tags`. `.github/workflows/release.yml` builds the exe, the installer and the zip and uploads them as a release to the [kick-indirici](https://github.com/Cabro57/kick-indirici) repository. The in-app updater reads that release's `manifest.json` and downloads only the changed files (verified with SHA-256); if the manifest cannot be read, it falls back to the installer. To ship a new file, add it to the `make_manifest.py` line in the workflow. This repository needs a `RELEASE_TOKEN` secret (a fine-grained token with *Contents: write* on kick-indirici). See [PERF.md](PERF.md) for the speed experiments.
 
 <br>
 
-## Uyarı
+## Disclaimer
 
-Bu program Kick ile bağlantılı değildir ve Kick tarafından onaylanmamıştır. Kişisel kullanım için yazılmıştır: kendi yayınlarını yedeklemek, izin verilen içerikleri arşivlemek gibi. İndirdiğin içeriklerin telif hakkı yayıncılara aittir; Kick'in kullanım koşullarına ve yayıncıların haklarına uymak sana aittir.
+This program is not affiliated with or endorsed by Kick. It was written for personal use, such as backing up your own streams or archiving content you are allowed to keep. Copyright in downloaded content belongs to the streamers; following Kick's terms of use and the streamers' rights is your responsibility.
 
-*Kick* adı ve "K" simgesi Kick'e aittir. Bu depodaki logo kişisel kullanım içindir; dağıtılan bir sürüm kendi simgesini kullanmalıdır.
+The *Kick* name and the "K" symbol belong to Kick. The logo in this repository is for personal use; a distributed version should use its own icon.

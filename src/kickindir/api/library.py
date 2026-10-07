@@ -9,6 +9,7 @@ import tempfile
 from kickindir.config import log
 from kickindir.services.media import MediaServer
 from kickindir.core.storage import save_history
+from kickindir.core.i18n import t
 from kickindir.core.util import recycle
 
 
@@ -29,7 +30,7 @@ class LibraryMixin:
         if delete_file and os.path.isfile(path):
             trashed = recycle(path)
             if not trashed:
-                return {"ok": False, "error": "Dosya silinemedi. Başka bir program açık tutuyor olabilir."}
+                return {"ok": False, "error": t("err.deleteFile")}
         with self._lock:
             self._history = [e for e in self._history if e["file"] != path]
             save_history(self._history)
@@ -41,7 +42,7 @@ class LibraryMixin:
             known = any(e["file"] == path for e in self._history) or \
                 any(d.filename == path and d.status == "done" for d in self._downloads.values())
         if not known or not os.path.isfile(path):
-            return {"ok": False, "error": "Dosya bulunamadı. Taşınmış ya da silinmiş olabilir."}
+            return {"ok": False, "error": t("err.fileGone")}
         if self._media is None:
             self._media = MediaServer()
         return {"ok": True, "url": self._media.url(path), "playable": not path.lower().endswith(".ts")}

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en" class="i18n-pending">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kick İndirici</title>
+<title>Kick Downloader</title>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -60,26 +60,26 @@
   </defs>
 </svg>
 
-<nav class="rail" aria-label="Favori yayıncılar">
-  <img class="mark" src="logo.svg" alt="Kick İndirici">
-  <button class="railbtn" id="homeBtn" type="button" title="Ana sayfa" aria-label="Ana sayfa"><svg class="ic"><use href="#i-home"/></svg></button>
+<nav class="rail" data-i18n-aria="rail.label">
+  <img class="mark" src="logo.svg" data-i18n-alt="app.name">
+  <button class="railbtn" id="homeBtn" type="button" data-i18n-title="rail.home" data-i18n-aria="rail.home"><svg class="ic"><use href="#i-home"/></svg></button>
   <i class="railsep"></i>
   <div class="favs" id="favs" role="list"></div>
-  <button class="railbtn add" id="favAddBtn" type="button" title="Favori yayıncı ekle" aria-label="Favori yayıncı ekle"><svg class="ic"><use href="#i-plus"/></svg></button>
+  <button class="railbtn add" id="favAddBtn" type="button" data-i18n-title="rail.addFav" data-i18n-aria="rail.addFav"><svg class="ic"><use href="#i-plus"/></svg></button>
   <span class="railgrow"></span>
-  <button class="railbtn" id="keysBtn" type="button" title="Kısayollar (?)" aria-label="Kısayollar"><svg class="ic"><use href="#i-keyboard"/></svg></button>
-  <button class="railbtn" id="settingsBtn" type="button" title="Ayarlar" aria-label="Ayarlar"><svg class="ic"><use href="#i-settings"/></svg></button>
+  <button class="railbtn" id="keysBtn" type="button" data-i18n-title="rail.keysTip" data-i18n-aria="rail.keys"><svg class="ic"><use href="#i-keyboard"/></svg></button>
+  <button class="railbtn" id="settingsBtn" type="button" data-i18n-title="rail.settings" data-i18n-aria="rail.settings"><svg class="ic"><use href="#i-settings"/></svg></button>
 </nav>
 
 <header class="topbar">
   <form class="linkbox" id="linkForm" autocomplete="off">
     <svg class="ic"><use href="#i-search"/></svg>
-    <input id="linkInput" type="text" spellcheck="false" placeholder="Yayıncı adı ya da link yapıştır: kanal, VOD ya da klip">
+    <input id="linkInput" type="text" spellcheck="false" data-i18n-placeholder="top.linkPlaceholder">
     <kbd class="slash">Ctrl L</kbd>
-    <button class="btn" id="listBtn" type="submit">Aç</button>
+    <button class="btn" id="listBtn" type="submit" data-i18n="top.open"></button>
   </form>
-  <button class="libbtn" id="libBtn" type="button" title="İndirilenler (Ctrl+J)">
-    <svg class="ic"><use href="#i-download"/></svg><span>İndirilenler</span><b class="badge num" id="libBadge" hidden></b>
+  <button class="libbtn" id="libBtn" type="button" data-i18n-title="top.libraryTip">
+    <svg class="ic"><use href="#i-download"/></svg><span data-i18n="lib.title"></span><b class="badge num" id="libBadge" hidden></b>
     <i class="libring" id="libRing" hidden></i>
   </button>
 </header>
@@ -89,39 +89,39 @@
 
 <main class="main" id="main">
   <!-- ana sayfa -->
-  <section class="view home" id="homeView" aria-label="Ana sayfa">
+  <section class="view home" id="homeView" data-i18n-aria="rail.home">
     <div class="homeinner">
       <header class="homehead">
-        <h1>Favori yayıncıların</h1>
+        <h1 data-i18n="home.favorites"></h1>
         <p id="homeMeta" class="muted"></p>
       </header>
       <div class="favgrid" id="favGrid"></div>
       <div class="homeempty" id="homeEmpty" hidden>
-        <h1>Bir yayıncı aç</h1>
-        <p>Üstteki kutuya yayıncının adını yaz ya da kanal, VOD veya klip linkini yapıştır.</p>
+        <h1 data-i18n="home.emptyTitle"></h1>
+        <p data-i18n="home.emptyText"></p>
         <ol class="steps">
-          <li><b>Yayıncıyı aç.</b> Yayınları, klipleri ve canlıysa canlı yayını listelenir.</li>
-          <li><b>Bir videoya tıkla.</b> Ortada büyük oynar; tamamını indir ya da <b>Kesit al</b> ile içinden parçalar seç. Birden çok indirmek için kartın köşesindeki kutuyla seç.</li>
-          <li><b>Yıldıza bas.</b> Yayıncı soldaki şeride eklenir; canlıya geçince ve yeni yayın gelince haber verir.</li>
+          <li data-i18n-html="home.step1"></li>
+          <li data-i18n-html="home.step2"></li>
+          <li data-i18n-html="home.step3"></li>
         </ol>
       </div>
       <section class="recent" id="cutSetBox">
-        <h2>Kayıtlı kesitler
-          <button class="btn ghost sm" id="cutSetImport" type="button" title="Daha önce dışa aktardığın kesit dosyasını ekle">İçe aktar</button>
-          <button class="btn ghost sm" id="cutSetExport" type="button" title="Tüm kayıtlı kesitleri bir dosyaya yaz" hidden>Dışa aktar</button>
+        <h2><span data-i18n="home.savedCuts"></span>
+          <button class="btn ghost sm" id="cutSetImport" type="button" data-i18n-title="home.importTip" data-i18n="home.import"></button>
+          <button class="btn ghost sm" id="cutSetExport" type="button" data-i18n-title="home.exportTip" data-i18n="home.export" hidden></button>
         </h2>
-        <p class="muted" id="cutSetEmpty">Kesit editöründe işaretlediklerin burada saklanır; kapatıp sonra devam edebilirsin.</p>
+        <p class="muted" id="cutSetEmpty" data-i18n="home.savedCutsEmpty"></p>
         <div class="recentrow" id="cutSetRow"></div>
       </section>
       <section class="recent" id="recentBox" hidden>
-        <h2>Son indirilenler <button class="btn ghost sm" id="recentAll" type="button">Tümü</button></h2>
+        <h2><span data-i18n="home.recent"></span> <button class="btn ghost sm" id="recentAll" type="button" data-i18n="home.all"></button></h2>
         <div class="recentrow" id="recentRow"></div>
       </section>
     </div>
   </section>
 
   <!-- kanal -->
-  <section class="view channel" id="channelView" hidden aria-label="Kanal">
+  <section class="view channel" id="channelView" hidden data-i18n-aria="ch.label">
     <header class="chhead">
       <span class="avwrap" id="chAvWrap"><img class="avatar" id="chAvatar" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""></span>
       <div class="chinfo">
@@ -129,148 +129,152 @@
         <p id="chMeta" class="num"></p>
       </div>
       <div class="autobox" id="autoBox" hidden>
-        <button class="btn sm autotoggle" id="autoDl" type="button" aria-pressed="false" title="Bu yayıncının yeni yayınları bitince kendiliğinden indirilsin (program açıkken; kapalıyken gelenler açılınca)"><svg class="ic"><use href="#i-download"/></svg><span>Yeni yayınları indir</span></button>
-        <button class="btn sm autotoggle" id="autoRec" type="button" aria-pressed="false" title="Yayıncı canlıya geçince kayıt kendiliğinden başlasın"><svg class="ic"><use href="#i-record"/></svg><span>Canlıyı kaydet</span></button>
+        <button class="btn sm autotoggle" id="autoDl" type="button" aria-pressed="false" data-i18n-title="ch.autoDlTip"><svg class="ic"><use href="#i-download"/></svg><span data-i18n="ch.autoDl"></span></button>
+        <button class="btn sm autotoggle" id="autoRec" type="button" aria-pressed="false" data-i18n-title="ch.autoRecTip"><svg class="ic"><use href="#i-record"/></svg><span data-i18n="ch.autoRec"></span></button>
       </div>
-      <button class="btn favtoggle" id="favToggle" type="button" aria-pressed="false"><svg class="ic"><use href="#i-star"/></svg><span>Favorilere ekle</span></button>
+      <button class="btn favtoggle" id="favToggle" type="button" aria-pressed="false"><svg class="ic"><use href="#i-star"/></svg><span data-i18n="ch.addFav"></span></button>
     </header>
     <nav class="tabs" id="tabs" role="tablist">
-      <button class="tab" role="tab" data-tab="vods" aria-selected="true">Yayınlar <span id="vodCount" class="num"></span></button>
-      <button class="tab" role="tab" data-tab="clips" aria-selected="false">Klipler <span id="clipCount" class="num"></span></button>
+      <button class="tab" role="tab" data-tab="vods" aria-selected="true"><span data-i18n="ch.vods"></span> <span id="vodCount" class="num"></span></button>
+      <button class="tab" role="tab" data-tab="clips" aria-selected="false"><span data-i18n="ch.clips"></span> <span id="clipCount" class="num"></span></button>
     </nav>
     <div class="filters" id="filters">
-      <label class="search"><svg class="ic"><use href="#i-search"/></svg><input id="fQuery" type="search" spellcheck="false" placeholder="Başlıkta ara"></label>
-      <div class="select sm" data-label="Kategori"><select id="fCat"></select></div>
-      <div class="select sm" data-label="Süre"><select id="fLen"></select></div>
-      <div class="select sm" data-label="Sırala"><select id="fSort"></select></div>
+      <label class="search"><svg class="ic"><use href="#i-search"/></svg><input id="fQuery" type="search" spellcheck="false" data-i18n-placeholder="filter.search"></label>
+      <div class="select sm" data-i18n-label="filter.category"><select id="fCat"></select></div>
+      <div class="select sm" data-i18n-label="filter.length"><select id="fLen"></select></div>
+      <div class="select sm" data-i18n-label="filter.sort"><select id="fSort"></select></div>
       <span class="fcount num" id="fCount"></span>
-      <button class="btn ghost sm" id="fClear" type="button" hidden>Filtreyi temizle</button>
+      <button class="btn ghost sm" id="fClear" type="button" data-i18n="filter.clear" hidden></button>
     </div>
     <div class="gridwrap" id="gridWrap">
-      <div class="grid" id="grid" role="listbox" aria-multiselectable="true" aria-label="Videolar"></div>
-      <div class="more" id="moreBox" hidden><button class="btn" id="moreBtn" type="button">Daha fazla klip yükle</button></div>
+      <div class="grid" id="grid" role="listbox" aria-multiselectable="true" data-i18n-aria="ch.videos"></div>
+      <div class="more" id="moreBox" hidden><button class="btn" id="moreBtn" type="button" data-i18n="ch.moreClips"></button></div>
       <p class="gridnote" id="gridNote" hidden></p>
     </div>
     <div class="selbar" id="selBar" hidden>
       <ul class="sellist" id="selList" hidden></ul>
       <div class="selrow">
-        <button class="selcount" id="selCount" type="button" aria-expanded="false" title="Seçilenleri göster"><b class="num" id="selN"></b><span class="num" id="selDur"></span><svg class="ic"><use href="#i-chevron"/></svg></button>
+        <button class="selcount" id="selCount" type="button" aria-expanded="false" data-i18n-title="sel.showTip"><b class="num" id="selN"></b><span class="num" id="selDur"></span><svg class="ic"><use href="#i-chevron"/></svg></button>
         <span class="grow"></span>
-        <div class="select sm" data-label="Kalite" id="selQualityBox"><select id="selQuality"></select></div>
-        <button class="btn ghost sm" id="selClear" type="button" title="Esc">Seçimi bırak</button>
+        <div class="select sm" data-i18n-label="common.quality" id="selQualityBox"><select id="selQuality"></select></div>
+        <button class="btn ghost sm" id="selClear" type="button" title="Esc" data-i18n="sel.clear"></button>
         <button class="btn primary sm" id="selDl" type="button"><svg class="ic"><use href="#i-download"/></svg><span></span></button>
       </div>
     </div>
   </section>
 
   <!-- indirilenler -->
-  <section class="view library" id="libraryView" hidden aria-label="İndirilenler">
+  <section class="view library" id="libraryView" hidden data-i18n-aria="lib.title">
     <header class="libhead">
-      <h1>İndirilenler</h1>
-      <label class="search"><svg class="ic"><use href="#i-search"/></svg><input id="libQuery" type="search" spellcheck="false" placeholder="Dosya ara"></label>
+      <h1 data-i18n="lib.title"></h1>
+      <label class="search"><svg class="ic"><use href="#i-search"/></svg><input id="libQuery" type="search" spellcheck="false" data-i18n-placeholder="lib.search"></label>
       <span class="grow"></span>
-      <button class="btn ghost sm" id="openFolderBtn" type="button"><svg class="ic"><use href="#i-folder"/></svg>Klasörü aç</button>
-      <button class="btn ghost sm danger" id="stopAllBtn" type="button" disabled><svg class="ic"><use href="#i-stop"/></svg>Hepsini durdur</button>
+      <button class="btn ghost sm" id="openFolderBtn" type="button"><svg class="ic"><use href="#i-folder"/></svg><span data-i18n="lib.openFolder"></span></button>
+      <button class="btn ghost sm danger" id="stopAllBtn" type="button" disabled><svg class="ic"><use href="#i-stop"/></svg><span data-i18n="lib.stopAll"></span></button>
     </header>
     <div class="libscroll" id="libScroll">
       <section class="libgroup" id="activeGroup" hidden>
-        <h2>Şu an <span class="num" id="activeMeta"></span><button class="btn ghost sm" id="clearBtn" type="button" hidden>Bitenleri listeden temizle</button></h2>
+        <h2><span data-i18n="lib.now"></span> <span class="num" id="activeMeta"></span><button class="btn ghost sm" id="clearBtn" type="button" data-i18n="lib.clearDone" hidden></button></h2>
         <div class="rows" id="rows"></div>
       </section>
       <div id="histGroups"></div>
       <div class="libempty" id="libEmpty" hidden>
-        <h2>Henüz indirilen yok</h2>
-        <p>İndirdiğin her video, klip ve kesit burada durur. Tıklayınca ortada oynar; dosyayı klasörde gösterebilir ya da silebilirsin.</p>
+        <h2 data-i18n="lib.emptyTitle"></h2>
+        <p data-i18n="lib.emptyText"></p>
       </div>
     </div>
   </section>
 
   <!-- ayarlar -->
-  <section class="view settings" id="settingsView" hidden aria-label="Ayarlar">
+  <section class="view settings" id="settingsView" hidden data-i18n-aria="rail.settings">
     <div class="setinner" id="setInner">
-      <h1>Ayarlar</h1>
+      <h1 data-i18n="rail.settings"></h1>
       <section class="setgroup">
-        <h2>İndirme</h2>
+        <h2 data-i18n="set.download"></h2>
         <div class="setrow">
-          <div class="setlbl"><b>İndirme klasörü</b><p class="num" id="setFolder"></p></div>
-          <button class="btn" id="setFolderBtn" type="button"><svg class="ic"><use href="#i-folder"/></svg>Değiştir</button>
+          <div class="setlbl"><b data-i18n="set.folder"></b><p class="num" id="setFolder"></p></div>
+          <button class="btn" id="setFolderBtn" type="button"><svg class="ic"><use href="#i-folder"/></svg><span data-i18n="set.change"></span></button>
         </div>
         <div class="setrow">
-          <div class="setlbl"><b>Varsayılan kalite</b><p>Yoksa en yakın düşük kalite iner.</p></div>
-          <div class="select" data-label="Kalite"><select id="setQuality"></select></div>
+          <div class="setlbl"><b data-i18n="set.quality"></b><p data-i18n="set.qualityDesc"></p></div>
+          <div class="select" data-i18n-label="common.quality"><select id="setQuality"></select></div>
         </div>
         <div class="setrow col">
-          <div class="setlbl"><b>Dosya adı</b><p>Kesitlerin sonuna saat aralığı eklenir. <span id="nameTokens"></span></p></div>
+          <div class="setlbl"><b data-i18n="set.fileName"></b><p><span data-i18n="set.fileNameDesc"></span> <span id="nameTokens"></span></p></div>
           <div class="nameedit">
             <input id="setName" class="field" spellcheck="false">
-            <button class="btn ghost sm" id="setNameReset" type="button">Varsayılan</button>
+            <button class="btn ghost sm" id="setNameReset" type="button" data-i18n="set.default"></button>
           </div>
           <p class="nameprev num" id="namePrev"></p>
         </div>
       </section>
       <section class="setgroup">
-        <h2>Hız</h2>
+        <h2 data-i18n="set.speed"></h2>
         <div class="setrow">
-          <div class="setlbl"><b>Aynı anda inen video</b><p>Otomatik: program toplam hızı ölçüp kendisi ayarlar. Klipler hep en yüksek sayıyla iner.</p></div>
-          <div class="select" data-label="Video"><select id="setParallel"></select></div>
+          <div class="setlbl"><b data-i18n="set.parallel"></b><p data-i18n="set.parallelDesc"></p></div>
+          <div class="select" data-i18n-label="set.parallelLabel"><select id="setParallel"></select></div>
         </div>
         <div class="setrow">
-          <div class="setlbl"><b>Video başına bağlantı</b><p>Bir videonun parçalarını kaç bağlantıyla çekeceği.</p></div>
-          <div class="select" data-label="Bağlantı"><select id="setThreads"></select></div>
+          <div class="setlbl"><b data-i18n="set.threads"></b><p data-i18n="set.threadsDesc"></p></div>
+          <div class="select" data-i18n-label="set.threadsLabel"><select id="setThreads"></select></div>
         </div>
         <div class="setrow">
-          <div class="setlbl"><b>Hız sınırı</b><p>Tüm indirmelerin toplamı. Oyun ya da yayın izlerken hattı tamamen doldurmasın diye.</p></div>
-          <div class="select" data-label="En fazla"><select id="setLimit"></select></div>
+          <div class="setlbl"><b data-i18n="set.limit"></b><p data-i18n="set.limitDesc"></p></div>
+          <div class="select" data-i18n-label="set.limitLabel"><select id="setLimit"></select></div>
         </div>
       </section>
       <section class="setgroup">
-        <h2>Oynatıcı</h2>
+        <h2 data-i18n="set.player"></h2>
         <div class="setrow">
-          <div class="setlbl"><b>Üzerine gelince önizle</b><p>Kartın üzerinde bekleyince video sessiz oynar.</p></div>
+          <div class="setlbl"><b data-i18n="set.hover"></b><p data-i18n="set.hoverDesc"></p></div>
           <button class="switch" id="setHover" type="button" role="switch" aria-checked="true"><i></i></button>
         </div>
         <div class="setrow">
-          <div class="setlbl"><b>Oynatıcı sessiz başlasın</b><p>Kapalıyken oynatıcı kayıtlı ses seviyesiyle açılır.</p></div>
+          <div class="setlbl"><b data-i18n="set.muted"></b><p data-i18n="set.mutedDesc"></p></div>
           <button class="switch" id="setMuted" type="button" role="switch" aria-checked="true"><i></i></button>
         </div>
         <div class="setrow">
-          <div class="setlbl"><b>Ses seviyesi</b></div>
-          <div class="volset"><input type="range" id="setVolume" min="0" max="100" step="1" aria-label="Ses seviyesi"><span class="num" id="setVolumeTxt"></span></div>
+          <div class="setlbl"><b data-i18n="common.volume"></b></div>
+          <div class="volset"><input type="range" id="setVolume" min="0" max="100" step="1" data-i18n-aria="common.volume"><span class="num" id="setVolumeTxt"></span></div>
         </div>
       </section>
       <section class="setgroup">
-        <h2>Bildirimler</h2>
+        <h2 data-i18n="set.notifications"></h2>
         <div class="setrow">
-          <div class="setlbl"><b>İndirmeler bitince</b><p>Sıradaki her şey inince tek bir Windows bildirimi.</p></div>
+          <div class="setlbl"><b data-i18n="set.notifyDone"></b><p data-i18n="set.notifyDoneDesc"></p></div>
           <button class="switch" id="setNotifyDone" type="button" role="switch" aria-checked="true"><i></i></button>
         </div>
         <div class="setrow">
-          <div class="setlbl"><b>Favori canlıya geçince</b><p>Favoriler 2 dakikada bir kontrol edilir.</p></div>
+          <div class="setlbl"><b data-i18n="set.notifyLive"></b><p data-i18n="set.notifyLiveDesc"></p></div>
           <button class="switch" id="setNotifyLive" type="button" role="switch" aria-checked="true"><i></i></button>
         </div>
       </section>
       <section class="setgroup">
-        <h2>Kesit ve canlı kayıt</h2>
+        <h2 data-i18n="set.cutsLive"></h2>
         <div class="setrow">
-          <div class="setlbl"><b>Kesit ekle uzunluğu</b><p>Kesit editöründe <kbd>K</kbd> ile eklenen kesitin uzunluğu.</p></div>
-          <div class="select" data-label="Uzunluk"><select id="setSection">
-            <option value="15">15 sn</option><option value="30">30 sn</option><option value="60">1 dk</option><option value="120">2 dk</option>
+          <div class="setlbl"><b data-i18n="set.sectionLen"></b><p data-i18n-html="set.sectionLenDesc"></p></div>
+          <div class="select" data-i18n-label="common.length"><select id="setSection">
+            <option value="15" data-i18n="len.15"></option><option value="30" data-i18n="len.30"></option><option value="60" data-i18n="len.60"></option><option value="120" data-i18n="len.120"></option>
           </select></div>
         </div>
         <div class="setrow">
-          <div class="setlbl"><b>Canlı kaydı mp4'e çevir</b><p>Kapalıyken kayıt .ts olarak kalır; uygulamanın oynatıcısı .ts açamaz.</p></div>
+          <div class="setlbl"><b data-i18n="set.remux"></b><p data-i18n="set.remuxDesc"></p></div>
           <button class="switch" id="setRemux" type="button" role="switch" aria-checked="true"><i></i></button>
         </div>
       </section>
       <section class="setgroup">
-        <h2>Uygulama</h2>
+        <h2 data-i18n="set.app"></h2>
         <div class="setrow">
-          <div class="setlbl"><b>Panodaki linki öner</b><p>Pencereye dönünce panoda Kick linki varsa açmayı önerir.</p></div>
+          <div class="setlbl"><b data-i18n="settings.language"></b><p data-i18n="settings.language.desc"></p></div>
+          <div class="select" data-i18n-label="settings.language"><select id="setLang"></select></div>
+        </div>
+        <div class="setrow">
+          <div class="setlbl"><b data-i18n="set.clipboard"></b><p data-i18n="set.clipboardDesc"></p></div>
           <button class="switch" id="setClip" type="button" role="switch" aria-checked="true"><i></i></button>
         </div>
         <div class="setrow">
-          <div class="setlbl"><b>Güncellemeleri denetle</b><p>Açılışta yeni sürüm var mı bakar. <span class="num" id="setVersion"></span></p></div>
-          <button class="btn ghost sm" id="checkUpdBtn" type="button">Şimdi denetle</button>
+          <div class="setlbl"><b data-i18n="set.updates"></b><p><span data-i18n="set.updatesDesc"></span> <span class="num" id="setVersion"></span></p></div>
+          <button class="btn ghost sm" id="checkUpdBtn" type="button" data-i18n="set.checkNow"></button>
           <button class="switch" id="setUpdate" type="button" role="switch" aria-checked="true"><i></i></button>
         </div>
       </section>
@@ -280,24 +284,24 @@
 </main>
 
 <footer class="statusbar" id="statusBar">
-  <button class="sbmain" id="sbMain" type="button" title="İndirilenler'i aç">
+  <button class="sbmain" id="sbMain" type="button" data-i18n-title="sb.openLib">
     <i class="sbdot" id="sbDot"></i>
-    <span id="sbText">İndirme yok</span>
+    <span id="sbText" data-i18n="sb.idle"></span>
     <span class="sbtrack" id="sbTrack" hidden><i id="sbFill"></i></span>
     <span class="sbnums num" id="sbNums"></span>
   </button>
-  <span class="sbfree num" id="sbFree" title="İndirme klasörünün diskindeki boş alan"></span>
-  <div class="select xs" data-label="Bitince" id="afterBox" title="Sıradaki her şey inince"><select id="afterDone">
-    <option value="none">Bir şey yapma</option><option value="sleep">Uykuya al</option><option value="shutdown">Bilgisayarı kapat</option>
+  <span class="sbfree num" id="sbFree" data-i18n-title="sb.freeTip"></span>
+  <div class="select xs" data-i18n-label="after.label" id="afterBox" data-i18n-title="after.tip"><select id="afterDone">
+    <option value="none" data-i18n="after.none"></option><option value="sleep" data-i18n="after.sleep"></option><option value="shutdown" data-i18n="after.shutdown"></option>
   </select></div>
   <span class="sbspeed num" id="sbSpeed"></span>
 </footer>
 
 <div class="toast" id="toast" role="status" hidden></div>
-<div class="dropzone" id="dropZone" hidden><div><svg class="ic"><use href="#i-link"/></svg><b>Linki bırak</b><span>Kanal, VOD ya da klip linki açılır</span></div></div>
+<div class="dropzone" id="dropZone" hidden><div><svg class="ic"><use href="#i-link"/></svg><b data-i18n="drop.title"></b><span data-i18n="drop.text"></span></div></div>
 <!-- oynatici penceresi: videoya tiklayinca ortada acilir -->
-<dialog class="watch" id="watch" aria-label="Video">
-  <button class="wnav prev" id="wPrev" type="button" title="Önceki (←)" aria-label="Önceki"><svg class="ic"><use href="#i-chevron"/></svg></button>
+<dialog class="watch" id="watch" data-i18n-aria="common.video">
+  <button class="wnav prev" id="wPrev" type="button" data-i18n-title="watch.prevTip" data-i18n-aria="watch.prev"><svg class="ic"><use href="#i-chevron"/></svg></button>
   <div class="wpanel" id="inspector" tabindex="-1" autofocus>
       <div class="player" id="player">
         <video id="insVideo" playsinline></video>
@@ -305,57 +309,57 @@
         <div class="spin" aria-hidden="true"><svg viewBox="0 0 50 50"><circle class="trk" cx="25" cy="25" r="20"/><circle class="arc" cx="25" cy="25" r="20"/></svg></div>
         <div class="pmsg" id="pMsg" hidden></div>
         <div class="pctl" id="pCtl">
-          <input type="range" class="pseek" id="pSeek" min="0" max="1000" value="0" step="1" aria-label="Konum">
+          <input type="range" class="pseek" id="pSeek" min="0" max="1000" value="0" step="1" data-i18n-aria="player.position">
           <div class="pbar">
-            <button class="iconbtn" id="pPlay" type="button" title="Oynat / durdur" aria-label="Oynat / durdur"><svg class="ic"><use href="#i-play"/></svg></button>
+            <button class="iconbtn" id="pPlay" type="button" data-i18n-title="player.playPause" data-i18n-aria="player.playPause"><svg class="ic"><use href="#i-play"/></svg></button>
             <span class="ptime num" id="pTime">0:00</span>
             <span class="grow"></span>
-            <button class="iconbtn" id="pMute" type="button" title="Sesi kapat / aç (M)" aria-label="Sesi kapat / aç"><svg class="ic"><use href="#i-volume"/></svg></button>
-            <input type="range" class="pvol" id="pVol" min="0" max="100" step="1" aria-label="Ses seviyesi">
-            <button class="iconbtn" id="pFull" type="button" title="Tam ekran (F)" aria-label="Tam ekran"><svg class="ic"><use href="#i-full"/></svg></button>
+            <button class="iconbtn" id="pMute" type="button" data-i18n-title="player.muteTip" data-i18n-aria="player.mute"><svg class="ic"><use href="#i-volume"/></svg></button>
+            <input type="range" class="pvol" id="pVol" min="0" max="100" step="1" data-i18n-aria="common.volume">
+            <button class="iconbtn" id="pFull" type="button" data-i18n-title="player.fullTip" data-i18n-aria="player.full"><svg class="ic"><use href="#i-full"/></svg></button>
           </div>
         </div>
       </div>
       <div class="insbody" id="insBody"></div>
       <footer class="insfoot" id="insFoot">
-        <div class="select" data-label="Kalite" id="qualityBox"><select id="quality"></select></div>
+        <div class="select" data-i18n-label="common.quality" id="qualityBox"><select id="quality"></select></div>
         <div class="insbtns" id="insBtns"></div>
       </footer>
-    <button class="iconbtn wclose" id="wClose" type="button" title="Kapat (Esc)" aria-label="Kapat"><svg class="ic"><use href="#i-x"/></svg></button>
+    <button class="iconbtn wclose" id="wClose" type="button" data-i18n-title="common.closeTip" data-i18n-aria="common.close"><svg class="ic"><use href="#i-x"/></svg></button>
   </div>
-  <button class="wnav next" id="wNext" type="button" title="Sonraki (→)" aria-label="Sonraki"><svg class="ic"><use href="#i-chevron"/></svg></button>
+  <button class="wnav next" id="wNext" type="button" data-i18n-title="watch.nextTip" data-i18n-aria="watch.next"><svg class="ic"><use href="#i-chevron"/></svg></button>
 </dialog>
 
 <dialog class="keysdlg" id="keysDlg" aria-labelledby="keysTitle">
-  <header><h2 id="keysTitle">Kısayollar</h2><button class="iconbtn" id="keysClose" type="button" title="Kapat (Esc)" aria-label="Kapat"><svg class="ic"><use href="#i-x"/></svg></button></header>
+  <header><h2 id="keysTitle" data-i18n="rail.keys"></h2><button class="iconbtn" id="keysClose" type="button" data-i18n-title="common.closeTip" data-i18n-aria="common.close"><svg class="ic"><use href="#i-x"/></svg></button></header>
   <div class="keyscols">
-    <section><h3>Genel</h3><dl>
-      <dt><kbd>Ctrl</kbd> <kbd>L</kbd></dt><dd>Link kutusuna git</dd>
-      <dt><kbd>Ctrl</kbd> <kbd>V</kbd></dt><dd>Linki yapıştırıp hemen aç (bir kutuya yazmıyorken)</dd>
-      <dt><kbd>Ctrl</kbd> <kbd>J</kbd></dt><dd>İndirilenler</dd>
-      <dt>Sürükle-bırak</dt><dd>Tarayıcıdan linki pencereye bırak</dd>
-      <dt><kbd>?</kbd></dt><dd>Bu liste</dd>
+    <section><h3 data-i18n="keys.general"></h3><dl>
+      <dt><kbd>Ctrl</kbd> <kbd>L</kbd></dt><dd data-i18n="keys.focusLink"></dd>
+      <dt><kbd>Ctrl</kbd> <kbd>V</kbd></dt><dd data-i18n="keys.pasteLink"></dd>
+      <dt><kbd>Ctrl</kbd> <kbd>J</kbd></dt><dd data-i18n="lib.title"></dd>
+      <dt data-i18n="keys.dragDrop"></dt><dd data-i18n="keys.dragDropDesc"></dd>
+      <dt><kbd>?</kbd></dt><dd data-i18n="keys.thisList"></dd>
     </dl></section>
-    <section><h3>Videolar</h3><dl>
-      <dt>Tık</dt><dd>İzle (seçim varken: seçime ekle / çıkar)</dd>
-      <dt><kbd>Ctrl</kbd> tık · <kbd>Boşluk</kbd></dt><dd>Seçime ekle / çıkar</dd>
-      <dt><kbd>Shift</kbd> tık</dt><dd>Aradakileri seç</dd>
-      <dt><kbd>Ctrl</kbd> <kbd>A</kbd></dt><dd>Tümünü seç</dd>
-      <dt><kbd>Esc</kbd></dt><dd>Seçimi bırak</dd>
+    <section><h3 data-i18n="keys.videos"></h3><dl>
+      <dt data-i18n="keys.click"></dt><dd data-i18n="keys.clickDesc"></dd>
+      <dt data-i18n-html="keys.ctrlClick"></dt><dd data-i18n="keys.toggleSel"></dd>
+      <dt data-i18n-html="keys.shiftClick"></dt><dd data-i18n="keys.rangeSel"></dd>
+      <dt><kbd>Ctrl</kbd> <kbd>A</kbd></dt><dd data-i18n="keys.selectAll"></dd>
+      <dt><kbd>Esc</kbd></dt><dd data-i18n="sel.clear"></dd>
     </dl></section>
-    <section><h3>Oynatıcı</h3><dl>
-      <dt><kbd>K</kbd></dt><dd>Oynat / durdur</dd>
-      <dt><kbd>M</kbd></dt><dd>Sesi kapat / aç</dd>
-      <dt><kbd>F</kbd></dt><dd>Tam ekran</dd>
-      <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Önceki / sonraki video</dd>
-      <dt><kbd>Esc</kbd></dt><dd>Kapat</dd>
+    <section><h3 data-i18n="set.player"></h3><dl>
+      <dt><kbd>K</kbd></dt><dd data-i18n="player.playPause"></dd>
+      <dt><kbd>M</kbd></dt><dd data-i18n="player.mute"></dd>
+      <dt><kbd>F</kbd></dt><dd data-i18n="player.full"></dd>
+      <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd data-i18n="keys.prevNext"></dd>
+      <dt><kbd>Esc</kbd></dt><dd data-i18n="common.close"></dd>
     </dl></section>
-    <section><h3>İndirilenler</h3><dl>
-      <dt><kbd>Enter</kbd></dt><dd>Seçili dosyayı oynat</dd>
-      <dt><kbd>Del</kbd></dt><dd>Dosyayı sil</dd>
+    <section><h3 data-i18n="lib.title"></h3><dl>
+      <dt><kbd>Enter</kbd></dt><dd data-i18n="keys.playFile"></dd>
+      <dt><kbd>Del</kbd></dt><dd data-i18n="keys.deleteFile"></dd>
     </dl></section>
   </div>
-  <p class="keysfoot">Kesit editörünün kendi kısayolları orada, sağ üstteki <b>Kısayollar</b> düğmesinde.</p>
+  <p class="keysfoot" data-i18n-html="keys.foot"></p>
 </dialog>
 <dialog class="askdlg" id="askDlg" aria-labelledby="askTitle" aria-describedby="askText">
   <form method="dialog">
@@ -363,7 +367,7 @@
     <div class="askitem" id="askItem" hidden><img id="askThumb" alt=""><p id="askName"></p></div>
     <p class="asktext" id="askText"></p>
     <div class="askbtns">
-      <button class="btn" id="askNo" value="no" type="submit" autofocus>Vazgeç</button>
+      <button class="btn" id="askNo" value="no" type="submit" autofocus data-i18n="common.cancel"></button>
       <button class="btn okbtn" id="askYes" value="yes" type="submit"></button>
     </div>
   </form>
@@ -371,9 +375,9 @@
 <ul class="ddmenu" id="ddMenu" role="listbox" hidden></ul>
 <div class="cardmenu" id="cardMenu" role="menu" hidden></div>
 <form class="favpop" id="favPop" hidden autocomplete="off">
-  <label for="favPopInput">Favori ekle</label>
-  <input id="favPopInput" spellcheck="false" placeholder="Kanal adı ya da linki">
-  <button class="btn" type="submit">Ekle</button>
+  <label for="favPopInput" data-i18n="fav.add"></label>
+  <input id="favPopInput" spellcheck="false" data-i18n-placeholder="fav.placeholder">
+  <button class="btn" type="submit" data-i18n="fav.addBtn"></button>
 </form>
 
 <dialog class="cutter" id="cutter" aria-labelledby="cutTitle" tabindex="-1">
@@ -383,26 +387,26 @@
       <h2 id="cutTitle"></h2>
       <p class="num" id="cutMeta"></p>
     </div>
-    <button class="btn ghost sm" id="cutLive" type="button" title="Yayının en son anını yükler ve oraya gider; eklediğin kesitler kalır" hidden><svg class="ic"><use href="#i-record"/></svg>Canlıya git</button>
+    <button class="btn ghost sm" id="cutLive" type="button" data-i18n-title="cut.goLiveTip" hidden><svg class="ic"><use href="#i-record"/></svg><span data-i18n="cut.goLive"></span></button>
     <div class="keyshelp">
-      <button class="btn ghost sm" id="cutKeys" type="button" aria-expanded="false" aria-controls="keysPop"><svg class="ic"><use href="#i-keyboard"/></svg>Kısayollar</button>
+      <button class="btn ghost sm" id="cutKeys" type="button" aria-expanded="false" aria-controls="keysPop"><svg class="ic"><use href="#i-keyboard"/></svg><span data-i18n="rail.keys"></span></button>
       <div class="keyspop" id="keysPop" hidden>
         <dl>
-          <dt><kbd>Boşluk</kbd></dt><dd>Oynat / durdur</dd>
-          <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>5 sn geri / ileri (Shift: 30 sn)</dd>
-          <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>Önceki / sonraki kesit kenarı</dd>
-          <dt><kbd>I</kbd> <kbd>O</kbd></dt><dd>Giriş ve çıkış işaretle; O kesiti oluşturur</dd>
-          <dt><kbd>K</kbd></dt><dd>Bulunduğun anın etrafına hazır uzunlukta kesit</dd>
-          <dt><kbd>Shift</kbd> <kbd>I</kbd> <kbd>O</kbd></dt><dd>Seçili kesitin başını / sonunu buraya çek</dd>
-          <dt><kbd>Del</kbd></dt><dd>Seçili kesiti sil</dd>
-          <dt><kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd></dt><dd>Yakınlaş / uzaklaş / tüm yayın</dd>
-          <dt><kbd>,</kbd> <kbd>.</kbd></dt><dd>Yavaşlat / hızlandır</dd>
-          <dt>Tekerlek</dt><dd>Yakınlaş (Shift: kaydır)</dd>
-          <dt><kbd>Esc</kbd></dt><dd>İşareti ya da seçimi bırak, sonra kapat</dd>
+          <dt><kbd data-i18n="keys.space"></kbd></dt><dd data-i18n="player.playPause"></dd>
+          <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd data-i18n="cut.k.seek"></dd>
+          <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd data-i18n="cut.k.edges"></dd>
+          <dt><kbd>I</kbd> <kbd>O</kbd></dt><dd data-i18n="cut.k.inOut"></dd>
+          <dt><kbd>K</kbd></dt><dd data-i18n="cut.k.add"></dd>
+          <dt><kbd>Shift</kbd> <kbd>I</kbd> <kbd>O</kbd></dt><dd data-i18n="cut.k.pull"></dd>
+          <dt><kbd>Del</kbd></dt><dd data-i18n="cut.deleteSel"></dd>
+          <dt><kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd></dt><dd data-i18n="cut.k.zoom"></dd>
+          <dt><kbd>,</kbd> <kbd>.</kbd></dt><dd data-i18n="cut.k.rate"></dd>
+          <dt data-i18n="cut.k.wheel"></dt><dd data-i18n="cut.k.wheelDesc"></dd>
+          <dt><kbd>Esc</kbd></dt><dd data-i18n="cut.k.esc"></dd>
         </dl>
       </div>
     </div>
-    <button class="iconbtn" id="cutClose" type="button" title="Kapat (Esc)" aria-label="Kapat"><svg class="ic"><use href="#i-x"/></svg></button>
+    <button class="iconbtn" id="cutClose" type="button" data-i18n-title="common.closeTip" data-i18n-aria="common.close"><svg class="ic"><use href="#i-x"/></svg></button>
   </header>
   <div class="cutbody">
     <div class="monitor">
@@ -415,86 +419,86 @@
       <div class="transport">
         <div class="tc num"><b id="cutNow">0:00</b><span>/</span><span id="cutDur">0:00</span></div>
         <div class="tpmid">
-          <button class="iconbtn" id="edgePrev" type="button" title="Önceki kesit kenarı (↑)" aria-label="Önceki kesit kenarı"><svg class="ic"><use href="#i-prev"/></svg></button>
-          <button class="iconbtn" type="button" data-seek="-5" title="5 sn geri (←, Shift: 30 sn)" aria-label="5 saniye geri"><svg class="ic"><use href="#i-back"/></svg></button>
-          <button class="playbtn" id="cutPlay" type="button" title="Oynat / durdur (Boşluk)" aria-label="Oynat / durdur"><svg class="ic"><use href="#i-play"/></svg></button>
-          <button class="iconbtn" type="button" data-seek="5" title="5 sn ileri (→, Shift: 30 sn)" aria-label="5 saniye ileri"><svg class="ic"><use href="#i-fwd"/></svg></button>
-          <button class="iconbtn" id="edgeNext" type="button" title="Sonraki kesit kenarı (↓)" aria-label="Sonraki kesit kenarı"><svg class="ic"><use href="#i-next"/></svg></button>
+          <button class="iconbtn" id="edgePrev" type="button" data-i18n-title="cut.prevEdgeTip" data-i18n-aria="cut.prevEdge"><svg class="ic"><use href="#i-prev"/></svg></button>
+          <button class="iconbtn" type="button" data-seek="-5" data-i18n-title="cut.backTip" data-i18n-aria="cut.back"><svg class="ic"><use href="#i-back"/></svg></button>
+          <button class="playbtn" id="cutPlay" type="button" data-i18n-title="cut.playTip" data-i18n-aria="player.playPause"><svg class="ic"><use href="#i-play"/></svg></button>
+          <button class="iconbtn" type="button" data-seek="5" data-i18n-title="cut.fwdTip" data-i18n-aria="cut.fwd"><svg class="ic"><use href="#i-fwd"/></svg></button>
+          <button class="iconbtn" id="edgeNext" type="button" data-i18n-title="cut.nextEdgeTip" data-i18n-aria="cut.nextEdge"><svg class="ic"><use href="#i-next"/></svg></button>
         </div>
         <div class="tpend">
-          <button class="iconbtn" id="cutMute" type="button" title="Sesi kapat / aç" aria-label="Sesi kapat / aç"><svg class="ic"><use href="#i-volume"/></svg></button>
-          <div class="select sm" title="Oynatma hızı (, yavaşlat · . hızlandır)" data-label="Hız"><select id="cutRate">
-              <option value="0.25">0,25×</option>
-              <option value="0.5">0,5×</option>
-              <option value="0.75">0,75×</option>
-              <option value="1" selected>1×</option>
-              <option value="1.5">1,5×</option>
-              <option value="2">2×</option>
-              <option value="4">4×</option>
+          <button class="iconbtn" id="cutMute" type="button" data-i18n-title="player.mute" data-i18n-aria="player.mute"><svg class="ic"><use href="#i-volume"/></svg></button>
+          <div class="select sm" data-i18n-title="cut.rateTip" data-i18n-label="cut.rate"><select id="cutRate">
+              <option value="0.25"></option>
+              <option value="0.5"></option>
+              <option value="0.75"></option>
+              <option value="1" selected></option>
+              <option value="1.5"></option>
+              <option value="2"></option>
+              <option value="4"></option>
             </select></div>
         </div>
       </div>
     </div>
     <aside class="cutside">
-      <div class="split v" id="splitSide" role="separator" aria-orientation="vertical" aria-label="Panel genişliği" title="Sürükle: panel genişliği · çift tık: varsayılan"></div>
+      <div class="split v" id="splitSide" role="separator" aria-orientation="vertical" data-i18n-aria="cut.panelWidth" data-i18n-title="cut.panelWidthTip"></div>
       <header class="sidehead">
-        <h3>Kesitler <span class="num" id="cutCount"></span></h3>
-        <button class="btn ghost sm" id="cutChain" type="button" title="Kesitleri sırayla, aralarını atlayarak oynat" disabled><svg class="ic"><use href="#i-play"/></svg><span>Sırayla oynat</span></button>
+        <h3><span data-i18n="cut.sections"></span> <span class="num" id="cutCount"></span></h3>
+        <button class="btn ghost sm" id="cutChain" type="button" data-i18n-title="cut.chainTip" disabled><svg class="ic"><use href="#i-play"/></svg><span data-i18n="cut.chain"></span></button>
       </header>
       <ol class="cutlist" id="cutList"></ol>
       <div class="cutempty" id="cutEmpty">
-        <p>İstediğin anı bul, sonra:</p>
+        <p data-i18n="cut.empty.find"></p>
         <ol>
-          <li><kbd>I</kbd><span>Kesitin başlayacağı yerde bas.</span></li>
-          <li><kbd>O</kbd><span>Biteceği yerde bas. Kesit hazır.</span></li>
-          <li><kbd>K</kbd><span>Ya da tek tuşla, bulunduğun anın etrafına hazır uzunlukta bir kesit at.</span></li>
+          <li><kbd>I</kbd><span data-i18n="cut.empty.in"></span></li>
+          <li><kbd>O</kbd><span data-i18n="cut.empty.out"></span></li>
+          <li><kbd>K</kbd><span data-i18n="cut.empty.add"></span></li>
         </ol>
-        <p>Kenarları çizelgede sürükleyerek ya da buradan saat yazarak düzeltirsin.</p>
+        <p data-i18n="cut.empty.edit"></p>
       </div>
       <footer class="cutfoot">
-        <div class="outmode" role="radiogroup" aria-label="Çıktı">
-          <button type="button" role="radio" data-mode="split" aria-checked="true"><svg class="ic"><use href="#i-files"/></svg>Ayrı dosyalar</button>
-          <button type="button" role="radio" data-mode="merge" aria-checked="false"><svg class="ic"><use href="#i-merge"/></svg>Tek video</button>
+        <div class="outmode" role="radiogroup" data-i18n-aria="cut.output">
+          <button type="button" role="radio" data-mode="split" aria-checked="true"><svg class="ic"><use href="#i-files"/></svg><span data-i18n="cut.split"></span></button>
+          <button type="button" role="radio" data-mode="merge" aria-checked="false"><svg class="ic"><use href="#i-merge"/></svg><span data-i18n="cut.merge"></span></button>
         </div>
         <p class="num" id="cutInfo"></p>
-        <button class="btn primary" id="cutDownload" type="button" disabled><svg class="ic"><use href="#i-download"/></svg><span id="cutDownloadLabel">Kesiti indir</span></button>
+        <button class="btn primary" id="cutDownload" type="button" disabled><svg class="ic"><use href="#i-download"/></svg><span id="cutDownloadLabel"></span></button>
       </footer>
     </aside>
   </div>
-  <section class="tl" aria-label="Zaman çizelgesi">
-    <div class="split h" id="splitTl" role="separator" aria-orientation="horizontal" aria-label="Çizelge yüksekliği" title="Sürükle: çizelge yüksekliği · çift tık: varsayılan"></div>
+  <section class="tl" data-i18n-aria="cut.timeline">
+    <div class="split h" id="splitTl" role="separator" aria-orientation="horizontal" data-i18n-aria="cut.tlHeight" data-i18n-title="cut.tlHeightTip"></div>
     <div class="tlbar">
       <div class="tools">
-        <button class="btn addcut" id="cutAdd" type="button"><svg class="ic"><use href="#i-scissors"/></svg>Kesit ekle<kbd>K</kbd></button>
-        <div class="select sm" title="Kesit ekle'nin otomatik vereceği uzunluk" data-label="Uzunluk"><select id="cutLen">
-            <option value="15">15 sn</option>
-            <option value="30">30 sn</option>
-            <option value="60">1 dk</option>
-            <option value="120">2 dk</option>
+        <button class="btn addcut" id="cutAdd" type="button"><svg class="ic"><use href="#i-scissors"/></svg><span data-i18n="cut.add"></span><kbd>K</kbd></button>
+        <div class="select sm" data-i18n-title="cut.lenTip" data-i18n-label="common.length"><select id="cutLen">
+            <option value="15" data-i18n="len.15"></option>
+            <option value="30" data-i18n="len.30"></option>
+            <option value="60" data-i18n="len.60"></option>
+            <option value="120" data-i18n="len.120"></option>
           </select></div>
         <span class="tsep"></span>
-        <button class="btn ghost sm" id="markIn" type="button" title="Giriş: kesit buradan başlasın (I)"><svg class="ic"><use href="#i-in"/></svg>Giriş<kbd>I</kbd></button>
-        <button class="btn ghost sm" id="markOut" type="button" title="Çıkış: kesit burada bitsin (O)"><svg class="ic"><use href="#i-out"/></svg>Çıkış<kbd>O</kbd></button>
-        <button class="iconbtn danger" id="cutDel" type="button" title="Seçili kesiti sil (Del)" aria-label="Seçili kesiti sil" disabled><svg class="ic"><use href="#i-trash"/></svg></button>
+        <button class="btn ghost sm" id="markIn" type="button" data-i18n-title="cut.inTip"><svg class="ic"><use href="#i-in"/></svg><span data-i18n="cut.in"></span><kbd>I</kbd></button>
+        <button class="btn ghost sm" id="markOut" type="button" data-i18n-title="cut.outTip"><svg class="ic"><use href="#i-out"/></svg><span data-i18n="cut.out"></span><kbd>O</kbd></button>
+        <button class="iconbtn danger" id="cutDel" type="button" data-i18n-title="cut.deleteSelTip" data-i18n-aria="cut.deleteSel" disabled><svg class="ic"><use href="#i-trash"/></svg></button>
       </div>
       <span class="tlspan num" id="tlSpan"></span>
       <div class="tlzoom">
-        <button class="iconbtn" id="zoomOut" type="button" title="Uzaklaş (−)" aria-label="Uzaklaş"><svg class="ic"><use href="#i-minus"/></svg></button>
-        <input type="range" id="zoomRange" min="0" max="1000" value="0" aria-label="Yakınlık">
-        <button class="iconbtn" id="zoomIn" type="button" title="Yakınlaş (+)" aria-label="Yakınlaş"><svg class="ic"><use href="#i-plus"/></svg></button>
-        <button class="btn ghost sm" id="zoomFit" type="button" title="Tüm yayını göster (0)">Tümü</button>
+        <button class="iconbtn" id="zoomOut" type="button" data-i18n-title="cut.zoomOutTip" data-i18n-aria="cut.zoomOut"><svg class="ic"><use href="#i-minus"/></svg></button>
+        <input type="range" id="zoomRange" min="0" max="1000" value="0" data-i18n-aria="cut.zoom">
+        <button class="iconbtn" id="zoomIn" type="button" data-i18n-title="cut.zoomInTip" data-i18n-aria="cut.zoomIn"><svg class="ic"><use href="#i-plus"/></svg></button>
+        <button class="btn ghost sm" id="zoomFit" type="button" data-i18n-title="cut.fitTip" data-i18n="home.all"></button>
       </div>
     </div>
     <div class="tlgrid">
       <div class="heads" aria-hidden="true">
-        <span class="h-ov">Yayın</span>
+        <span class="h-ov" data-i18n="cut.trackStream"></span>
         <span class="h-ru"></span>
-        <span class="h-film"><svg class="ic"><use href="#i-film"/></svg>Görüntü</span>
-        <span class="h-wave"><svg class="ic"><use href="#i-volume"/></svg>Ses</span>
-        <span class="h-lane"><svg class="ic"><use href="#i-scissors"/></svg>Kesit</span>
+        <span class="h-film"><svg class="ic"><use href="#i-film"/></svg><span data-i18n="cut.trackVideo"></span></span>
+        <span class="h-wave"><svg class="ic"><use href="#i-volume"/></svg><span data-i18n="cut.trackAudio"></span></span>
+        <span class="h-lane"><svg class="ic"><use href="#i-scissors"/></svg><span data-i18n="cut.trackCuts"></span></span>
       </div>
       <div class="tracks">
-        <div class="overview" id="ovBar" title="Tüm yayın: tıkla ya da sürükleyerek görünen bölümü taşı">
+        <div class="overview" id="ovBar" data-i18n-title="cut.overviewTip">
           <div class="ovfilm" id="ovFilm"></div>
           <div class="ovclips" id="ovClips"></div>
           <i class="ovview" id="ovView"></i>
@@ -530,12 +534,12 @@
       <span class="state num"></span>
     </div>
     <div class="lmeta">
-      <p class="lhead"><span class="livechip"><i></i>CANLI</span><span class="lsince num"></span></p>
+      <p class="lhead"><span class="livechip"><i></i><span data-i18n="live.chip"></span></span><span class="lsince num"></span></p>
       <p class="ltitle"></p>
       <p class="sub num"></p>
       <div class="lacts">
-        <button class="btn primary lrec" type="button" data-live="record" title="Yayını şu andan itibaren kaydeder; durdurunca ya da yayın bitince mp4 olur"></button>
-        <button class="btn" type="button" data-live="cut" title="Yayının başından şu ana kadar istediğin anı seç; yayın sürerken iner"><svg class="ic"><use href="#i-scissors"/></svg>Kesit al</button>
+        <button class="btn primary lrec" type="button" data-live="record" data-i18n-title="live.recordTip"></button>
+        <button class="btn" type="button" data-live="cut" data-i18n-title="live.cutTip"><svg class="ic"><use href="#i-scissors"/></svg><span data-i18n="card.cut"></span></button>
       </div>
     </div>
   </div>
@@ -546,16 +550,16 @@
     <div class="thumb">
       <img loading="lazy" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
       <span class="dur num"></span>
-      <button class="check" type="button" tabindex="-1" title="Seç (Ctrl+tık)" aria-label="Seç"><svg class="ic"><use href="#i-check"/></svg></button>
-      <button class="cutbtn" type="button" tabindex="-1" title="Kesit al: yayının içinden parçalar seç" aria-label="Kesit al" hidden><svg class="ic"><use href="#i-scissors"/></svg>Kesit al</button>
-      <button class="cplay" type="button" tabindex="-1" title="İzle" aria-label="İzle"><svg class="ic"><use href="#i-play"/></svg></button>
+      <button class="check" type="button" tabindex="-1" data-i18n-title="card.selectTip" data-i18n-aria="card.select"><svg class="ic"><use href="#i-check"/></svg></button>
+      <button class="cutbtn" type="button" tabindex="-1" data-i18n-title="card.cutTip" data-i18n-aria="card.cut" hidden><svg class="ic"><use href="#i-scissors"/></svg><span data-i18n="card.cut"></span></button>
+      <button class="cplay" type="button" tabindex="-1" data-i18n-title="card.watch" data-i18n-aria="card.watch"><svg class="ic"><use href="#i-play"/></svg></button>
       <span class="state num"></span>
       <i class="tprog" hidden></i>
     </div>
     <div class="meta">
       <p class="title"></p>
       <p class="sub num"></p>
-      <button class="more" type="button" tabindex="-1" title="Diğer işlemler" aria-label="Diğer işlemler" aria-haspopup="menu"><svg class="ic"><use href="#i-more"/></svg></button>
+      <button class="more" type="button" tabindex="-1" data-i18n-title="card.more" data-i18n-aria="card.more" aria-haspopup="menu"><svg class="ic"><use href="#i-more"/></svg></button>
     </div>
   </div>
 </template>
@@ -573,6 +577,7 @@
 </template>
 
 <script src="vendor/hls.light.min.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -12,6 +12,8 @@ import webview
 
 from kickindir.api import Api
 from kickindir.config import ACTIVE_ALL, DATA_DIR, INSTANCE_PID, LOG_PATH, WEBVIEW2_PAGE, WEBVIEW2_URL, app_dir, log, resource_dir
+from kickindir.core.i18n import detect_lang, set_lang, t
+from kickindir.core.storage import load_settings
 from kickindir.services import updater
 from kickindir.services.notify import register_toast_app
 
@@ -45,12 +47,12 @@ def webview2_ok():
                     broken = True
         except (OSError, ValueError):
             pass
-    return False, "Microsoft Edge WebView2 Runtime" + (" (kurulum bozuk, yeniden kurulmalı)" if broken else "")
+    return False, "broken" if broken else "Microsoft Edge WebView2 Runtime"
 
 
 def message_box(text, yes_no=False):
     flags = (0x04 if yes_no else 0x00) | 0x30   # MB_YESNO / MB_OK + uyari ikonu
-    return ctypes.windll.user32.MessageBoxW(None, text, "Kick İndirici", flags) == 6   # 6 = IDYES
+    return ctypes.windll.user32.MessageBoxW(None, text, t("app.name"), flags) == 6   # 6 = IDYES
 
 
 def setup_logging():
@@ -128,6 +130,7 @@ def main():
     if not single_instance():
         return
     setup_logging()
+    set_lang(load_settings().get("lang") or detect_lang())   # pencereden onceki uyarilar da secili dilde
     # isaret dosyasi (1.0.2+) ya da eski exe kopyasi (isareti yazmayan eski surumden gecis)
     frozen = getattr(sys, "frozen", False)
     just_updated = updater.just_updated(DATA_DIR) or (frozen and os.path.exists(os.path.join(app_dir(), "KickIndirici.exe.old")))
@@ -137,9 +140,9 @@ def main():
     ok, what = webview2_ok()
     log.info("Windows build %s, WebView2/.NET: %s %s", build, ok, what)
     if not ok:
-        if message_box(f"Bu bilgisayarda {what} yok. Program onsuz açılamaz (pencere siyah kalır).\n\n"
-                       "İndirme sayfası açılsın mı? Kurduktan sonra programı yeniden aç.", yes_no=True):
-            os.startfile(WEBVIEW2_PAGE if "bozuk" in what else WEBVIEW2_URL if "WebView2" in what else "https://dotnet.microsoft.com/download/dotnet-framework")
+        name = t("startup.webview2_broken") if what == "broken" else what
+        if message_box(t("startup.missing", what=name), yes_no=True):
+            os.startfile(WEBVIEW2_PAGE if what == "broken" else WEBVIEW2_URL if "WebView2" in what else "https://dotnet.microsoft.com/download/dotnet-framework")
         return
     # Bazi ekran karti suruculerinde (ozellikle Windows 10) WebView2 siyah cizer; orada GPU'yu kapat.
     # --gpu / --no-gpu ile elle secilebilir.
@@ -151,7 +154,7 @@ def main():
     api = Api()
     api._just_updated = just_updated
     window = webview.create_window(
-        "Kick İndirici", os.path.join(resource_dir(), "web", "index.html"), js_api=api,
+        t("app.name"), os.path.join(resource_dir(), "web", "index.html"), js_api=api,
         width=1360, height=880, min_size=(980, 660), background_color="#101010")
     api._window = window
     window.events.shown += lambda: dark_titlebar(window)
@@ -162,10 +165,7 @@ def main():
             if "WebView2 initialization failed" not in record.getMessage():
                 return
             def report():   # arayuz thread'ini bekletmemek icin ayri thread
-                if message_box("WebView2 başlatılamadı, kurulumu bozuk görünüyor (pencere siyah kalır).\n\n"
-                               "Çözüm: açılacak sayfada \"Evergreen Bağımsız Kurulum\" → x64'ü indirip yönetici "
-                               "olarak kur. \"Zaten kurulu\" derse önce Uygulamalar'dan WebView2 Runtime'ı kaldır.\n\n"
-                               "İndirme sayfası açılsın mı?", yes_no=True):
+                if message_box(t("startup.webview2_failed"), yes_no=True):
                     os.startfile(WEBVIEW2_PAGE)
                 window.destroy()
             threading.Thread(target=report, daemon=True).start()

@@ -5,6 +5,7 @@ import time
 from curl_cffi import requests as cffi_requests
 
 from kickindir.config import log
+from kickindir.core.i18n import t
 from kickindir.services.kick import fetch_clips, kick_get, playlist_duration
 from kickindir.services.media import MediaStrip
 
@@ -16,7 +17,7 @@ class BrowseMixin:
         try:
             clips, nxt = fetch_clips(slug, sort, cursor)
         except Exception as e:  # noqa: BLE001
-            return {"ok": False, "error": f"Klipler alınamadı. ({str(e)[:120]})"}
+            return {"ok": False, "error": t("err.clips", e=str(e)[:120])}
         return {"ok": True, "clips": clips, "cursor": nxt if clips else None}
 
     def vod_source(self, uuid, live=False):
@@ -26,9 +27,9 @@ class BrowseMixin:
         try:
             v = kick_get(f"https://kick.com/api/v1/video/{uuid}")
         except Exception as e:  # noqa: BLE001
-            return {"ok": False, "error": f"Video açılamadı. ({str(e)[:120]})"}
+            return {"ok": False, "error": t("err.videoOpen", e=str(e)[:120])}
         if not v.get("source"):
-            return {"ok": False, "error": "Bu yayının video kaynağı yok."}
+            return {"ok": False, "error": t("err.noSource")}
         out = {"ok": True, "source": v["source"]}
         if live:
             try:
@@ -42,12 +43,12 @@ class BrowseMixin:
         arayuz dogrudan cekemez; alt listeler ve parcalar herkese acik (tam adresli), arayuz onlari
         kendisi ceker."""
         if not re.match(r"https://[\w.-]+\.live-video\.net/", url or ""):
-            return {"ok": False, "error": "Geçersiz canlı yayın adresi."}
+            return {"ok": False, "error": t("err.badLiveUrl")}
         try:
             r = cffi_requests.get(url, impersonate="chrome", timeout=15)
             r.raise_for_status()
         except Exception as e:  # noqa: BLE001
-            return {"ok": False, "error": f"Canlı yayın açılamadı. ({str(e)[:120]})"}
+            return {"ok": False, "error": t("err.liveOpen", e=str(e)[:120])}
         return {"ok": True, "text": r.text}
 
     def strip_index(self, uuid, fresh=False):
@@ -55,7 +56,7 @@ class BrowseMixin:
         fresh: suren yayinda listeyi yeniden okur (yeni parcalar sona eklenir)."""
         log.info("serit listesi istendi: %s (ffmpeg: %s)", uuid, self._ffmpeg)
         if not self._ffmpeg:
-            return {"ok": False, "error": "ffmpeg yok; çizelgede kare ve ses dalgası gösterilemiyor."}
+            return {"ok": False, "error": t("err.stripNoFfmpeg")}
         try:
             if uuid not in self._strips:
                 self._strips[uuid] = MediaStrip(uuid, self._ffmpeg)
@@ -63,7 +64,7 @@ class BrowseMixin:
                 self._strips[uuid].refresh()
         except Exception as e:  # noqa: BLE001
             log.info("serit listesi alinamadi (%s): %s", uuid, e)
-            return {"ok": False, "error": f"Çizelge şeridi alınamadı. ({str(e)[:120]})"}
+            return {"ok": False, "error": t("err.strip", e=str(e)[:120])}
         return {"ok": True, "segments": self._strips[uuid].index(),
                 "peaksPerSec": MediaStrip.PEAKS_PER_SEC, "frameEvery": MediaStrip.FRAME_EVERY}
 

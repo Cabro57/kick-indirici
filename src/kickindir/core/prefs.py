@@ -2,7 +2,8 @@
 
 import re
 
-from kickindir.config import NAME_DEFAULT, NAME_TOKENS
+from kickindir.config import NAME_DEFAULT, NAME_TOKENS, norm_name
+from kickindir.core.i18n import LANGS, detect_lang
 
 
 def int_or_auto(value, lo, hi):
@@ -10,16 +11,17 @@ def int_or_auto(value, lo, hi):
 
 
 def valid_name(value):
-    """Dosya adi sablonu gecerliyse kendisi, degilse None. {baslik} ya da {id} sart: yoksa
-    her indirme ayni adi alir ve birbirinin ustune yazar."""
+    """Dosya adi sablonu gecerliyse kendisi, degilse None. {title} ya da {id} sart: yoksa
+    her indirme ayni adi alir ve birbirinin ustune yazar. Eski Turkce adlar da gecerli."""
     if not isinstance(value, str) or not value.strip() or len(value) > 120:
         return None
     value = value.strip()
     if re.search(r'[\\/:*?"<>|{}]', re.sub(r"\{[a-z]+\}", "", value)):
         return None
-    if any(t not in NAME_TOKENS for t in re.findall(r"\{([a-z]+)\}", value)):
+    norm = norm_name(value)
+    if any(t not in NAME_TOKENS for t in re.findall(r"\{([a-z]+)\}", norm)):
         return None
-    return value if "{baslik}" in value or "{id}" in value else None
+    return value if "{title}" in norm or "{id}" in norm else None
 
 
 def flag(value):
@@ -44,4 +46,5 @@ PREFS = {
     "speedLimit": (0, ranged(0, 1000)),      # toplam indirme hizi siniri, MB/s (0 = sinirsiz)
     "clipboardWatch": (True, flag),          # pencereye donunce panodaki Kick linkini oner
     "updateCheck": (True, flag),             # acilista yeni surum var mi bak
+    "lang": (detect_lang(), lambda v: v if v in LANGS else None),   # arayuz dili; ilk acilista Windows'tan
 }

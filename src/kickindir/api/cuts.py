@@ -6,6 +6,7 @@ import time
 import webview
 
 from kickindir.core.storage import clean_cut_set
+from kickindir.core.i18n import t
 
 
 class CutsMixin:
@@ -40,10 +41,10 @@ class CutsMixin:
     def cuts_export(self):
         """Tum kayitli kesitleri kullanicinin sectigi JSON dosyasina yazar."""
         if not self._cuts_snapshot():
-            return {"ok": False, "error": "Dışa aktarılacak kayıtlı kesit yok."}
+            return {"ok": False, "error": t("err.noCutsExport")}
         res = self._window.create_file_dialog(webview.FileDialog.SAVE, directory=self._folder,
                                               save_filename="kick-kesitler.json",
-                                              file_types=("Kesit dosyası (*.json)",))
+                                              file_types=(t("cuts.fileType") + " (*.json)",))
         if not res:
             return {"ok": False}
         path = res if isinstance(res, str) else res[0]
@@ -51,13 +52,13 @@ class CutsMixin:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump({"kickKesitler": 1, "cuts": self._cuts_snapshot()}, f, ensure_ascii=False, indent=1)
         except OSError as e:
-            return {"ok": False, "error": f"Dosya yazılamadı: {e.strerror or e}"}
+            return {"ok": False, "error": t("err.writeFile", e=e.strerror or e)}
         return {"ok": True, "count": len(self._cuts_snapshot())}
 
     def cuts_import(self):
         """Dosyadaki kesitleri mevcutlara ekler: ayni VOD'da ayni aralik ikinci kez eklenmez."""
         res = self._window.create_file_dialog(webview.FileDialog.OPEN, directory=self._folder,
-                                              file_types=("Kesit dosyası (*.json)",))
+                                              file_types=(t("cuts.fileType") + " (*.json)",))
         if not res:
             return {"ok": False}
         path = res if isinstance(res, str) else res[0]
@@ -68,7 +69,7 @@ class CutsMixin:
             if data.get("kickKesitler") != 1 or not isinstance(incoming, dict):
                 raise ValueError
         except (OSError, ValueError, KeyError, TypeError, AttributeError):
-            return {"ok": False, "error": "Bu dosya bir Kick İndirici kesit dosyası değil."}
+            return {"ok": False, "error": t("err.notCutsFile")}
         added = 0
         with self._cuts_lock:
             for url, raw in incoming.items():

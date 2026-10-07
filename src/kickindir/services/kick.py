@@ -6,13 +6,14 @@ import urllib.request
 from curl_cffi import requests as cffi_requests
 
 from kickindir.config import QUALITIES
+from kickindir.core.i18n import t
 
 
 # ---------- Kick API ----------
 def kick_get(url):
     r = cffi_requests.get(url, impersonate="chrome", timeout=20)
     if r.status_code == 404:
-        raise LookupError("Kanal ya da video bulunamadi.")
+        raise LookupError("not found")
     r.raise_for_status()
     return r.json()
 
@@ -35,8 +36,8 @@ def parse_link(text):
 
 def kick_error(e):
     if isinstance(e, LookupError):
-        return str(e).replace("bulunamadi", "bulunamadı")
-    return f"Kick'e ulaşılamadı. İnternet bağlantını kontrol edip tekrar dene. ({str(e)[:120]})"
+        return t("err.notFound")
+    return t("err.kickUnreachable", e=str(e)[:120])
 
 
 def vod_channel(uuid):

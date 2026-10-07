@@ -1,16 +1,7 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const STATUS = {
-  queued: "Sırada",
-  preparing: "Hazırlanıyor…",
-  downloading: "İniyor",
-  merging: "Birleştiriliyor…",
-  recording: "Kaydediliyor",
-  done: "Tamamlandı",
-  stopped: "Durduruldu",
-  error: "Hata",
-};
+const statusName = (s) => t(`status.${s}`);
 const ACTIVE = ["preparing", "downloading", "merging", "recording"];
 
 const state = {
@@ -55,9 +46,12 @@ function fmtDuration(s) {
 function fmtEta(s) {
   if (s == null) return "";
   s = Math.round(s);
-  if (s < 60) return `${s} sn kaldı`;
+  if (s < 60) return t("eta.sec", { s });
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
-  return h ? `${h} sa ${m} dk kaldı` : `${m} dk kaldı`;
+  return h ? t("eta.hourMin", { h, m }) : t("eta.min", { m });
+}
+function fmtNum(n, digits = 0) {
+  return n.toLocaleString(i18n.locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 function fmtBytes(n) {
   if (n == null) return "";
@@ -65,34 +59,34 @@ function fmtBytes(n) {
   const u = ["B", "KB", "MB", "GB", "TB"];
   let i = 0;
   while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
-  return `${n.toFixed(n < 10 && i > 1 ? 1 : 0).replace(".", ",")} ${u[i]}`;
+  return `${fmtNum(n, n < 10 && i > 1 ? 1 : 0)} ${u[i]}`;
 }
 function fmtSpeed(n) {
   return n ? `${fmtBytes(n)}/s` : "";
 }
 function fmtCount(n) {
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1).replace(".", ",")} Mn`;
-  if (n >= 1e3) return `${(n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(".", ",")} B`;
-  return String(n || 0);
+  return new Intl.NumberFormat(i18n.locale, { notation: "compact", maximumFractionDigits: n >= 1e3 && n < 1e4 || n >= 1e6 ? 1 : 0 }).format(n || 0);
 }
 function parseDate(iso) {
   if (!iso) return NaN;
   return Date.parse(iso.replace(" ", "T") + (iso.includes("Z") || iso.includes("+") ? "" : "Z"));
 }
 function fmtAgo(iso) {
-  const t = parseDate(iso);
-  if (isNaN(t)) return "";
-  const d = (Date.now() - t) / 1000;
-  if (d < 3600) return `${Math.max(1, Math.round(d / 60))} dakika önce`;
-  if (d < 86400) return `${Math.round(d / 3600)} saat önce`;
-  if (d < 86400 * 7) return `${Math.round(d / 86400)} gün önce`;
-  return new Date(t).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
+  const ms = parseDate(iso);
+  if (isNaN(ms)) return "";
+  const d = (Date.now() - ms) / 1000;
+  const rel = new Intl.RelativeTimeFormat(i18n.locale);
+  if (d < 3600) return rel.format(-Math.max(1, Math.round(d / 60)), "minute");
+  if (d < 86400) return rel.format(-Math.round(d / 3600), "hour");
+  if (d < 86400 * 7) return rel.format(-Math.round(d / 86400), "day");
+  return new Date(ms).toLocaleDateString(i18n.locale, { day: "numeric", month: "short", year: "numeric" });
 }
 function fmtDate(iso) {
-  const t = parseDate(iso);
-  if (isNaN(t)) return "";
-  return new Date(t).toLocaleString("tr-TR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const ms = parseDate(iso);
+  if (isNaN(ms)) return "";
+  return new Date(ms).toLocaleString(i18n.locale, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
+const qualityName = (q) => (q === "best" ? t("quality.best") : q);
 function cleanTitle(t) {
   t = t || "";
   return t.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{1F1E6}-\u{1F1FF}]/gu, " ")
@@ -105,7 +99,7 @@ function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-const fold = (s) => (s || "").toLocaleLowerCase("tr-TR");
+const fold = (s) => (s || "").toLocaleLowerCase(i18n.locale);
 const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
 
 /* ---------- gorunumler ---------- */
@@ -136,8 +130,8 @@ async function listLink(text) {
     const res = await state.api.list_link(text);
     if (!res.ok) { showError(res.error); return; }
     if (res.kind === "clip") {
-      const n = await state.api.enqueue([{ url: res.url, title: "Klip", thumb: "" }]);
-      toast(n ? "Klip indirmeye eklendi" : "Bu klip zaten listede");
+      const n = await state.api.enqueue([{ url: res.url, title: t("kind.clip"), thumb: "" }]);
+      toast(n ? t("toast.clipQueued") : t("toast.clipExists"));
       $("linkInput").value = "";
       return;
     }
@@ -145,7 +139,7 @@ async function listLink(text) {
     $("linkInput").value = "";
     $("linkInput").blur();
   } catch (e) {
-    showError("Beklenmeyen bir hata oldu: " + e);
+    showError(t("err.unexpected", { e }));
   } finally {
     $("linkForm").classList.remove("loading");
   }
@@ -202,7 +196,7 @@ function renderSkeletonChannel(slug) {
   showView("channel");
   $("chAvatar").src = f ? f.avatar : "";
   $("chName").textContent = f ? f.name : slug;
-  $("chMeta").textContent = "Yükleniyor…";
+  $("chMeta").textContent = t("common.loading");
   renderSkeleton();
 }
 
@@ -217,7 +211,7 @@ function liveItem() {
   const ch = state.channel, l = ch && ch.live;
   if (!l) return null;
   return {
-    kind: "live", url: `https://kick.com/${ch.slug}`, key: `live:${ch.slug}`, title: l.title || `${ch.name} canlı yayında`,
+    kind: "live", url: `https://kick.com/${ch.slug}`, key: `live:${ch.slug}`, title: l.title || t("live.isLive", { name: ch.name }),
     thumb: l.thumb, avatar: ch.avatar, source: l.source, start: l.start, views: l.viewers, category: l.category,
     categories: l.category ? [l.category] : [],
   };
@@ -246,18 +240,19 @@ function renderChannel() {
   h.innerHTML = "";
   h.append(ch.name);
   if (ch.verified) h.insertAdjacentHTML("beforeend", icon("verified"));
-  if (ch.live) h.insertAdjacentHTML("beforeend", `<span class="livechip"><i></i>CANLI</span>`);
+  if (ch.live) h.insertAdjacentHTML("beforeend", `<span class="livechip"><i></i>${t("live.chip")}</span>`);
   const total = state.vods.reduce((a, v) => a + v.duration, 0);
   const newN = state.seenBefore ? state.vods.filter((v) => v.start > state.seenBefore).length : 0;
   $("chMeta").textContent = [
-    `${fmtCount(ch.followers)} takipçi`, `${state.vods.length} yayın`, `toplam ${Math.round(total / 3600)} saat`,
-    ch.live ? `${fmtCount(ch.live.viewers)} kişi izliyor` : "", newN ? `${newN} yeni yayın` : "",
+    t("ch.followers", { n: ch.followers, c: fmtCount(ch.followers) }), t("ch.vodCount", { n: state.vods.length }),
+    t("ch.totalHours", { n: Math.round(total / 3600) }),
+    ch.live ? t("ch.watching", { n: ch.live.viewers, c: fmtCount(ch.live.viewers) }) : "", newN ? t("ch.newVods", { n: newN }) : "",
   ].filter(Boolean).join(" · ");
   $("vodCount").textContent = state.vods.length;
   const ft = $("favToggle");
   ft.setAttribute("aria-pressed", state.favorite);
-  ft.querySelector("span").textContent = state.favorite ? "Favorilerde" : "Favorilere ekle";
-  ft.title = state.favorite ? "Favorilerden çıkar" : "Soldaki şeride ekle; canlıya geçince ve yeni yayında haber verir";
+  ft.querySelector("span").textContent = state.favorite ? t("ch.inFav") : t("ch.addFav");
+  ft.title = state.favorite ? t("ch.removeFav") : t("ch.addFavTip");
   renderAuto();
   renderRail();
 }
@@ -282,8 +277,8 @@ async function toggleAuto(key, btn) {
     if (!res.ok) { toast(res.error); return; }
     state.favorites = res.favorites;
     toast(key === "autoDownload"
-      ? (on ? `${ch.name}: bundan sonraki yayınlar bitince kendiliğinden iner` : "Otomatik indirme kapandı")
-      : (on ? `${ch.name} canlıya geçince kayıt kendiliğinden başlar` : "Otomatik kayıt kapandı"));
+      ? (on ? t("toast.autoDlOn", { name: ch.name }) : t("toast.autoDlOff"))
+      : (on ? t("toast.autoRecOn", { name: ch.name }) : t("toast.autoRecOff")));
   } finally {
     btn.classList.remove("busy");
   }
@@ -293,16 +288,17 @@ async function toggleAuto(key, btn) {
 
 /* ---------- filtre ---------- */
 const LEN_OPTS = {
-  vods: [["", "Hepsi"], ["0-3600", "1 saatten kısa"], ["3600-10800", "1–3 saat"], ["10800-", "3 saatten uzun"]],
-  clips: [["", "Hepsi"], ["0-30", "30 sn'den kısa"], ["30-60", "30–60 sn"], ["60-", "1 dk'dan uzun"]],
+  vods: [["", "filter.all"], ["0-3600", "filter.under1h"], ["3600-10800", "filter.1to3h"], ["10800-", "filter.over3h"]],
+  clips: [["", "filter.all"], ["0-30", "filter.under30s"], ["30-60", "filter.30to60s"], ["60-", "filter.over1m"]],
 };
 const SORT_OPTS = {
-  vods: [["new", "En yeni"], ["old", "En eski"], ["long", "En uzun"], ["view", "En çok izlenen"]],
-  clips: [["date", "En yeni"], ["view", "En çok izlenen"]],
+  vods: [["new", "sort.new"], ["old", "sort.old"], ["long", "sort.long"], ["view", "sort.views"]],
+  clips: [["date", "sort.new"], ["view", "sort.views"]],
 };
+const tOpts = (opts) => opts.map(([v, key]) => [v, t(key)]);
 
 function fillSelect(sel, opts, value) {
-  sel.innerHTML = opts.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("");
+  sel.innerHTML = opts.map(([v, label]) => `<option value="${esc(v)}">${esc(label)}</option>`).join("");
   sel.value = opts.some(([v]) => v === value) ? value : opts[0][0];
   syncSelect(sel);
   sel.parentElement.classList.toggle("set", sel.selectedIndex > 0 && sel.id !== "fSort");
@@ -311,9 +307,9 @@ function fillSelect(sel, opts, value) {
 function renderFilters() {
   const list = state.tab === "clips" ? state.clips : state.vods;
   const cats = [...new Set(list.flatMap((v) => v.categories && v.categories.length ? v.categories : v.category ? [v.category] : []))].sort();
-  fillSelect($("fCat"), [["", "Hepsi"], ...cats.map((c) => [c, c])], state.filters.cat);
-  fillSelect($("fLen"), LEN_OPTS[state.tab === "clips" ? "clips" : "vods"], state.filters.len);
-  fillSelect($("fSort"), SORT_OPTS[state.tab === "clips" ? "clips" : "vods"], state.tab === "clips" ? state.clipSort : state.filters.sort);
+  fillSelect($("fCat"), [["", t("filter.all")], ...cats.map((c) => [c, c])], state.filters.cat);
+  fillSelect($("fLen"), tOpts(LEN_OPTS[state.tab === "clips" ? "clips" : "vods"]), state.filters.len);
+  fillSelect($("fSort"), tOpts(SORT_OPTS[state.tab === "clips" ? "clips" : "vods"]), state.tab === "clips" ? state.clipSort : state.filters.sort);
   $("fCat").parentElement.hidden = cats.length < 2 && !state.filters.cat;
 }
 
@@ -369,13 +365,13 @@ function renderGrid() {
   const note = $("gridNote");
   if (state.tab === "clips" && state.clipsLoading && !state.clips.length) { renderSkeleton(); return; }
   note.hidden = list.length > 0;
-  note.textContent = all.length ? "Filtreye uyan video yok." : state.tab === "clips" ? "Bu kanalın klibi yok." : "Bu kanalın kayıtlı yayını yok. Klipler sekmesine bak.";
+  note.textContent = all.length ? t("grid.noMatch") : state.tab === "clips" ? t("grid.noClips") : t("grid.noVods");
   $("moreBox").hidden = !(state.tab === "clips" && state.clipCursor && state.clips.length);
   $("fClear").hidden = !filtering();
   $("filters").classList.toggle("filtering", filtering());
   $("fCount").textContent = filtering()
     ? `${list.length} / ${all.length}${state.tab === "clips" && state.clipCursor ? "+" : ""}`
-    : `${all.length}${state.tab === "clips" && state.clipCursor ? "+" : ""} ${state.tab === "clips" ? "klip" : "yayın"}`;
+    : t(state.tab === "clips" ? "grid.clipCount" : "grid.vodCount", { n: all.length, c: `${all.length}${state.tab === "clips" && state.clipCursor ? "+" : ""}` });
   const frag = document.createDocumentFragment();
   // suren yayin Yayinlar'in basinda, arsivin ustunde tam genislikte; filtre arsivi aradigi icin gizler
   const live = state.tab === "vods" && !filtering() && liveItem();
@@ -388,10 +384,10 @@ function renderGrid() {
     c.querySelector(".cutbtn").hidden = state.tab === "clips";
     c.querySelector(".title").textContent = cleanTitle(v.title);
     c.title = v.title;
-    const bits = [fmtAgo(v.start), v.creator ? `kırpan ${v.creator}` : "", `${fmtCount(v.views)} izlenme`, v.category];
+    const bits = [fmtAgo(v.start), v.creator ? t("card.clippedBy", { name: v.creator }) : "", t("card.views", { n: v.views, c: fmtCount(v.views) }), v.category];
     const sub = c.querySelector(".sub");
     sub.textContent = bits.filter(Boolean).join(" · ");
-    if (state.tab === "vods" && state.seenBefore && v.start > state.seenBefore) sub.insertAdjacentHTML("afterbegin", `<span class="newpill">YENİ</span>`);
+    if (state.tab === "vods" && state.seenBefore && v.start > state.seenBefore) sub.insertAdjacentHTML("afterbegin", `<span class="newpill">${t("card.new")}</span>`);
     frag.append(c);
   }
   g.append(frag);
@@ -410,10 +406,10 @@ function liveCard(v) {
     img.src = fb ? v.avatar : BLANK;
     img.classList.toggle("avfb", !!fb);
   });
-  c.querySelector(".lsince").textContent = v.start ? `${fmtAgo(v.start)} başladı` : "";
+  c.querySelector(".lsince").textContent = v.start ? t("live.started", { ago: fmtAgo(v.start) }) : "";
   c.querySelector(".ltitle").textContent = cleanTitle(v.title);
   c.querySelector(".ltitle").title = v.title;
-  c.querySelector(".sub").textContent = [`${fmtCount(v.views)} izleyici`, v.category].filter(Boolean).join(" · ");
+  c.querySelector(".sub").textContent = [t("live.viewers", { n: v.views, c: fmtCount(v.views) }), v.category].filter(Boolean).join(" · ");
   c.querySelector('[data-live="cut"]').hidden = !state.liveVod;
   return c;
 }
@@ -425,14 +421,14 @@ function paintLive(c) {
   c.classList.toggle("rec", !!d);
   const st = c.querySelector(".state");
   st.className = d ? "state on active" : "state";
-  st.textContent = d ? (d.status === "queued" ? "Sırada" : d.status === "merging" ? "mp4'e çevriliyor" : "Kaydediliyor") : "";
+  st.textContent = d ? (d.status === "queued" ? statusName("queued") : d.status === "merging" ? t("live.remuxing") : statusName("recording")) : "";
   const b = c.querySelector(".lrec");
   if (b.dataset.k === k) return;
   b.dataset.k = k;
   b.dataset.live = d ? "stoprec" : "record";
   b.dataset.id = d ? d.id : "";
   b.className = d ? "btn lrec" : "btn primary lrec";
-  b.innerHTML = d ? `${icon("stop")}Kaydı durdur` : `${icon("record")}Kaydı başlat`;
+  b.innerHTML = d ? `${icon("stop")}${esc(t("live.stopRec"))}` : `${icon("record")}${esc(t("live.startRec"))}`;
 }
 
 async function onLiveAction(b) {
@@ -441,7 +437,7 @@ async function onLiveAction(b) {
   const act = b.dataset.live;
   if (act === "record") {
     const n = await state.api.enqueue([{ url: v.url, title: cleanTitle(v.title), thumb: v.thumb || v.avatar, live: true }]);
-    toast(n ? "Canlı kayıt başladı" : "Bu kanal zaten kaydediliyor");
+    toast(n ? t("toast.recStarted") : t("toast.recExists"));
   } else if (act === "stoprec") state.api.cancel(Number(b.dataset.id));
   else if (act === "cut") { hover.stop(); player.el().pause(); openCutter(liveCutVod()); }
 }
@@ -461,13 +457,13 @@ function paintCards() {
     if (d) tp.style.transform = `scaleX(${(d.pct || 0) / 100})`;
     if (!d) continue;
     st.classList.add("on");
-    if (d.status === "downloading") { st.classList.add("active"); st.textContent = `İniyor %${Math.floor(d.pct)}`; }
-    else if (d.status === "recording") { st.classList.add("active"); st.textContent = "Kaydediliyor"; }
-    else if (d.status === "preparing" || d.status === "merging") { st.classList.add("active"); st.textContent = STATUS[d.status]; }
-    else if (d.status === "done") { st.classList.add("done"); st.textContent = "İndirildi"; }
-    else if (d.status === "error") { st.classList.add("bad"); st.textContent = "Hata"; }
-    else if (d.status === "stopped") { st.classList.add("stopped"); st.textContent = "Durduruldu"; }
-    else { st.classList.add("queued"); st.textContent = "Sırada"; }
+    if (d.status === "downloading") { st.classList.add("active"); st.textContent = t("card.downloadingPct", { p: Math.floor(d.pct) }); }
+    else if (d.status === "recording") { st.classList.add("active"); st.textContent = statusName("recording"); }
+    else if (d.status === "preparing" || d.status === "merging") { st.classList.add("active"); st.textContent = statusName(d.status); }
+    else if (d.status === "done") { st.classList.add("done"); st.textContent = t("card.downloaded"); }
+    else if (d.status === "error") { st.classList.add("bad"); st.textContent = statusName("error"); }
+    else if (d.status === "stopped") { st.classList.add("stopped"); st.textContent = statusName("stopped"); }
+    else { st.classList.add("queued"); st.textContent = statusName("queued"); }
   }
 }
 
@@ -487,14 +483,14 @@ function renderSelBar() {
   const list = $("selList");
   $("selBar").hidden = !items.length;
   if (!items.length) { list.hidden = true; $("selCount").setAttribute("aria-expanded", "false"); return; }
-  $("selN").textContent = `${items.length} seçili`;
+  $("selN").textContent = t("sel.count", { n: items.length });
   const total = items.reduce((a, v) => a + (v.duration || 0), 0);
-  $("selDur").textContent = total ? `toplam ${fmtDuration(total)}` : "";
-  $("selDl").querySelector("span").textContent = `İndir (${items.length})`;
+  $("selDur").textContent = total ? t("sel.total", { d: fmtDuration(total) }) : "";
+  $("selDl").querySelector("span").textContent = t("sel.download", { n: items.length });
   if (list.hidden) return;
   list.innerHTML = items.map((v) => `<li><img src="${esc(v.thumb || BLANK)}" alt=""><span title="${esc(v.title)}">${esc(cleanTitle(v.title))}</span>
     <small class="num">${fmtDuration(v.duration)}</small>
-    <button class="iconbtn" type="button" data-unsel="${esc(v.url)}" title="Seçimden çıkar" aria-label="Seçimden çıkar">${icon("x")}</button></li>`).join("");
+    <button class="iconbtn" type="button" data-unsel="${esc(v.url)}" title="${esc(t("sel.remove"))}" aria-label="${esc(t("sel.remove"))}">${icon("x")}</button></li>`).join("");
 }
 
 function toggleSelList() {
@@ -508,8 +504,8 @@ async function enqueueItems(items) {
   items = items.filter(Boolean).map((v) => ({ url: v.url, title: cleanTitle(v.title), thumb: v.thumb }));
   if (!items.length) return 0;
   const n = await state.api.enqueue(items);
-  if (n < items.length) toast(n ? `${n} video eklendi, ${items.length - n} tanesi zaten listede` : "Zaten listede");
-  else toast(n === 1 ? "İndirmeye eklendi" : `${n} video indirmeye eklendi`);
+  if (n < items.length) toast(n ? t("toast.addedSomeExist", { n, m: items.length - n }) : t("toast.alreadyListed"));
+  else toast(t("toast.added", { n }));
   return n;
 }
 
@@ -522,7 +518,7 @@ async function downloadSelected(urls) {
 /* ---------- sekmeler / klipler ---------- */
 function setTab(tab, silent) {
   state.tab = tab;
-  for (const t of document.querySelectorAll(".tab")) t.setAttribute("aria-selected", t.dataset.tab === tab);
+  for (const el of document.querySelectorAll(".tab")) el.setAttribute("aria-selected", el.dataset.tab === tab);
   state.selected.clear();
   if (!silent) { renderGrid(); renderSelBar(); $("gridWrap").scrollTop = 0; }
 }
@@ -533,7 +529,7 @@ async function loadClips(reset) {
   state.clipsLoading = true;
   if (reset) { state.clips = []; state.clipCursor = null; }
   $("moreBtn").disabled = true;
-  $("moreBtn").textContent = "Yükleniyor…";
+  $("moreBtn").textContent = t("common.loading");
   if (state.tab === "clips" && reset) renderGrid();
   try {
     const res = await state.api.list_clips(slug, state.clipSort, reset ? null : state.clipCursor);
@@ -545,7 +541,7 @@ async function loadClips(reset) {
   } finally {
     state.clipsLoading = false;
     $("moreBtn").disabled = false;
-    $("moreBtn").textContent = "Daha fazla klip yükle";
+    $("moreBtn").textContent = t("ch.moreClips");
     $("clipCount").textContent = state.clips.length ? `${state.clips.length}${state.clipCursor ? "+" : ""}` : "0";
     if (state.tab === "clips" && state.view === "channel") renderGrid();
   }
@@ -596,19 +592,19 @@ const player = {
       const hls = new Hls({ maxBufferLength: 20, capLevelToPlayerSize: true, startPosition: live ? -1 : start || -1 });
       this.hls = hls;
       hls.on(Hls.Events.ERROR, (_, d) => {
-        if (d.fatal && this.hls === hls) this.msg(live ? "Canlı yayın oynatılamadı." : "Video oynatılamadı.");
+        if (d.fatal && this.hls === hls) this.msg(live ? t("player.liveFailed") : t("player.failed"));
       });
       hls.on(Hls.Events.MANIFEST_PARSED, () => { if (autoplay) v.play().catch(() => $("player").classList.remove("loading")); });
       Promise.resolve(source).then((src) => {
         if (this.hls !== hls) return;
         hls.loadSource(src);
         hls.attachMedia(v);
-      }).catch(() => { if (this.hls === hls) this.msg(live ? "Canlı yayın oynatılamadı." : "Video oynatılamadı."); });
+      }).catch(() => { if (this.hls === hls) this.msg(live ? t("player.liveFailed") : t("player.failed")); });
     } else if (source) {
       v.src = source;
       v.addEventListener("loadedmetadata", go, { once: true });
     } else {
-      this.msg("Bu videonun oynatılabilir kaynağı yok.");
+      this.msg(t("player.noSource"));
     }
   },
   stop() {
@@ -657,7 +653,7 @@ function paintPlayer() {
   const ic = v.paused ? "play" : "pause";
   if ($("pPlay").dataset.ic !== ic) { $("pPlay").dataset.ic = ic; $("pPlay").innerHTML = icon(ic); }
   const dur = isFinite(v.duration) ? v.duration : 0;
-  if (player.live) $("pTime").textContent = "Canlı";
+  if (player.live) $("pTime").textContent = t("player.live");
   else $("pTime").textContent = dur ? `${fmtDuration(v.currentTime)} / ${fmtDuration(dur)}` : "0:00";
   if (!$("pSeek").matches(":active")) {
     const pct = dur ? (1000 * v.currentTime) / dur : 0;
@@ -682,7 +678,7 @@ function bindPlayer() {
   v.addEventListener("waiting", () => { if (player.key) $("player").classList.add("loading"); });   // takildi, tampon doluyor
   v.addEventListener("pause", () => $("player").classList.remove("loading"));
   v.addEventListener("volumechange", () => { paintVolume(); player.saveVolume(); });
-  v.addEventListener("error", () => { if (player.key) player.msg("Video oynatılamadı."); });
+  v.addEventListener("error", () => { if (player.key) player.msg(t("player.failed")); });
   const toggle = () => { if (player.key) v.paused ? v.play().catch(() => {}) : v.pause(); };
   v.addEventListener("click", toggle);
   v.addEventListener("dblclick", () => fullscreen());
@@ -831,37 +827,37 @@ function renderInspector(start) {
   }
   const facts = [];
   if (kind === "live") {
-    facts.push(["Başladı", `${fmtAgo(v.start)}`], ["İzleyen", fmtCount(v.views)]);
+    facts.push([t("fact.started"), `${fmtAgo(v.start)}`], [t("fact.watching"), fmtCount(v.views)]);
   } else {
-    facts.push([kind === "clip" ? "Kırpıldı" : "Yayın", fmtDate(v.start)], ["Süre", fmtDuration(v.duration)], ["İzlenme", fmtCount(v.views)]);
-    if (v.creator) facts.push(["Kırpan", esc(v.creator)]);
+    facts.push([kind === "clip" ? t("fact.clipped") : t("fact.stream"), fmtDate(v.start)], [t("fact.length"), fmtDuration(v.duration)], [t("fact.views"), fmtCount(v.views)]);
+    if (v.creator) facts.push([t("fact.clippedBy"), esc(v.creator)]);
   }
   const cats = v.categories && v.categories.length ? v.categories : v.category ? [v.category] : [];
-  if (cats.length) facts.push([cats.length > 1 ? "Kategoriler" : "Kategori", `<span class="chips">${cats.map((c) => `<span class="chip">${esc(c)}</span>`).join("")}</span>`]);
+  if (cats.length) facts.push([cats.length > 1 ? t("fact.categories") : t("filter.category"), `<span class="chips">${cats.map((c) => `<span class="chip">${esc(c)}</span>`).join("")}</span>`]);
   const d = kind === "live" ? liveRec(v.url) : state.byUrl.get(v.url);
-  body.innerHTML = `<h2>${esc(cleanTitle(v.title))}${kind === "live" ? `<span class="beta">CANLI</span>` : ""}</h2>
+  body.innerHTML = `<h2>${esc(cleanTitle(v.title))}${kind === "live" ? `<span class="beta">${t("live.chip")}</span>` : ""}</h2>
     <dl class="facts">${facts.map(([k, x]) => `<dt>${k}</dt><dd>${x}</dd>`).join("")}</dl>
     ${d ? stateBlock(d) : ""}
-    ${kind === "live" ? `<p class="insnote"><b>Canlı kayıt (beta):</b> yayın şu andan itibaren kaydedilir. Durdurunca ya da yayın bitince mp4 olur ve İndirilenler'e düşer.</p>` : ""}
-    ${kind === "live" && state.liveVod ? `<p class="insnote"><b>Kesit al:</b> yayının başından şu ana kadar istediğin anı seç; yayın sürerken iner.</p>` : ""}`;
+    ${kind === "live" ? `<p class="insnote">${t("watch.liveRecNote")}</p>` : ""}
+    ${kind === "live" && state.liveVod ? `<p class="insnote">${t("watch.liveCutNote")}</p>` : ""}`;
   if (kind === "live") {
     const rec = d && ACTIVE.concat("queued").includes(d.status);
     btns.innerHTML = (rec
-      ? `<button class="btn span" data-ins="stoprec" data-id="${d.id}">${icon("stop")}Kaydı durdur</button>`
-      : `<button class="btn primary span" data-ins="record">${icon("record")}Kaydı başlat</button>`)
-      + (state.liveVod ? `<button class="btn span" data-ins="cut">${icon("scissors")}Kesit al</button>` : "");
+      ? `<button class="btn span" data-ins="stoprec" data-id="${d.id}">${icon("stop")}${t("live.stopRec")}</button>`
+      : `<button class="btn primary span" data-ins="record">${icon("record")}${t("live.startRec")}</button>`)
+      + (state.liveVod ? `<button class="btn span" data-ins="cut">${icon("scissors")}${t("card.cut")}</button>` : "");
   } else if (kind === "clip") {
-    btns.innerHTML = `<button class="btn primary span" data-ins="dl">${icon("download")}Klibi indir</button>`;
+    btns.innerHTML = `<button class="btn primary span" data-ins="dl">${icon("download")}${t("act.dlClip")}</button>`;
   } else {
-    btns.innerHTML = `<button class="btn primary" data-ins="dl">${icon("download")}Tamamını indir</button>
-      <button class="btn" data-ins="cut">${icon("scissors")}Kesit al</button>
+    btns.innerHTML = `<button class="btn primary" data-ins="dl">${icon("download")}${t("act.dlAll")}</button>
+      <button class="btn" data-ins="cut">${icon("scissors")}${t("card.cut")}</button>
       ${chatButton(v)}`;
   }
 }
 
 async function downloadChat(v) {
   const n = await state.api.enqueue([{ url: v.url, chat: true, title: cleanTitle(v.title), thumb: v.thumb, duration: Math.round(v.duration || 0) }]);
-  toast(n ? "Sohbet indiriliyor" : "Bu yayının sohbeti zaten iniyor");
+  toast(n ? t("toast.chatQueued") : t("toast.chatExists"));
 }
 
 /* ---------- kartin "diger islemler" menusu ----------
@@ -870,19 +866,19 @@ const cmenu = { url: null, btn: null };
 
 function cardMenuItems(v) {
   const kind = kindOf(v), d = state.byUrl.get(v.url);
-  const items = [["watch", "play", "İzle"]];
-  if (!d) items.push(["dl", "download", kind === "clip" ? "Klibi indir" : "Tamamını indir", "go"]);
-  else if (d.status === "done") items.push(["playfile", "play", "İndirileni oynat"], ["reveal", "reveal", "Klasörde göster"]);
-  else if (["stopped", "error"].includes(d.status)) items.push(["retry", "retry", d.status === "error" ? "Tekrar dene" : "Devam ettir", "go"]);
-  else items.push(["cancel", "stop", "İndirmeyi durdur", "danger"]);
-  if (d && d.status !== "done" && !d.live) items.push(["abort", "trash", "İptal et ve yarım dosyaları sil", "danger"]);
+  const items = [["watch", "play", t("card.watch")]];
+  if (!d) items.push(["dl", "download", kind === "clip" ? t("act.dlClip") : t("act.dlAll"), "go"]);
+  else if (d.status === "done") items.push(["playfile", "play", t("act.playDownloaded")], ["reveal", "reveal", t("act.reveal")]);
+  else if (["stopped", "error"].includes(d.status)) items.push(["retry", "retry", d.status === "error" ? t("act.retry") : t("act.resume"), "go"]);
+  else items.push(["cancel", "stop", t("act.stopDl"), "danger"]);
+  if (d && d.status !== "done" && !d.live) items.push(["abort", "trash", t("act.abortDelete"), "danger"]);
   if (kind === "vod") {
-    items.push(["cut", "scissors", "Kesit al"]);
+    items.push(["cut", "scissors", t("card.cut")]);
     const c = state.downloads.find((x) => x.chat && x.url === v.url);
-    if (!c || ["error", "stopped"].includes(c.status)) items.push(["chat", "chat", "Sohbeti indir"]);
+    if (!c || ["error", "stopped"].includes(c.status)) items.push(["chat", "chat", t("act.dlChat")]);
   }
-  items.push("-", ["select", "check", state.selected.has(v.url) ? "Seçimden çıkar" : "Seç", "", "Ctrl+tık"]);
-  items.push("-", ["kick", "external", "Kick'te aç"], ["copy", "link", "Linki kopyala"]);
+  items.push("-", ["select", "check", state.selected.has(v.url) ? t("sel.remove") : t("card.select"), "", t("act.ctrlClick")]);
+  items.push("-", ["kick", "external", t("act.openKick")], ["copy", "link", t("act.copyLink")]);
   return items;
 }
 
@@ -895,7 +891,7 @@ function openCardMenu(url, at, btn) {
   cmenu.btn = btn || null;
   const m = $("cardMenu");
   m.innerHTML = cardMenuItems(v).map((x) => x === "-" ? "<hr>"
-    : `<button type="button" role="menuitem" data-cm="${x[0]}" class="${x[3] || ""}">${icon(x[1])}<span>${x[2]}</span>${x[4] ? `<small>${x[4]}</small>` : ""}</button>`).join("");
+    : `<button type="button" role="menuitem" data-cm="${x[0]}" class="${x[3] || ""}">${icon(x[1])}<span>${esc(x[2])}</span>${x[4] ? `<small>${x[4]}</small>` : ""}</button>`).join("");
   m.hidden = false;
   const w = m.offsetWidth, h = m.offsetHeight;
   const r = btn ? btn.getBoundingClientRect() : { left: at.x, right: at.x, top: at.y, bottom: at.y };
@@ -931,7 +927,7 @@ async function onCardMenu(act) {
   else if (act === "chat") downloadChat(v);
   else if (act === "select") { toggleSel(url); state.anchor = url; selectionChanged(); }
   else if (act === "kick") state.api.open_url(kickPage(v));
-  else if (act === "copy") copyText(kickPage(v)).then((ok) => toast(ok ? "Link kopyalandı" : "Link kopyalanamadı"));
+  else if (act === "copy") copyText(kickPage(v)).then((ok) => toast(ok ? t("toast.linkCopied") : t("toast.linkCopyFailed")));
 }
 
 async function copyText(text) {
@@ -975,25 +971,25 @@ function bindCardMenu() {
 function chatButton(v) {
   const c = state.downloads.find((x) => x.chat && x.url === v.url);
   const busy = c && ["queued", ...ACTIVE].includes(c.status);
-  const label = busy ? `Sohbet iniyor %${Math.floor(c.pct)}` : c && c.status === "done" ? "Sohbet indirildi" : c && c.status === "error" ? "Sohbet alınamadı · tekrar dene" : "Sohbeti indir";
+  const label = busy ? t("chat.downloadingPct", { p: Math.floor(c.pct) }) : c && c.status === "done" ? t("chat.done") : c && c.status === "error" ? t("chat.failedRetry") : t("act.dlChat");
   return `<button class="btn ghost span" data-ins="chat" data-k="${c ? `${c.status}:${Math.floor(c.pct)}` : ""}"${busy ? " disabled" : ""}
-    title="Sohbeti videoyla aynı adla .ass altyazı ve .json olarak kaydeder. VLC ya da MPC videoyu açınca sohbet ekranda akar.">${icon("chat")}${label}</button>`;
+    title="${esc(t("chat.tip"))}">${icon("chat")}${esc(label)}</button>`;
 }
 
 function stateBlock(d) {
-  let line = STATUS[d.status];
-  if (d.status === "downloading") line += ` %${Math.floor(d.pct)}`;
+  let line = statusName(d.status);
+  if (d.status === "downloading") line += " " + t("pct", { p: Math.floor(d.pct) });
   let sub = "";
   if (d.status === "downloading") sub = [d.size ? `${fmtBytes(d.size * d.pct / 100)} / ${d.exact ? "" : "~"}${fmtBytes(d.size)}` : "", fmtSpeed(d.speed), fmtEta(d.eta)].filter(Boolean).join(" · ");
-  if (d.status === "recording") sub = [d.started ? `${fmtDuration(Date.now() / 1000 - d.started)} kaydedildi` : "", fmtBytes(d.size)].filter(Boolean).join(" · ");
+  if (d.status === "recording") sub = [d.started ? t("rec.recorded", { d: fmtDuration(Date.now() / 1000 - d.started) }) : "", fmtBytes(d.size)].filter(Boolean).join(" · ");
   if (d.status === "done") sub = fmtBytes(d.size);
-  if (d.status === "error") sub = humanError(d.error);
-  if (d.status === "stopped" && d.pct > 0) sub = "Tekrar başlatınca kaldığı yerden devam eder.";
+  if (d.status === "error") sub = humanError(d.error, d.friendly);
+  if (d.status === "stopped" && d.pct > 0) sub = t("dl.resumeHint");
   const showBar = ["downloading", "merging", "preparing", "recording", "queued"].includes(d.status);
   const acts = d.status === "done"
-    ? `<div class="btnrow"><button class="btn sm" data-ins="playfile" data-file="${esc(d.filename)}">${icon("play")}Oynat</button><button class="btn ghost sm" data-ins="reveal" data-id="${d.id}">${icon("reveal")}Klasörde göster</button></div>`
-    : ["stopped", "error"].includes(d.status) ? `<div class="btnrow"><button class="btn sm" data-ins="retry" data-id="${d.id}">${icon("retry")}Tekrar dene</button>${d.live ? "" : `<button class="btn ghost sm danger" data-ins="abort" data-id="${d.id}">${icon("trash")}İptal et</button>`}</div>`
-    : `<div class="btnrow"><button class="btn ghost sm danger" data-ins="cancel" data-id="${d.id}">${icon("stop")}Durdur</button>${d.live ? "" : `<button class="btn ghost sm danger" data-ins="abort" data-id="${d.id}">${icon("trash")}İptal et</button>`}</div>`;
+    ? `<div class="btnrow"><button class="btn sm" data-ins="playfile" data-file="${esc(d.filename)}">${icon("play")}${t("act.play")}</button><button class="btn ghost sm" data-ins="reveal" data-id="${d.id}">${icon("reveal")}${t("act.reveal")}</button></div>`
+    : ["stopped", "error"].includes(d.status) ? `<div class="btnrow"><button class="btn sm" data-ins="retry" data-id="${d.id}">${icon("retry")}${t("act.retry")}</button>${d.live ? "" : `<button class="btn ghost sm danger" data-ins="abort" data-id="${d.id}">${icon("trash")}${t("act.abort")}</button>`}</div>`
+    : `<div class="btnrow"><button class="btn ghost sm danger" data-ins="cancel" data-id="${d.id}">${icon("stop")}${t("act.stop")}</button>${d.live ? "" : `<button class="btn ghost sm danger" data-ins="abort" data-id="${d.id}">${icon("trash")}${t("act.abort")}</button>`}</div>`;
   return `<div class="insstate ${d.status}" data-k="${d.id}:${d.status}"><p>${line}</p>${showBar ? `<div class="bar"><i style="transform:scaleX(${d.status === "queued" ? 0 : d.pct / 100})"></i></div>` : ""}${sub ? `<p class="num">${esc(sub)}</p>` : ""}${acts}</div>`;
 }
 
@@ -1005,7 +1001,7 @@ async function onInspectorAction(b) {
   else if (act === "chat" && v) downloadChat(v);
   else if (act === "record" && v) {
     const n = await state.api.enqueue([{ url: v.url, title: cleanTitle(v.title), thumb: v.thumb || v.avatar, live: true }]);
-    toast(n ? "Canlı kayıt başladı" : "Bu kanal zaten kaydediliyor");
+    toast(n ? t("toast.recStarted") : t("toast.recExists"));
   }
   else if (act === "stoprec" || act === "cancel") state.api.cancel(Number(b.dataset.id));
   else if (act === "retry") state.api.retry(Number(b.dataset.id));
@@ -1025,10 +1021,10 @@ function renderRail() {
     const st = state.favStatus[f.slug] || {};
     const live = state.liveFavs.has(f.slug) || (st.ok && st.live);
     const nv = st.ok && st.newVods && cur !== f.slug ? st.newVods : 0;
-    const tip = [f.name, live ? "canlı yayında" : "", nv ? `${nv} yeni yayın` : "",
-      f.autoDownload ? "yeni yayınlar kendiliğinden iner" : "", f.autoRecord ? "canlı kendiliğinden kaydedilir" : ""].filter(Boolean).join(" · ");
+    const tip = [f.name, live ? t("rail.isLive") : "", nv ? t("ch.newVods", { n: nv }) : "",
+      f.autoDownload ? t("rail.autoDl") : "", f.autoRecord ? t("rail.autoRec") : ""].filter(Boolean).join(" · ");
     return `<button class="fav${live ? " live" : ""}${cur === f.slug ? " on" : ""}" type="button" role="listitem" data-slug="${esc(f.slug)}" title="${esc(tip)}" aria-label="${esc(tip)}">
-      <img src="${esc(f.avatar || BLANK)}" alt="">${f.autoDownload || f.autoRecord ? `<i class="fauto"></i>` : ""}${live ? `<span class="flive">CANLI</span>` : nv ? `<span class="fnew">${nv > 9 ? "9+" : nv}</span>` : ""}</button>`;
+      <img src="${esc(f.avatar || BLANK)}" alt="">${f.autoDownload || f.autoRecord ? `<i class="fauto"></i>` : ""}${live ? `<span class="flive">${t("live.chip")}</span>` : nv ? `<span class="fnew">${nv > 9 ? "9+" : nv}</span>` : ""}</button>`;
   }).join("");
 }
 
@@ -1050,14 +1046,14 @@ async function toggleFavorite() {
   if (state.favorite) {
     state.favorites = await state.api.favorite_remove(ch.slug);
     state.favorite = false;
-    toast(`${ch.name} favorilerden çıkarıldı`);
+    toast(t("toast.favRemoved", { name: ch.name }));
   } else {
     const res = await state.api.favorite_add(ch.slug);
     if (!res.ok) { toast(res.error); return; }
     state.favorites = res.favorites;
     state.favorite = true;
     state.favStatus[ch.slug] = { ok: true, name: ch.name, avatar: ch.avatar, live: ch.live, newVods: 0 };
-    toast(`${ch.name} favorilere eklendi`);
+    toast(t("toast.favAdded", { name: ch.name }));
   }
   renderChannel();
 }
@@ -1080,7 +1076,7 @@ async function submitFavPop(e) {
   if (!res.ok) { toast(res.error); return; }
   state.favorites = res.favorites;
   $("favPop").hidden = true;
-  toast(`${res.favorite.name} favorilere eklendi`);
+  toast(t("toast.favAdded", { name: res.favorite.name }));
   if (state.channel && state.channel.slug === res.favorite.slug) { state.favorite = true; renderChannel(); }
   renderRail();
   refreshFavorites();
@@ -1094,7 +1090,7 @@ function renderHome() {
   $("homeView").querySelector(".homehead").hidden = !favs.length;
   const live = favs.filter((f) => state.liveFavs.has(f.slug)).length;
   const fresh = favs.reduce((a, f) => a + ((state.favStatus[f.slug] || {}).newVods || 0), 0);
-  $("homeMeta").textContent = [live ? `${live} canlı` : "", fresh ? `${fresh} yeni yayın` : ""].filter(Boolean).join(" · ");
+  $("homeMeta").textContent = [live ? t("home.liveCount", { n: live }) : "", fresh ? t("ch.newVods", { n: fresh }) : ""].filter(Boolean).join(" · ");
   // canlilar once, sonra yenisi olanlar
   const order = [...favs].sort((a, b) => {
     const sa = state.favStatus[a.slug] || {}, sb = state.favStatus[b.slug] || {};
@@ -1105,9 +1101,9 @@ function renderHome() {
     if (!st) return `<div class="ftile skeleton"></div>`;
     const live = state.liveFavs.has(f.slug) || (st.ok && st.live);
     const lt = st.ok && st.latest;
-    const stat = !st.ok ? "Bilgi alınamadı"
-      : live ? `<em>Canlı</em> · ${esc(cleanTitle((st.live && st.live.title) || ""))}`
-      : st.newVods ? `<strong>${st.newVods} yeni yayın</strong>` : lt ? `Son yayın ${fmtAgo(lt.start)}` : "Kayıtlı yayın yok";
+    const stat = !st.ok ? esc(t("home.noInfo"))
+      : live ? `<em>${t("player.live")}</em> · ${esc(cleanTitle((st.live && st.live.title) || ""))}`
+      : st.newVods ? `<strong>${esc(t("ch.newVods", { n: st.newVods }))}</strong>` : lt ? esc(t("home.lastStream", { ago: fmtAgo(lt.start) })) : esc(t("home.noVods"));
     return `<button class="ftile${live ? " live" : ""}" type="button" data-slug="${esc(f.slug)}">
       <img class="av" src="${esc(f.avatar || BLANK)}" alt=""><b>${esc(f.name)}</b><span class="fstat">${stat}</span>
       ${lt ? `<span class="latest"><img src="${esc(lt.thumb || BLANK)}" alt=""><span>${esc(cleanTitle(lt.title))}</span></span>` : ""}</button>`;
@@ -1128,8 +1124,8 @@ function renderCutSets() {
     const total = e.clips.reduce((n, c) => n + c.b - c.a, 0);
     return `<div class="rtile cset" data-url="${esc(e.url)}">
       <button class="csetopen" type="button" data-cs="open"><img src="${esc(e.thumb || BLANK)}" alt=""><p>${esc(cleanTitle(e.title))}</p>
-        <span class="num">${e.clips.length} kesit · ${fmtDuration(total)}${e.channel ? ` · ${esc(e.channel)}` : ""}</span></button>
-      <button class="iconbtn danger csetdel" type="button" data-cs="del" title="Kayıtlı kesitleri sil" aria-label="Kayıtlı kesitleri sil">${icon("trash")}</button></div>`;
+        <span class="num">${t("cut.count", { n: e.clips.length })} · ${fmtDuration(total)}${e.channel ? ` · ${esc(e.channel)}` : ""}</span></button>
+      <button class="iconbtn danger csetdel" type="button" data-cs="del" title="${esc(t("home.deleteCuts"))}" aria-label="${esc(t("home.deleteCuts"))}">${icon("trash")}</button></div>`;
   }).join("");
 }
 
@@ -1145,13 +1141,13 @@ async function importCuts() {
   if (!res.ok) return;
   state.cutSets = res.cuts;
   renderCutSets();
-  toast(res.added ? `${res.added} kesit içe aktarıldı` : "Dosyadaki kesitler zaten kayıtlı");
+  toast(res.added ? t("toast.cutsImported", { n: res.added }) : t("toast.cutsAlreadySaved"));
 }
 
 async function exportCuts() {
   const res = await state.api.cuts_export();
   if (res.error) toast(res.error);
-  else if (res.ok) toast(`${res.count} videonun kesitleri dışa aktarıldı`);
+  else if (res.ok) toast(t("toast.cutsExported", { n: res.count }));
 }
 
 /* ---------- indirmeler ---------- */
@@ -1206,7 +1202,7 @@ function renderStatus(data) {
   const errs = dl.filter((d) => d.status === "error").length;
   $("statusBar").classList.toggle("live", running);
   $("statusBar").classList.toggle("err", errs > 0);
-  $("sbText").innerHTML = downloadSummary(dl) || (dl.some((d) => d.status === "done") ? "İndirmeler bitti" : "İndirme yok");
+  $("sbText").innerHTML = downloadSummary(dl) || esc(dl.some((d) => d.status === "done") ? t("sb.allDone") : t("sb.idle"));
   const work = dl.filter((d) => ["downloading", "merging", "preparing", "queued"].includes(d.status) && !d.live && d.size);
   const total = work.reduce((a, d) => a + d.size, 0);
   const got = work.reduce((a, d) => a + d.size * d.pct / 100, 0);
@@ -1214,7 +1210,7 @@ function renderStatus(data) {
   $("sbTrack").hidden = !active;
   $("sbFill").style.transform = `scaleX(${pct})`;
   const eta = Math.max(0, ...dl.filter((d) => d.status === "downloading" && d.eta != null).map((d) => d.eta));
-  $("sbNums").textContent = active ? [`%${Math.floor(pct * 100)}`, eta ? fmtEta(eta) : ""].filter(Boolean).join(" · ") : "";
+  $("sbNums").textContent = active ? [t("pct", { p: Math.floor(pct * 100) }), eta ? fmtEta(eta) : ""].filter(Boolean).join(" · ") : "";
   const sp = data.totalSpeed ? fmtBytes(data.totalSpeed).split(" ") : null;
   $("sbSpeed").innerHTML = sp ? `${sp[0]}<small>${sp[1]}/s</small>` : "";
   const badge = active + queued + rec;
@@ -1228,12 +1224,12 @@ function renderStatus(data) {
   const fe = $("sbFree");
   fe.hidden = free == null;
   if (free != null) {
-    fe.innerHTML = `${icon("hdd")}${esc(fmtBytes(free))} boş`;
+    fe.innerHTML = `${icon("hdd")}${esc(t("sb.free", { size: fmtBytes(free) }))}`;
     fe.classList.toggle("bad", free < 2 * 1024 ** 3);
     fe.classList.toggle("low", free >= 2 * 1024 ** 3 && free < 15 * 1024 ** 3);
   }
-  $("sbSpeed").title = data.speedLimit ? `Hız sınırı ${data.speedLimit} MB/s (Ayarlar → Hız)` : "";
-  if (data.speedLimit && sp) $("sbSpeed").insertAdjacentHTML("beforeend", `<small>/ ${data.speedLimit} sınır</small>`);
+  $("sbSpeed").title = data.speedLimit ? t("sb.limitTip", { n: data.speedLimit }) : "";
+  if (data.speedLimit && sp) $("sbSpeed").insertAdjacentHTML("beforeend", `<small>${esc(t("sb.limitSmall", { n: data.speedLimit }))}</small>`);
   const after = data.afterDone || "none";
   $("afterBox").hidden = !running && after === "none";
   if ($("afterDone").value !== after) { $("afterDone").value = after; syncSelect($("afterDone")); }
@@ -1245,8 +1241,8 @@ function renderShutdown(data) {
   if (!data.shutdownAt || data.shutdownAt < Date.now() / 1000) { closeNotice("shutdown"); return; }
   if (state.notices.has("shutdown")) return;
   notice("shutdown", {
-    icon: "power", warn: true, sticky: true, text: "İndirmeler bitti. Bilgisayar <b>1 dakika içinde</b> kapanacak.",
-    actions: [["Kapatmayı iptal et", () => { state.api.cancel_shutdown(); closeNotice("shutdown"); toast("Kapatma iptal edildi"); }, "primary"]],
+    icon: "power", warn: true, sticky: true, text: t("notice.shutdown"),
+    actions: [[t("notice.cancelShutdown"), () => { state.api.cancel_shutdown(); closeNotice("shutdown"); toast(t("toast.shutdownCancelled")); }, "primary"]],
   });
 }
 
@@ -1255,7 +1251,7 @@ function renderRows() {
   const list = state.downloads.filter((d) => d.status !== "done");
   $("activeGroup").hidden = !state.downloads.length;
   const dl = state.downloads;
-  $("activeMeta").innerHTML = list.length ? downloadSummary(dl) : "Hepsi bitti";
+  $("activeMeta").innerHTML = list.length ? downloadSummary(dl) : esc(t("lib.allDone"));
   const seen = new Set();
   const rank = { recording: 0, downloading: 0, preparing: 0, merging: 0, queued: 1, stopped: 2, error: 2 };
   const ordered = [...list].sort((a, b) => rank[a.status] - rank[b.status] || a.id - b.id);
@@ -1283,14 +1279,14 @@ function renderRows() {
     const th = d.thumb || avatarFor(d.url);
     if (th && img.getAttribute("src") !== th) img.src = th;
     img.classList.toggle("avfb", !d.thumb && !!th);
-    row.querySelector(".rtitle").innerHTML = (d.chat ? `<span class="kind">SOHBET</span>` : "") + esc(cleanTitle(d.title));
+    row.querySelector(".rtitle").innerHTML = (d.chat ? `<span class="kind">${t("kind.chat")}</span>` : "") + esc(cleanTitle(d.title));
     row.querySelector(".rtitle").title = d.title;
     row.querySelector(".bar i").style.transform = `scaleX(${d.status === "queued" ? 0 : d.pct / 100})`;
-    let status = d.chat && d.status === "merging" ? "Altyazı yazılıyor…" : d.chat && d.status === "downloading" ? "Sohbet iniyor" : d.sections && d.status === "merging" && d.pct >= 100 ? "Birleştiriliyor…" : d.section && d.status === "merging" ? "Kırpılıyor…" : d.live && d.status === "merging" ? "mp4'e çevriliyor…" : STATUS[d.status];
+    let status = d.chat && d.status === "merging" ? t("row.writingSubs") : d.chat && d.status === "downloading" ? t("row.chatDownloading") : d.sections && d.status === "merging" && d.pct >= 100 ? statusName("merging") : d.section && d.status === "merging" ? t("row.trimming") : d.live && d.status === "merging" ? t("row.remuxing") : statusName(d.status);
     if (d.status === "downloading" && d.size) status += ` · ${fmtBytes(d.size * d.pct / 100)} / ${d.exact ? "" : "~"}${fmtBytes(d.size)}`;
     if (d.status === "recording") status += ` · ${d.started ? fmtDuration(Date.now() / 1000 - d.started) : ""} · ${fmtBytes(d.size)}`;
-    if (d.status === "stopped" && d.pct > 0) status += " · tekrar başlatınca kaldığı yerden devam eder";
-    if (d.status === "error") status += `: ${humanError(d.error)}`;
+    if (d.status === "stopped" && d.pct > 0) status += " · " + t("row.resumeHint");
+    if (d.status === "error") status += `: ${humanError(d.error, d.friendly)}`;
     row.querySelector(".rstatus").textContent = status;
     row.querySelector(".rstatus").title = d.status === "error" ? d.error : "";
     const nums = row.querySelector(".rnums");
@@ -1299,7 +1295,7 @@ function renderRows() {
     else if (d.status !== "queued") {
       const pct = document.createElement("b");
       pct.className = "pct";
-      pct.textContent = `%${Math.floor(d.pct)}`;
+      pct.textContent = t("pct", { p: Math.floor(d.pct) });
       nums.append(pct);
       if (d.status === "downloading") nums.append([fmtSpeed(d.speed), fmtEta(d.eta)].filter(Boolean).map((x) => ` · ${x}`).join(""));
     }
@@ -1312,12 +1308,12 @@ function renderRows() {
 
 function actionsFor(d) {
   const b = (act, ic, label, cls = "") =>
-    `<button class="iconbtn ${cls}" data-act="${act}" data-id="${d.id}" title="${label}" aria-label="${label}">${icon(ic)}</button>`;
+    `<button class="iconbtn ${cls}" data-act="${act}" data-id="${d.id}" title="${esc(label)}" aria-label="${esc(label)}">${icon(ic)}</button>`;
   switch (d.status) {
     case "queued": case "preparing": case "downloading": case "merging": case "recording":
-      return { key: "run", html: b("cancel", "stop", d.live ? "Kaydı durdur" : "Durdur", "danger") + (d.live ? "" : b("abort", "trash", "İptal et ve yarım dosyaları sil", "danger")) };
+      return { key: "run", html: b("cancel", "stop", d.live ? t("live.stopRec") : t("act.stop"), "danger") + (d.live ? "" : b("abort", "trash", t("act.abortDelete"), "danger")) };
     default:
-      return { key: "bad", html: b("retry", "retry", "Tekrar dene") + (d.live ? "" : b("abort", "trash", "İptal et ve yarım dosyaları sil", "danger")) + b("remove", "x", "Listeden kaldır") };
+      return { key: "bad", html: b("retry", "retry", t("act.retry")) + (d.live ? "" : b("abort", "trash", t("act.abortDelete"), "danger")) + b("remove", "x", t("act.removeFromList")) };
   }
 }
 
@@ -1334,27 +1330,27 @@ function avatarFor(url) {
 function downloadSummary(dl) {
   const n = (f) => dl.filter(f).length;
   const parts = [
-    [n((d) => ACTIVE.includes(d.status) && !d.live), "iniyor"],
-    [n((d) => d.status === "queued"), "sırada"],
-    [n((d) => d.live && ACTIVE.includes(d.status)), "canlı kayıt"],
-    [n((d) => d.status === "stopped"), "durduruldu", "amber"],
-    [n((d) => d.status === "error"), "hata", "red"],
+    [n((d) => ACTIVE.includes(d.status) && !d.live), "sum.downloading"],
+    [n((d) => d.status === "queued"), "sum.queued"],
+    [n((d) => d.live && ACTIVE.includes(d.status)), "sum.recording"],
+    [n((d) => d.status === "stopped"), "sum.stopped", "amber"],
+    [n((d) => d.status === "error"), "sum.error", "red"],
   ].filter(([x]) => x);
-  return parts.map(([x, w, c]) => (c ? `<span class="${c}">${x} ${w}</span>` : `${x} ${w}`)).join(" · ");
+  return parts.map(([x, key, c]) => (c ? `<span class="${c}">${esc(t(key, { n: x }))}</span>` : esc(t(key, { n: x })))).join(" · ");
 }
 
-/* arka ucun ham hata metni yerine neden + ne yapilacagi; ham metin title'da kalir */
-function humanError(e) {
+/* arka ucun ham hata metni yerine neden + ne yapilacagi; ham metin title'da kalir.
+   friendly: arka uc metni secili dilde ve ne yapilacagini zaten soyluyor (UserError) */
+function humanError(e, friendly) {
   e = String(e || "");
-  if (/^(Diskte yer yok|Yayın hâlâ sürüyor|Sohbet yalnızca)/.test(e)) return e;   // arka uc ne yapilacagini zaten soyluyor
-  if (/403|forbidden/i.test(e)) return "Kick erişimi reddetti (403). Tekrar dene; sürerse video silinmiş ya da abonelere özel olabilir.";
-  if (/404|not found|bulunamad/i.test(e)) return "Video bulunamadı. Silinmiş ya da gizlenmiş olabilir.";
-  if (/canlı değil/i.test(e)) return "Yayıncı şu an canlı değil. Yayın başlayınca tekrar dene.";
-  if (/ffmpeg/i.test(e)) return "ffmpeg bulunamadı. ffmpeg.exe'yi programın yanına koyup tekrar dene.";
-  if (/disk|space|no space|errno 28/i.test(e)) return "Diskte yer kalmadı. Yer açıp tekrar dene; kaldığı yerden devam eder.";
-  if (/timed? ?out|connection|network|resolve|ulaşılamadı/i.test(e)) return "Bağlantı koptu. İnterneti kontrol edip tekrar dene; kaldığı yerden devam eder.";
-  if (/kesit|aralık/i.test(e)) return e;
-  return `İndirme başarısız oldu. Tekrar dene. (${e.slice(0, 80)})`;
+  if (friendly) return e;
+  if (/403|forbidden/i.test(e)) return t("herr.403");
+  if (/404|not found|bulunamad/i.test(e)) return t("herr.404");
+  if (/canlı değil|not live/i.test(e)) return t("herr.notLive");
+  if (/ffmpeg/i.test(e)) return t("herr.ffmpeg");
+  if (/disk|space|no space|errno 28/i.test(e)) return t("herr.disk");
+  if (/timed? ?out|connection|network|resolve|ulaşılamadı/i.test(e)) return t("herr.network");
+  return t("herr.generic", { e: e.slice(0, 80) });
 }
 
 /* ---------- indirilenler (gecmis) ---------- */
@@ -1368,9 +1364,11 @@ function dayLabel(ts) {
   const d = new Date(ts * 1000), now = new Date();
   const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = Math.round((day(now) - day(d)) / 86400000);
-  if (diff === 0) return "Bugün";
-  if (diff === 1) return "Dün";
-  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: now.getFullYear() === d.getFullYear() ? undefined : "numeric" });
+  if (diff <= 1) {
+    const s = new Intl.RelativeTimeFormat(i18n.locale, { numeric: "auto" }).format(-diff, "day");
+    return s.charAt(0).toLocaleUpperCase(i18n.locale) + s.slice(1);
+  }
+  return d.toLocaleDateString(i18n.locale, { day: "numeric", month: "long", year: now.getFullYear() === d.getFullYear() ? undefined : "numeric" });
 }
 
 function libVisible() {
@@ -1389,16 +1387,16 @@ function renderLibrary() {
   }
   $("libEmpty").hidden = state.library.length > 0 || state.downloads.length > 0;
   $("histGroups").innerHTML = [...groups].map(([label, list]) => `<section class="histgroup"><h2>${esc(label)}</h2>${list.map((e) => {
-    const sec = e.chat ? " · sohbet altyazısı" : e.sections ? ` · ${e.sections.length} kesit birleşik` : e.section ? ` · kesit ${fmtDuration(e.section[0])}–${fmtDuration(e.section[1])}` : e.live ? " · canlı kayıt" : "";
-    const time = new Date(e.done * 1000).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-    const b = (act, ic, label, cls = "") => `<button class="iconbtn ${cls}" type="button" data-ins="${act}" data-file="${esc(e.file)}" title="${label}" aria-label="${label}">${icon(ic)}</button>`;
+    const sec = e.chat ? " · " + t("lib.chatSubs") : e.sections ? " · " + t("lib.mergedCuts", { n: e.sections.length }) : e.section ? " · " + t("lib.cutRange", { a: fmtDuration(e.section[0]), b: fmtDuration(e.section[1]) }) : e.live ? " · " + t("lib.liveRec") : "";
+    const time = new Date(e.done * 1000).toLocaleTimeString(i18n.locale, { hour: "2-digit", minute: "2-digit" });
+    const b = (act, ic, label, cls = "") => `<button class="iconbtn ${cls}" type="button" data-ins="${act}" data-file="${esc(e.file)}" title="${esc(label)}" aria-label="${esc(label)}">${icon(ic)}</button>`;
     return `<div class="hrow${e.exists ? "" : " gone"}${state.libFocus === e.file ? " on" : ""}" data-file="${esc(e.file)}" tabindex="0">
       <img class="rthumb${!e.thumb && avatarFor(e.url) ? " avfb" : ""}" src="${esc(e.thumb || avatarFor(e.url) || BLANK)}" alt="">
-      <div class="rmain"><p class="rtitle" title="${esc(e.title)}">${e.chat ? `<span class="kind">SOHBET</span>` : ""}${esc(cleanTitle(e.title))}</p>
-        <p class="hsub num">${esc(e.channel)}${sec} · ${fmtBytes(e.size)} · ${time}${e.exists ? "" : ` · <em>dosya yok</em>`}</p></div>
-      <div class="ractions">${e.exists && !e.chat ? b("lplay", "play", "Burada oynat") + b("lopen", "external", "Windows oynatıcısında aç") : ""}${e.exists ? b("lreveal", "reveal", "Klasörde göster") : ""}
-        ${b("ldel", "trash", e.exists ? "Sil (Geri Dönüşüm Kutusu'na)" : "Listeden kaldır", "danger")}</div></div>`;
-  }).join("")}</section>`).join("") || (q && state.library.length ? `<p class="gridnote">Aramaya uyan dosya yok.</p>` : "");
+      <div class="rmain"><p class="rtitle" title="${esc(e.title)}">${e.chat ? `<span class="kind">${t("kind.chat")}</span>` : ""}${esc(cleanTitle(e.title))}</p>
+        <p class="hsub num">${esc(e.channel)}${sec} · ${fmtBytes(e.size)} · ${time}${e.exists ? "" : ` · <em>${t("lib.missing")}</em>`}</p></div>
+      <div class="ractions">${e.exists && !e.chat ? b("lplay", "play", t("lib.playHere")) + b("lopen", "external", t("lib.openWindows")) : ""}${e.exists ? b("lreveal", "reveal", t("act.reveal")) : ""}
+        ${b("ldel", "trash", e.exists ? t("lib.deleteRecycle") : t("act.removeFromList"), "danger")}</div></div>`;
+  }).join("")}</section>`).join("") || (q && state.library.length ? `<p class="gridnote">${t("lib.noMatch")}</p>` : "");
 }
 
 function libEntry(file) {
@@ -1414,11 +1412,11 @@ async function playFile(file) {
   openWatch();
   renderLibraryInspector();
   if (!e || !e.exists) return;
-  if (e.chat) { player.poster(e.thumb, "Sohbet kaydı. Videoyu aynı klasörden VLC ya da MPC ile açınca sohbet ekranda akar."); return; }
+  if (e.chat) { player.poster(e.thumb, t("lib.chatPoster")); return; }
   const r = await state.api.media_url(file);
   if (state.libFocus !== file) return;
   if (!r.ok) { player.poster(e.thumb, r.error); return; }
-  if (!r.playable) { player.poster(e.thumb, "Bu dosya (.ts) uygulamada oynatılamıyor. Windows oynatıcısında aç."); return; }
+  if (!r.playable) { player.poster(e.thumb, t("lib.tsNotPlayable")); return; }
   player.load(`file:${file}`, { file: r.url, poster: e.thumb });
 }
 
@@ -1427,20 +1425,20 @@ function renderLibraryInspector() {
   $("qualityBox").hidden = true;
   const e = state.libFocus && libEntry(state.libFocus);
   if (!e) { closeWatch(); return; }
-  const facts = [["Kanal", esc(e.channel)], ["Boyut", fmtBytes(e.size)], ["İndirildi", new Date(e.done * 1000).toLocaleString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })]];
-  if (e.sections) facts.push(["Kesitler", e.sections.map((x) => `${fmtDuration(x[0])}–${fmtDuration(x[1])}`).join(", ")]);
-  else if (e.section) facts.push(["Kesit", `${fmtDuration(e.section[0])} – ${fmtDuration(e.section[1])}`]);
-  facts.push(["Dosya", `<span class="num">${esc(e.file.split(/[\\/]/).pop())}</span>`]);
+  const facts = [[t("ch.label"), esc(e.channel)], [t("fact.size"), fmtBytes(e.size)], [t("card.downloaded"), new Date(e.done * 1000).toLocaleString(i18n.locale, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })]];
+  if (e.sections) facts.push([t("cut.sections"), e.sections.map((x) => `${fmtDuration(x[0])}–${fmtDuration(x[1])}`).join(", ")]);
+  else if (e.section) facts.push([t("fact.cut"), `${fmtDuration(e.section[0])} – ${fmtDuration(e.section[1])}`]);
+  facts.push([t("fact.file"), `<span class="num">${esc(e.file.split(/[\\/]/).pop())}</span>`]);
   body.innerHTML = `<h2>${esc(cleanTitle(e.title))}</h2><dl class="facts">${facts.map(([k, x]) => `<dt>${k}</dt><dd>${x}</dd>`).join("")}</dl>
-    ${e.exists ? "" : `<p class="insnote">Dosya artık bu yolda yok. Taşınmış ya da silinmiş olabilir.</p>`}`;
+    ${e.exists ? "" : `<p class="insnote">${t("lib.fileGone")}</p>`}`;
   btns.innerHTML = e.exists && e.chat
-    ? `<button class="btn span" data-ins="lreveal" data-file="${esc(e.file)}">${icon("reveal")}Klasörde göster</button>
-       <button class="btn ghost danger span" data-ins="ldel" data-file="${esc(e.file)}">${icon("trash")}Dosyayı sil</button>`
+    ? `<button class="btn span" data-ins="lreveal" data-file="${esc(e.file)}">${icon("reveal")}${t("act.reveal")}</button>
+       <button class="btn ghost danger span" data-ins="ldel" data-file="${esc(e.file)}">${icon("trash")}${t("keys.deleteFile")}</button>`
     : e.exists
-    ? `<button class="btn" data-ins="lreveal" data-file="${esc(e.file)}">${icon("reveal")}Klasörde göster</button>
-       <button class="btn" data-ins="lopen" data-file="${esc(e.file)}">${icon("external")}Dışarıda aç</button>
-       <button class="btn ghost danger span" data-ins="ldel" data-file="${esc(e.file)}">${icon("trash")}Dosyayı sil</button>`
-    : `<button class="btn ghost span" data-ins="ldel" data-file="${esc(e.file)}">${icon("x")}Listeden kaldır</button>`;
+    ? `<button class="btn" data-ins="lreveal" data-file="${esc(e.file)}">${icon("reveal")}${t("act.reveal")}</button>
+       <button class="btn" data-ins="lopen" data-file="${esc(e.file)}">${icon("external")}${t("lib.openOutside")}</button>
+       <button class="btn ghost danger span" data-ins="ldel" data-file="${esc(e.file)}">${icon("trash")}${t("keys.deleteFile")}</button>`
+    : `<button class="btn ghost span" data-ins="ldel" data-file="${esc(e.file)}">${icon("x")}${t("act.removeFromList")}</button>`;
 }
 
 /* onay penceresi: true/false doner. Varsayilan odak "Vazgec"te; Esc ve disari tik de vazgecer. */
@@ -1464,22 +1462,21 @@ function askConfirm({ title, name, thumb, text, ok, ic = "trash" }) {
 /* pencere kapatilirken indirme suruyorsa: Python kapanmayi iptal eder, bunu cagirir */
 async function askExit() {
   if ($("askDlg").open) return;
-  const ok = await askConfirm({ title: "Çıkılsın mı?", ic: "power", ok: "Durdur ve çık",
-    text: "İndirmeler sürüyor. Durdurup çıkarsan yarım kalanlar sonra kaldığı yerden devam eder." });
+  const ok = await askConfirm({ title: t("ask.exitTitle"), ic: "power", ok: t("ask.exitOk"), text: t("ask.exitText") });
   if (ok) state.api.exit_now();
 }
 
 async function deleteFile(file) {
   const e = libEntry(file);
   if (!e) return;
-  if (e.exists && !(await askConfirm({ title: "Dosya silinsin mi?", name: cleanTitle(e.title), thumb: e.thumb || avatarFor(e.url),
-    text: "Dosya Geri Dönüşüm Kutusu'na taşınır; oradan geri alabilirsin.", ok: "Sil" }))) return;
+  if (e.exists && !(await askConfirm({ title: t("ask.deleteTitle"), name: cleanTitle(e.title), thumb: e.thumb || avatarFor(e.url),
+    text: t("ask.deleteText"), ok: t("ask.deleteOk") }))) return;
   if (player.key === `file:${file}`) player.stop();     // acik dosya silinemez
   await new Promise((r) => setTimeout(r, 150));
   const res = await state.api.library_remove(file, e.exists);
   if (!res.ok) { toast(res.error); return; }
   if (state.libFocus === file) closeWatch();
-  toast(res.trashed ? "Dosya Geri Dönüşüm Kutusu'na taşındı" : "Listeden kaldırıldı");
+  toast(res.trashed ? t("toast.trashed") : t("toast.removed"));
   await refreshLibrary();
 }
 
@@ -1487,32 +1484,35 @@ async function deleteFile(file) {
 function renderSettings() {
   const s = state.settings;
   $("setFolder").textContent = s.folder;
-  fillSelect($("setQuality"), s.qualities.map((q) => [q, q]), s.quality);
-  fillSelect($("setParallel"), [["auto", "Otomatik"], ...Array.from({ length: s.maxParallel }, (_, i) => [String(i + 1), String(i + 1)])], String(s.parallel));
+  fillSelect($("setQuality"), s.qualities.map((q) => [q, qualityName(q)]), s.quality);
+  fillSelect($("setLang"), s.langs.map((l) => [l, t(`lang.${l}`)]), s.lang);
+  fillSelect($("setParallel"), [["auto", t("set.auto")], ...Array.from({ length: s.maxParallel }, (_, i) => [String(i + 1), String(i + 1)])], String(s.parallel));
   const th = [4, 8, 16, 24, 32, 48, 64].filter((x) => x <= s.maxFragThreads);
-  fillSelect($("setThreads"), [["auto", `Otomatik (${s.autoFragThreads})`], ...th.map((x) => [String(x), String(x)])], String(s.fragThreads));
+  fillSelect($("setThreads"), [["auto", t("set.autoN", { n: s.autoFragThreads })], ...th.map((x) => [String(x), String(x)])], String(s.fragThreads));
   fillSelect($("setSection"), [...$("setSection").options].map((o) => [o.value, o.textContent]), String(s.sectionLength === "auto" ? 30 : s.sectionLength));
   for (const [id, key] of SWITCHES) $(id).setAttribute("aria-checked", !!s[key]);
-  fillSelect($("setLimit"), [["0", "Sınırsız"], ...[1, 2, 5, 10, 20, 50, 100].map((x) => [String(x), `${x} MB/s`])], String(s.speedLimit || 0));
-  $("setVersion").textContent = `Sürüm ${state.cfg.version}.`;
+  fillSelect($("setLimit"), [["0", t("set.unlimited")], ...[1, 2, 5, 10, 20, 50, 100].map((x) => [String(x), `${x} MB/s`])], String(s.speedLimit || 0));
+  $("setVersion").textContent = t("set.version", { v: state.cfg.version });
   $("setVolume").value = s.volume;
   $("setVolume").style.setProperty("--v", `${s.volume}%`);
-  $("setVolumeTxt").textContent = `%${s.volume}`;
+  $("setVolumeTxt").textContent = t("pct", { p: s.volume });
   $("setName").value = s.nameTemplate;
-  $("nameTokens").innerHTML = "Kullanılabilir: " + s.nameTokens.map((t) => `<button class="tok" type="button" data-tok="${t}">{${t}}</button>`).join("");
+  $("nameTokens").innerHTML = esc(t("set.tokens")) + " " + s.nameTokens.map((k) => `<button class="tok" type="button" data-tok="${k}">{${k}}</button>`).join("");
   previewName();
 }
 
+const NAME_ALIASES = { kanal: "channel", baslik: "title", tarih: "date" };   // eski Turkce sablon adlari
+
 function previewName() {
-  const t = $("setName").value;
-  const ok = /\{(baslik|id)\}/.test(t) && !/[\\/:*?"<>|]/.test(t.replace(/\{[a-z]+\}/g, "")) &&
-    (t.match(/\{([^}]*)\}/g) || []).every((x) => state.settings.nameTokens.includes(x.slice(1, -1)));
-  const sample = { kanal: "xqc", baslik: "Örnek yayın başlığı", tarih: "2026-10-03", id: "dbed3e05-917" };
+  const tpl = $("setName").value.replace(/\{(kanal|baslik|tarih)\}/g, (_, k) => `{${NAME_ALIASES[k]}}`);
+  const ok = /\{(title|id)\}/.test(tpl) && !/[\\/:*?"<>|]/.test(tpl.replace(/\{[a-z]+\}/g, "")) &&
+    (tpl.match(/\{([^}]*)\}/g) || []).every((x) => state.settings.nameTokens.includes(x.slice(1, -1)));
+  const sample = { channel: "xqc", title: t("set.sampleTitle"), date: "2026-10-03", id: "dbed3e05-917" };
   $("setName").classList.toggle("bad", !ok);
   $("namePrev").classList.toggle("bad", !ok);
   $("namePrev").textContent = ok
-    ? "Örnek: " + t.replace(/\{([a-z]+)\}/g, (_, k) => sample[k] ?? "") + ".mp4"
-    : "Geçersiz: {baslik} ya da {id} olmalı; \\ / : * ? \" < > | kullanılamaz.";
+    ? t("set.sample", { name: tpl.replace(/\{([a-z]+)\}/g, (_, k) => sample[k] ?? "") + ".mp4" })
+    : t("set.nameInvalid");
   return ok;
 }
 
@@ -1521,8 +1521,8 @@ async function saveSetting(patch, quiet) {
   const rejected = res.rejected || [];
   delete res.rejected;
   state.settings = res;
-  if (rejected.length) toast("Bu değer kaydedilemedi");
-  else if (!quiet) toast("Kaydedildi");
+  if (rejected.length) toast(t("toast.notSaved"));
+  else if (!quiet) toast(t("toast.saved"));
   return !rejected.length;
 }
 
@@ -1543,6 +1543,8 @@ function bindSettings() {
   $("setParallel").addEventListener("change", (e) => saveSetting({ parallel: num(e.target.value) }));
   $("setThreads").addEventListener("change", (e) => saveSetting({ fragThreads: num(e.target.value) }));
   $("setLimit").addEventListener("change", (e) => saveSetting({ speedLimit: Number(e.target.value) }));
+  // dil degisince arayuz bastan kurulur; indirmeler arka uctadir, kesilmez
+  $("setLang").addEventListener("change", async (e) => { if (await saveSetting({ lang: e.target.value }, true)) location.reload(); });
   $("checkUpdBtn").addEventListener("click", () => checkUpdate(true));
   $("setSection").addEventListener("change", async (e) => {
     await saveSetting({ sectionLength: Number(e.target.value) });
@@ -1550,7 +1552,7 @@ function bindSettings() {
   });
   $("setVolume").addEventListener("input", (e) => {
     e.target.style.setProperty("--v", `${e.target.value}%`);
-    $("setVolumeTxt").textContent = `%${e.target.value}`;
+    $("setVolumeTxt").textContent = t("pct", { p: e.target.value });
   });
   $("setVolume").addEventListener("change", (e) => saveSetting({ volume: Number(e.target.value) }));
   $("setFolderBtn").addEventListener("click", async () => {
@@ -1779,7 +1781,7 @@ async function openCutter(vod) {
   $("cutTitle").textContent = cleanTitle(vod.title);
   $("cutTitle").title = vod.title;
   const ch = state.channel;
-  $("cutMeta").textContent = [vod.channel || (ch && (ch.name || ch.slug)), vod.live ? `canlı · ${fmtAgo(vod.start)} başladı` : vod.start && fmtDate(vod.start),
+  $("cutMeta").textContent = [vod.channel || (ch && (ch.name || ch.slug)), vod.live ? t("cut.liveMeta", { ago: fmtAgo(vod.start) }) : vod.start && fmtDate(vod.start),
     vod.duration && fmtDuration(vod.duration)].filter(Boolean).join(" · ");
   $("cutLive").hidden = !vod.live;
   const video = $("cutVideo");
@@ -1789,14 +1791,14 @@ async function openCutter(vod) {
   cut.strip = { uuid: vod.uuid, segs: null, data: new Map(), thumbs: new Map(), busy: 0, tbusy: 0, note: "" };
   loadStrip(cut.strip);
   setRate(Number($("cutRate").value));
-  cutterMsg("Video yükleniyor…");
+  cutterMsg(t("cut.loadingVideo"));
   $("cutter").showModal();
   renderCutter();   // dialog acikken: serit genislikleri olculebilsin
   $("cutter").focus();   // ilk dugme odak almasin; klavye kisayollari dogrudan calissin
   cut.raf = requestAnimationFrame(tick);
   const res = await state.api.vod_source(vod.uuid, !!vod.live);
   if (cut.vod !== vod || !$("cutter").open) return;
-  if (!res.ok) { cutterMsg(res.error + " Kesit yine eklenebilir; saatlerini sağdan yazarsın."); return; }
+  if (!res.ok) { cutterMsg(res.error + " " + t("cut.stillAdd")); return; }
   cut.src = res.source;
   attachCut(res.duration);
 }
@@ -1814,7 +1816,7 @@ function attachCut(dur) {
   if (!(window.Hls && Hls.isSupported())) { video.src = cut.src; cutterMsg(""); return; }
   cut.hls = new Hls({ maxBufferLength: 20, startPosition: live ? Math.max(0, dur - LIVE_BACK) : -1 });
   cut.hls.on(Hls.Events.ERROR, (_, d) => {
-    if (d.fatal) cutterMsg("Önizleme oynatılamadı. Kesit yine eklenebilir; saatlerini sağdan yazarsın.");
+    if (d.fatal) cutterMsg(t("cut.previewFailed") + " " + t("cut.stillAdd"));
   });
   cut.hls.on(Hls.Events.MANIFEST_PARSED, () => cutterMsg(""));
   cut.hls.loadSource(cut.src);
@@ -1836,12 +1838,12 @@ async function cutToLive() {
   const vod = cut.vod;
   if (!vod || !vod.live || !cut.src) return;
   $("cutLive").disabled = true;
-  cutterMsg("Son an yükleniyor…");
+  cutterMsg(t("cut.loadingLatest"));
   const playing = !$("cutVideo").paused;
   const res = await state.api.vod_source(vod.uuid, true);
   $("cutLive").disabled = false;
   if (cut.vod !== vod) return;
-  if (!res.ok || !res.duration) { cutterMsg(""); toast("Yayının son anı alınamadı"); return; }
+  if (!res.ok || !res.duration) { cutterMsg(""); toast(t("cut.latestFailed")); return; }
   cut.main.reset();
   cut.peek.reset();
   attachCut(res.duration);
@@ -1944,7 +1946,7 @@ function sortClips() {
 
 function pushClip(c) {
   const list = cutClips();
-  if (list.some((x) => x.a === c.a && x.b === c.b)) { toast("Bu kesit zaten listede"); return; }
+  if (list.some((x) => x.a === c.a && x.b === c.b)) { toast(t("toast.cutExists")); return; }
   list.push(c);
   sortClips();
   cut.sel = c.id;
@@ -1957,10 +1959,10 @@ function pushClip(c) {
 
 function addClipHere() {
   const dur = cutDuration();
-  if (dur && dur < MIN_CUT) { toast("Video kesit için çok kısa"); return; }
-  const t = nowTime();
+  if (dur && dur < MIN_CUT) { toast(t("toast.tooShort")); return; }
+  const now = nowTime();
   // genelde bir sey olduktan hemen sonra basilir: uzunlugun 2/3'u oncesinden, 1/3'u sonrasindan
-  let a = t - (cut.len * 2) / 3;
+  let a = now - (cut.len * 2) / 3;
   if (a < 0) a = 0;
   let b = a + cut.len;
   if (dur && b > dur) { b = dur; a = Math.max(0, b - cut.len); }
@@ -1977,12 +1979,12 @@ function markIn() {
 /* O: girisle bu an arasini kesit yapar; giris yoksa buradan geriye hazir uzunlukta */
 function markOut() {
   const dur = cutDuration();
-  if (dur && dur < MIN_CUT) { toast("Video kesit için çok kısa"); return; }
-  const t = nowTime();
+  if (dur && dur < MIN_CUT) { toast(t("toast.tooShort")); return; }
+  const now = nowTime();
   const c = cut.markIn != null
-    ? { id: cut.seq++, a: Math.min(cut.markIn, t), b: Math.max(cut.markIn, t) }
-    : { id: cut.seq++, a: Math.max(0, t - cut.len), b: t };
-  if (cut.markIn != null && c.b - c.a < MIN_CUT) toast(`Kesit en az ${MIN_CUT} sn; çıkış uzatıldı`);
+    ? { id: cut.seq++, a: Math.min(cut.markIn, now), b: Math.max(cut.markIn, now) }
+    : { id: cut.seq++, a: Math.max(0, now - cut.len), b: now };
+  if (cut.markIn != null && c.b - c.a < MIN_CUT) toast(t("toast.minCut", { n: MIN_CUT }));
   cut.markIn = null;
   pushClip(normalize(c));
 }
@@ -2051,9 +2053,9 @@ function jumpEdge(dir) {
   const edges = new Set(cutClips().flatMap((c) => [c.a, c.b]));
   if (cut.markIn != null) edges.add(cut.markIn);
   const sorted = [...edges].sort((x, y) => x - y);
-  const t = nowTime();
-  const to = dir < 0 ? sorted.filter((x) => x < t - 0.25).pop() : sorted.find((x) => x > t + 0.25);
-  if (to == null) { toast(sorted.length ? (dir < 0 ? "Daha önce kenar yok" : "Daha sonra kenar yok") : "Henüz kesit yok"); return; }
+  const now = nowTime();
+  const to = dir < 0 ? sorted.filter((x) => x < now - 0.25).pop() : sorted.find((x) => x > now + 0.25);
+  if (to == null) { toast(sorted.length ? (dir < 0 ? t("toast.noEdgeBefore") : t("toast.noEdgeAfter")) : t("toast.noCuts")); return; }
   seekTo(to);
 }
 
@@ -2108,9 +2110,10 @@ function timeAt(clientX) {
 }
 
 function fmtSpan(sec) {
-  if (sec < 90) return `${Math.round(sec)} sn`;
-  if (sec < 5400) return `${Math.round(sec / 60)} dk`;
-  return `${(sec / 3600).toFixed(1).replace(".", ",").replace(",0", "")} sa`;
+  if (sec < 90) return t("span.sec", { n: Math.round(sec) });
+  if (sec < 5400) return t("span.min", { n: Math.round(sec / 60) });
+  const h = sec / 3600;
+  return t("span.hour", { n: fmtNum(h, Math.round(h * 10) % 10 ? 1 : 0) });
 }
 
 function drawTimeline() {
@@ -2148,8 +2151,8 @@ function drawTimeline() {
     const px = (w / 100) * width;
     el.classList.toggle("tiny", px < 40);   // dar blokta tutamac yok; once yakinlas
     el.innerHTML = `${px >= 22 ? `<b class="num">${i + 1}</b>` : ""}${px > 76 ? `<span class="num">${fmtDuration(c.b - c.a)}</span>` : ""}` +
-      (c.id === cut.sel && px >= 40 ? `<i class="grip" data-edge="a" title="Başlangıcı sürükle"></i><i class="grip" data-edge="b" title="Bitişi sürükle"></i>` : "");
-    el.title = `${i + 1}. kesit · ${fmtDuration(c.a)} – ${fmtDuration(c.b)} · çift tık: oynat`;
+      (c.id === cut.sel && px >= 40 ? `<i class="grip" data-edge="a" title="${esc(t("cut.dragStart"))}"></i><i class="grip" data-edge="b" title="${esc(t("cut.dragEnd"))}"></i>` : "");
+    el.title = t("cut.blockTip", { i: i + 1, a: fmtDuration(c.a), b: fmtDuration(c.b) });
     lane.append(el);
   });
 
@@ -2169,8 +2172,8 @@ function drawTimeline() {
     $("ovView").style.width = `${w}px`;
   }
   $("ovBar").classList.toggle("full", !dur || span >= dur - 0.5);
-  $("tlSpan").textContent = !dur ? "Süre bilinmiyor" : span >= dur - 0.5
-    ? `Tüm yayın · ${fmtDuration(dur)}`
+  $("tlSpan").textContent = !dur ? t("cut.durUnknown") : span >= dur - 0.5
+    ? t("cut.wholeStream", { d: fmtDuration(dur) })
     : `${fmtDuration(s)} – ${fmtDuration(e)} · ${fmtSpan(span)}`;
   const zr = $("zoomRange");
   zr.disabled = !dur || dur <= MIN_VIEW;
@@ -2350,8 +2353,8 @@ function drawStrip() {
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, cw, ch);
   const waiting = st.segs && span <= WAVE_MAX && !st.data.get(segAt(st.segs, s + span / 2));
-  const note = st.note || (!st.segs ? "Kareler ve ses yükleniyor…" : span > WAVE_MAX
-    ? `Ses dalgası için yakınlaş (${WAVE_MAX / 60} dk ve altı)` : waiting ? "Ses yükleniyor…" : "");
+  const note = st.note || (!st.segs ? t("cut.loadingStrip") : span > WAVE_MAX
+    ? t("cut.zoomForWave", { n: WAVE_MAX / 60 }) : waiting ? t("cut.loadingAudio") : "");
   $("waveNote").hidden = !note;
   $("waveNote").textContent = note;
   if ((note && !waiting) || !span) return;   // yuklenirken gelen parcalar yine cizilsin
@@ -2387,14 +2390,14 @@ function paintMarks() {
   const on = m != null && !!cut.vod;
   $("markIn").classList.toggle("on", on);
   $("markIn").setAttribute("aria-pressed", String(on));
-  const t = on ? nowTime() : 0;
+  const now = on ? nowTime() : 0;
   const xi = on ? xOf(m) : 0;
   $("tlIn").hidden = !on || xi < 0 || xi > 100;
   if (on) $("tlIn").style.left = `${xi}%`;
-  const l = on ? clamp(Math.min(xi, xOf(t)), 0, 100) : 0, r = on ? clamp(Math.max(xi, xOf(t)), 0, 100) : 0;
+  const l = on ? clamp(Math.min(xi, xOf(now)), 0, 100) : 0, r = on ? clamp(Math.max(xi, xOf(now)), 0, 100) : 0;
   $("tlPending").hidden = !on || r - l <= 0;
   if (on) { $("tlPending").style.left = `${l}%`; $("tlPending").style.width = `${r - l}%`; }
-  const flag = on ? `Giriş ${fmtDuration(m)} · ${fmtDuration(Math.abs(t - m))} · bitirmek için O` : "";
+  const flag = on ? t("cut.markFlag", { a: fmtDuration(m), d: fmtDuration(Math.abs(now - m)) }) : "";
   $("markFlag").hidden = !on;
   if ($("markFlag").textContent !== flag) $("markFlag").textContent = flag;
 }
@@ -2478,22 +2481,22 @@ function renderCutter() {
           </span>
         </button>
         <div class="cacts">
-          <button class="iconbtn" data-act="play" type="button" title="Bu kesiti oynat" aria-label="Bu kesiti oynat">${icon("play")}</button>
-          <button class="iconbtn danger" data-act="del" type="button" title="Kesiti sil (Del)" aria-label="Kesiti sil">${icon("trash")}</button>
+          <button class="iconbtn" data-act="play" type="button" title="${esc(t("cut.playThis"))}" aria-label="${esc(t("cut.playThis"))}">${icon("play")}</button>
+          <button class="iconbtn danger" data-act="del" type="button" title="${esc(t("cut.deleteTip"))}" aria-label="${esc(t("cut.delete"))}">${icon("trash")}</button>
         </div>
       </div>` + (sel ? `
       <div class="cutedit">
-        <input class="cfield" data-field="name" maxlength="80" spellcheck="false" placeholder="Kesit adı (dosya adında kullanılır)" aria-label="Kesit adı" value="${esc(c.name || "")}">
-        <input class="cfield" data-field="note" maxlength="300" placeholder="Not" aria-label="Kesit notu" value="${esc(c.note || "")}">
+        <input class="cfield" data-field="name" maxlength="80" spellcheck="false" placeholder="${esc(t("cut.namePh"))}" aria-label="${esc(t("cut.name"))}" value="${esc(c.name || "")}">
+        <input class="cfield" data-field="note" maxlength="300" placeholder="${esc(t("cut.notePh"))}" aria-label="${esc(t("cut.note"))}" value="${esc(c.note || "")}">
         ${["a", "b"].map((k) => `
         <div class="edgerow">
-          <span class="edgelbl">${k === "a" ? "Başlangıç" : "Bitiş"}</span>
+          <span class="edgelbl">${t(`cut.edge.${k}`)}</span>
           <div class="stepper">
-            <button type="button" data-act="nudge" data-edge="${k}" data-d="-1" title="1 sn geri" aria-label="${k === "a" ? "Başlangıç" : "Bitiş"} 1 sn geri">${icon("minus")}</button>
-            <input class="num" data-edge="${k}" aria-label="${k === "a" ? "Başlangıç" : "Bitiş"}" spellcheck="false" value="${fmtDuration(c[k])}">
-            <button type="button" data-act="nudge" data-edge="${k}" data-d="1" title="1 sn ileri" aria-label="${k === "a" ? "Başlangıç" : "Bitiş"} 1 sn ileri">${icon("plus")}</button>
+            <button type="button" data-act="nudge" data-edge="${k}" data-d="-1" title="${esc(t("cut.nudgeBack"))}" aria-label="${esc(t(`cut.edge.${k}`) + " · " + t("cut.nudgeBack"))}">${icon("minus")}</button>
+            <input class="num" data-edge="${k}" aria-label="${esc(t(`cut.edge.${k}`))}" spellcheck="false" value="${fmtDuration(c[k])}">
+            <button type="button" data-act="nudge" data-edge="${k}" data-d="1" title="${esc(t("cut.nudgeFwd"))}" aria-label="${esc(t(`cut.edge.${k}`) + " · " + t("cut.nudgeFwd"))}">${icon("plus")}</button>
           </div>
-          <button class="iconbtn" type="button" data-act="here" data-edge="${k}" title="${k === "a" ? "Başlangıcı" : "Bitişi"} oynatma çizgisine çek (Shift+${k === "a" ? "I" : "O"})" aria-label="${k === "a" ? "Başlangıcı" : "Bitişi"} oynatma çizgisine çek">${icon("here")}</button>
+          <button class="iconbtn" type="button" data-act="here" data-edge="${k}" title="${esc(t(`cut.here.${k}`))} (Shift+${k === "a" ? "I" : "O"})" aria-label="${esc(t(`cut.here.${k}`))}">${icon("here")}</button>
         </div>`).join("")}
       </div>` : "");
     ol.append(li);
@@ -2503,17 +2506,17 @@ function renderCutter() {
   const total = list.reduce((s, c) => s + c.b - c.a, 0);
   const merge = cut.mode === "merge" && list.length > 1;
   for (const b of document.querySelectorAll(".outmode [data-mode]")) b.setAttribute("aria-checked", String(b.dataset.mode === cut.mode));
-  $("cutInfo").textContent = !list.length ? `Kalite ${$("quality").value} · kesit en az ${MIN_CUT} sn`
-    : merge ? `${list.length} kesit tek dosyada · ${fmtDuration(total)} · ${$("quality").value}`
-    : `${list.length} dosya · toplam ${fmtDuration(total)} · ${$("quality").value}`;
+  const q = qualityName($("quality").value);
+  $("cutInfo").textContent = !list.length ? t("cut.infoEmpty", { q, n: MIN_CUT })
+    : merge ? t("cut.infoMerge", { n: list.length, d: fmtDuration(total), q })
+    : t("cut.infoSplit", { n: list.length, d: fmtDuration(total), q });
   $("cutDownload").disabled = !list.length;
-  $("cutDownloadLabel").textContent = merge ? "Birleştirip indir" : list.length > 1 ? `${list.length} kesiti indir` : "Kesiti indir";
+  $("cutDownloadLabel").textContent = merge ? t("cut.dlMerge") : t("cut.dl", { n: list.length });
   $("cutDel").disabled = cut.sel == null;
   persistCuts(cut.vod);
   $("cutChain").disabled = !list.length;
-  $("cutChain").innerHTML = cut.chain ? `${icon("pause")}<span>Durdur</span>` : `${icon("play")}<span>Sırayla oynat</span>`;
-  $("cutAdd").title = `Bulunduğun anın etrafına ${fmtSpan(cut.len)} kesit ekle (K): ` +
-    `${fmtSpan((cut.len * 2) / 3)} öncesi, ${fmtSpan(cut.len / 3)} sonrası`;
+  $("cutChain").innerHTML = cut.chain ? `${icon("pause")}<span>${t("act.stop")}</span>` : `${icon("play")}<span>${t("cut.chain")}</span>`;
+  $("cutAdd").title = t("cut.addTip", { len: fmtSpan(cut.len), before: fmtSpan((cut.len * 2) / 3), after: fmtSpan(cut.len / 3) });
   drawTimeline();
 }
 
@@ -2524,7 +2527,7 @@ async function downloadCuts() {
   const title = cleanTitle(vod.title);
   const merge = cut.mode === "merge" && list.length > 1;
   const items = merge
-    ? [{ url: vod.url, thumb: vod.thumb, sections: list.map((c) => [c.a, c.b]), title: `${list.length} kesit · ${title}` }]
+    ? [{ url: vod.url, thumb: vod.thumb, sections: list.map((c) => [c.a, c.b]), title: `${t("cut.count", { n: list.length })} · ${title}` }]
     : list.map((c) => ({
       url: vod.url, thumb: vod.thumb, start: c.a, end: c.b,
       title: `${c.name ? `${c.name} · ` : ""}${fmtDuration(c.a)}–${fmtDuration(c.b)} · ${title}`,
@@ -2532,9 +2535,9 @@ async function downloadCuts() {
   const n = await state.api.enqueue(items);
   state.cuts.delete(vod.url);
   closeCutter();
-  if (merge) toast(n ? `${list.length} kesit tek video olarak indirmeye eklendi` : "Bu birleşik video zaten listede");
-  else toast(n === items.length ? `${n} kesit indirmeye eklendi`
-    : n ? `${n} kesit eklendi, ${items.length - n} tanesi zaten listede` : "Bu kesitler zaten listede");
+  if (merge) toast(n ? t("toast.cutsMergedQueued", { n: list.length }) : t("toast.mergedExists"));
+  else toast(n === items.length ? t("toast.cutsQueued", { n })
+    : n ? t("toast.cutsSomeExist", { n, m: items.length - n }) : t("toast.cutsExist"));
 }
 
 function setRate(r) {
@@ -2557,7 +2560,7 @@ function cutterKey(e) {
   else if (k === "arrowdown") { e.preventDefault(); jumpEdge(1); }
   else if (k === "k") addClipHere();
   else if ((k === "i" || k === "o") && e.shiftKey) {
-    if (!c) { toast("Önce bir kesit seç"); return; }
+    if (!c) { toast(t("toast.selectCutFirst")); return; }
     setEdge(c, k === "i" ? "a" : "b", nowTime());
     sortClips();
     renderCutter();
@@ -2571,7 +2574,7 @@ function cutterKey(e) {
   else if (k === "," || k === ".") {
     const i = RATES.indexOf(Number($("cutRate").value));
     setRate(RATES[clamp((i < 0 ? 3 : i) + (k === "." ? 1 : -1), 0, RATES.length - 1)]);
-    toast(`Hız ${String(v.playbackRate).replace(".", ",")}×`);
+    toast(t("cut.rateToast", { r: fmtNum(v.playbackRate, v.playbackRate % 1 ? 2 : 0).replace(/0$/, "") }));
   }
 }
 
@@ -2812,9 +2815,9 @@ function bindCutter() {
     const inp = e.target.closest("input[data-edge]");
     if (!inp) return;
     const c = cutClips().find((x) => x.id === Number(inp.closest("li").dataset.id));
-    const t = parseTime(inp.value);
-    if (t == null) toast("Saati 1:02:30 ya da 62:30 gibi yaz");
-    else { setEdge(c, inp.dataset.edge, t); sortClips(); seekTo(c[inp.dataset.edge]); }
+    const sec = parseTime(inp.value);
+    if (sec == null) toast(t("toast.timeFormat"));
+    else { setEdge(c, inp.dataset.edge, sec); sortClips(); seekTo(c[inp.dataset.edge]); }
     renderCutter();
   });
   list.addEventListener("keydown", (e) => {
@@ -2842,7 +2845,7 @@ function notice(key, { icon: ic = "alert", text, actions = [], warn = false, sti
     el.append(b);
   }
   if (!sticky) {
-    el.insertAdjacentHTML("beforeend", `<button class="iconbtn" type="button" title="Kapat" aria-label="Kapat">${icon("x")}</button>`);
+    el.insertAdjacentHTML("beforeend", `<button class="iconbtn" type="button" title="${esc(t("common.close"))}" aria-label="${esc(t("common.close"))}">${icon("x")}</button>`);
     el.lastElementChild.addEventListener("click", () => closeNotice(key));
   }
   $("notices").append(el);
@@ -2863,8 +2866,8 @@ async function checkClipboard() {
   if ($("linkInput").value.trim() === link) return;
   const short = link.replace(/^https?:\/\/(www\.)?/, "");
   notice("clip", {
-    icon: "clipboard", text: `Panoda Kick linki var: <span class="num">${esc(short.length > 70 ? short.slice(0, 70) + "…" : short)}</span>`,
-    actions: [["Aç", () => listLink(link), "primary"]],
+    icon: "clipboard", text: t("notice.clipboard", { link: `<span class="num">${esc(short.length > 70 ? short.slice(0, 70) + "…" : short)}</span>` }),
+    actions: [[t("top.open"), () => listLink(link), "primary"]],
   });
 }
 
@@ -2872,14 +2875,14 @@ async function checkUpdate(manual) {
   const r = await state.api.check_update();
   if (r.update) {
     notice("update", {
-      icon: "gift", text: `Yeni sürüm çıktı: <b>${esc(r.version)}</b> <span class="num">(şu an ${esc(r.current)})</span>`,
+      icon: "gift", text: t("upd.available", { v: `<b>${esc(r.version)}</b>`, cur: `<span class="num">${esc(r.current)}</span>` }),
       actions: r.auto
-        ? [["Güncelle", () => runUpdate(r, false), "primary"],
-           ["Güncelle ve yeniden başlat", () => runUpdate(r, true)],
-           ["Sürüm notları", () => state.api.open_url(r.url)]]
-        : [["İndirme sayfasını aç", () => state.api.open_url(r.url), "primary"]],
+        ? [[t("upd.update"), () => runUpdate(r, false), "primary"],
+           [t("upd.updateRestart"), () => runUpdate(r, true)],
+           [t("upd.notes"), () => state.api.open_url(r.url)]]
+        : [[t("upd.openPage"), () => state.api.open_url(r.url), "primary"]],
     });
-  } else if (manual) toast(r.ok ? `Güncel sürümü kullanıyorsun (${r.current})` : "Güncelleme denetlenemedi. İnterneti kontrol et.");
+  } else if (manual) toast(r.ok ? t("upd.upToDate", { v: r.current }) : t("upd.checkFailed"));
 }
 
 /* guncelleme: indirme ve kurulum ayni seritte ilerler; ilerleme arka yuzden okunur, serit kapatilamaz.
@@ -2905,7 +2908,7 @@ function updateStrip(r) {
   el.classList.add("run");
   el.setAttribute("aria-live", "off");
   el.querySelector("p").after(Object.assign(document.createElement("div"), {
-    className: "bar meter", role: "progressbar", ariaLabel: "Güncelleme ilerlemesi", innerHTML: "<i></i>",
+    className: "bar meter", role: "progressbar", ariaLabel: t("upd.progress"), innerHTML: "<i></i>",
   }));
   const text = el.querySelector("p"), meter = el.querySelector(".meter");
   return (p) => {
@@ -2916,15 +2919,15 @@ function updateStrip(r) {
     if (known) meter.setAttribute("aria-valuenow", pct);
     else meter.removeAttribute("aria-valuenow");
     text.innerHTML = p.phase === "downloading"
-      ? `<b>${esc(r.version)}</b> indiriliyor${known ? ` <span class="num">%${pct} · ${fmtBytes(p.done)} / ${fmtBytes(p.total)}</span>` : ""}`
-      : `<b>${esc(r.version)}</b> kuruldu. Program yeniden başlatılıyor…`;
+      ? t("upd.downloading", { v: `<b>${esc(r.version)}</b>` }) + (known ? ` <span class="num">${t("pct", { p: pct })} · ${fmtBytes(p.done)} / ${fmtBytes(p.total)}</span>` : "")
+      : t("upd.installed", { v: `<b>${esc(r.version)}</b>` });
   };
 }
 
 function updateReady(r) {
   notice("update", {
-    icon: "gift", text: `<b>${esc(r.version)}</b> hazır. Yeniden başlatınca geçilir; şimdi başlatmazsan programı bir sonraki açışında yeni sürüm açılır.`,
-    actions: [["Yeniden başlat", async () => {
+    icon: "gift", text: t("upd.ready", { v: `<b>${esc(r.version)}</b>` }),
+    actions: [[t("upd.restart"), async () => {
       const u = await state.api.restart_to_update();
       if (!u.ok) return updateFailed(r, u.error);
       updateStrip(r)({ phase: "installing" });
@@ -2935,25 +2938,25 @@ function updateReady(r) {
 /* guncellemeden sonraki ilk acilis: hangi surume gecildigini soyler */
 function updatedNotice(u) {
   notice("updated", {
-    icon: "gift", text: `<b>${esc(u.version)}</b> sürümüne güncellendi.`,
-    actions: [["Sürüm notları", () => state.api.open_url(u.url)]],
+    icon: "gift", text: t("upd.done", { v: `<b>${esc(u.version)}</b>` }),
+    actions: [[t("upd.notes"), () => state.api.open_url(u.url)]],
   });
 }
 
 function updateFailed(r, msg) {
   notice("update", {
-    icon: "alert", warn: true, text: `Güncelleme tamamlanamadı. ${esc(msg)}`,
-    actions: [["Tekrar dene", () => runUpdate(r, true), "primary"], ["İndirme sayfasını aç", () => state.api.open_url(r.url)]],
+    icon: "alert", warn: true, text: t("upd.failed", { msg: esc(msg) }),
+    actions: [[t("act.retry"), () => runUpdate(r, true), "primary"], [t("upd.openPage"), () => state.api.open_url(r.url)]],
   });
 }
 
 /* onceki oturumdan yarim kalan indirmeler: kendiliginden baslamaz, kullaniciya sorulur */
 function offerRestored(n) {
   notice("restored", {
-    icon: "retry", text: `Önceki oturumdan <b>${n} indirme</b> yarım kaldı. Kaldığı yerden devam edebilir.`,
+    icon: "retry", text: t("notice.restored", { n }),
     actions: [
-      ["Devam et", () => { state.api.resume_all(); toast("Yarım kalanlar sıraya alındı"); }, "primary"],
-      ["Listeyi temizle", () => state.downloads.filter((d) => d.status === "stopped").forEach((d) => state.api.remove(d.id))],
+      [t("notice.resume"), () => { state.api.resume_all(); toast(t("toast.resumed")); }, "primary"],
+      [t("notice.clearList"), () => state.downloads.filter((d) => d.status === "stopped").forEach((d) => state.api.remove(d.id))],
     ],
   });
 }
@@ -2978,7 +2981,7 @@ function bindDrop() {
     $("dropZone").hidden = true;
     const text = (e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain") || "").split(/\r?\n/).find((x) => x && !x.startsWith("#")) || "";
     if (/kick\.com\//i.test(text)) listLink(text.trim());
-    else if (text) toast("Bu bir Kick linki değil");
+    else if (text) toast(t("toast.notKick"));
   });
 }
 
@@ -2988,7 +2991,7 @@ let toastTimer;
 async function setQuality(q, quiet) {
   await saveSetting({ quality: q }, true);
   for (const id of ["quality", "selQuality", "setQuality"]) { $(id).value = q; syncSelect($(id)); }
-  if (!quiet) toast(`Kalite: ${q}`);
+  if (!quiet) toast(t("toast.quality", { q: qualityName(q) }));
 }
 
 function toast(msg) {
@@ -3023,7 +3026,7 @@ function bind() {
   $("askDlg").addEventListener("click", (e) => { if (e.target === $("askDlg")) $("askDlg").close("no"); });   // disari tiklayinca
   $("afterDone").addEventListener("change", async (e) => {
     const mode = await state.api.set_after_done(e.target.value);
-    toast({ none: "Bitince bir şey yapılmayacak", sleep: "İndirmeler bitince bilgisayar uykuya alınacak", shutdown: "İndirmeler bitince bilgisayar kapanacak (1 dk içinde iptal edebilirsin)" }[mode]);
+    toast(t(`after.toast.${mode}`));
   });
   $("autoDl").addEventListener("click", (e) => toggleAuto("autoDownload", e.currentTarget));
   $("autoRec").addEventListener("click", (e) => toggleAuto("autoRecord", e.currentTarget));
@@ -3244,17 +3247,20 @@ async function start(api) {
   state.api = api;
   const cfg = await api.init();
   state.cfg = cfg;
+  setLang(cfg.lang, cfg.strings);
+  applyStatic();
+  for (const o of $("cutRate").options) o.textContent = `${fmtNum(Number(o.value), Number(o.value) % 1 ? String(o.value).split(".")[1].length : 0)}×`;
   state.settings = cfg.settings;
   state.favorites = cfg.favorites || [];
   state.cutSets = await api.cuts_list();
   for (const id of ["quality", "selQuality"]) {
-    $(id).innerHTML = cfg.qualities.map((q) => `<option>${q}</option>`).join("");
+    $(id).innerHTML = cfg.qualities.map((q) => `<option value="${q}">${esc(qualityName(q))}</option>`).join("");
     $(id).value = cfg.quality;
   }
   bind();
   syncSelects();
   applySectionLength();
-  if (!cfg.ffmpeg) showError("ffmpeg bulunamadı. Videolar iner ama son mp4 düzeltmesi yapılamaz. ffmpeg.exe'yi programın yanına koy.");
+  if (!cfg.ffmpeg) showError(t("err.noFfmpeg"));
   showView("home");
   renderRail();
   refreshLibrary();

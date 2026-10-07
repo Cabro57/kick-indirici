@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from kickindir.config import FRAG_THREADS_MAX, MAX_PARALLEL, QUALITIES, find_ffmpeg
 from kickindir.core.engine import AutoTuner, Download, LIMITER
+from kickindir.core.i18n import set_lang
 from kickindir.core.prefs import PREFS, int_or_auto
 from kickindir.core.storage import clean_cut_set, load_history, load_queue, load_settings
 from kickindir.api.general import AppMixin
@@ -24,13 +25,14 @@ class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMi
     def __init__(self):
         s = load_settings()
         self._folder = s.get("folder") or os.path.join(os.path.expanduser("~"), "Downloads", "Kick")
-        self._quality = s.get("quality") if s.get("quality") in QUALITIES else QUALITIES[0]
+        self._quality = s.get("quality") if s.get("quality") in QUALITIES else QUALITIES[0]   # eski "En iyi" -> "best"
         self._parallel = int_or_auto(s.get("parallel"), 1, MAX_PARALLEL)
         self._threads = int_or_auto(s.get("fragThreads"), 1, FRAG_THREADS_MAX)
         self._prefs = {}
         for key, (default, check) in PREFS.items():
             value = check(s[key]) if key in s else None
             self._prefs[key] = default if value is None else value
+        set_lang(self._prefs["lang"])
         # favori: {"slug", "name", "avatar", "seen": en son gorulen VOD'un baslangic zamani}
         self._favorites = [f for f in s.get("favorites") or [] if isinstance(f, dict) and f.get("slug")]
         self._fav_lock = threading.Lock()

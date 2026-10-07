@@ -12,15 +12,26 @@ VERSION = "1.0.0"
 UPDATE_REPO = "Cabro57/kick-indirici"         # surumler bu GitHub deposunun release'lerinden okunur
 
 
-QUALITIES = ["En iyi", "1080p60", "720p60", "480p", "360p", "160p"]
+QUALITIES = ["best", "1080p60", "720p60", "480p", "360p", "160p"]   # "best" arayuzde cevrilir
 
 
-# Dosya adi sablonu: kullanici {kanal} {baslik} {tarih} {id} yazar, yt-dlp sablonuna cevrilir.
-NAME_DEFAULT = "{kanal} - {baslik} [{id}]"
+# Dosya adi sablonu: kullanici {channel} {title} {date} {id} yazar, yt-dlp sablonuna cevrilir.
+# Eski Turkce adlar ({kanal} {baslik} {tarih}) kayitli sablonlarda kalir ve ayni isi gorur.
+NAME_DEFAULT = "{channel} - {title} [{id}]"
 
 
-NAME_TOKENS = {"kanal": "%(channel,uploader|kick)s", "baslik": "%(title).90B",
-               "tarih": "%(upload_date>%Y-%m-%d|)s", "id": "%(id).12s"}
+NAME_TOKENS = {"channel": "%(channel,uploader|kick)s", "title": "%(title).90B",
+               "date": "%(upload_date>%Y-%m-%d|)s", "id": "%(id).12s"}
+
+
+NAME_ALIASES = {"kanal": "channel", "baslik": "title", "tarih": "date"}
+
+
+def norm_name(template):
+    """Sablondaki eski Turkce adlari Ingilizce karsiliklarina cevirir."""
+    for old, new in NAME_ALIASES.items():
+        template = template.replace("{" + old + "}", "{" + new + "}")
+    return template
 
 
 CPU = os.cpu_count() or 4

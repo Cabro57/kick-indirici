@@ -8,6 +8,7 @@ import webview
 from kickindir.config import AFTER_DONE, FRAG_THREADS, FRAG_THREADS_MAX, MAX_PARALLEL, NAME_DEFAULT, NAME_TOKENS, QUALITIES, UPDATE_REPO, VERSION, log
 from kickindir.core.engine import LIMITER
 from kickindir.services.kick import fetch_channel, kick_error, parse_link, vod_channel
+from kickindir.core import i18n
 from kickindir.core.prefs import PREFS, int_or_auto
 from kickindir.core.util import clipboard_text
 
@@ -20,7 +21,7 @@ class AppMixin:
         return {"folder": self._folder, "quality": self._quality, "qualities": QUALITIES,
                 "ffmpeg": bool(self._ffmpeg), "fragThreads": self._frag_threads(), "maxParallel": MAX_PARALLEL,
                 "settings": self.get_settings(), "favorites": self.favorites(), "version": VERSION,
-                "restored": self._restored}
+                "restored": self._restored, "lang": i18n.lang(), "strings": i18n.strings()}
 
     def clipboard_link(self):
         """Panoda Kick linki varsa o link, yoksa "". Arayuz pencere odaga gelince sorar."""
@@ -67,7 +68,7 @@ class AppMixin:
         if is_clip:
             return {"ok": True, "kind": "clip", "url": text.strip()}
         if not slug and not uuid:
-            return {"ok": False, "error": "Link anlaşılamadı. Kanal linki (kick.com/kanal), kanal adı ya da VOD linki yapıştır."}
+            return {"ok": False, "error": i18n.t("err.badLink")}
         try:
             channel, vods = fetch_channel(slug or vod_channel(uuid))
         except Exception as e:  # noqa: BLE001
@@ -81,7 +82,7 @@ class AppMixin:
         return {"folder": self._folder, "quality": self._quality, "qualities": QUALITIES,
                 "parallel": self._parallel, "maxParallel": MAX_PARALLEL,
                 "fragThreads": self._threads, "autoFragThreads": FRAG_THREADS, "maxFragThreads": FRAG_THREADS_MAX,
-                **self._prefs, "nameTokens": list(NAME_TOKENS), "nameDefault": NAME_DEFAULT}
+                **self._prefs, "langs": list(i18n.LANGS), "nameTokens": list(NAME_TOKENS), "nameDefault": NAME_DEFAULT}
 
     def set_settings(self, data):
         """Yalnizca gelen alanlari degistirir; gecersiz sayi "auto" olur. Gecersiz tercih
@@ -104,6 +105,10 @@ class AppMixin:
         if isinstance(data.get("folder"), str) and data["folder"].strip():
             self._folder = data["folder"].strip()
         LIMITER.rate = self._prefs["speedLimit"] * 1024 * 1024
+        if self._prefs["lang"] != i18n.lang():
+            i18n.set_lang(self._prefs["lang"])
+            if self._window:
+                self._window.set_title(i18n.t("app.name"))
         self._free = (0.0, None)        # klasor degismis olabilir: bos alan yeniden olculsun
         self._save()
         return {**self.get_settings(), "rejected": rejected}

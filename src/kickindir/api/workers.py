@@ -17,8 +17,9 @@ from yt_dlp.utils import DownloadCancelled
 from kickindir.services.chat import chat_ass, chat_entry, chat_window
 from kickindir.config import CHAT_WINDOW, log
 from kickindir.core.engine import out_template
+from kickindir.core.i18n import t
 from kickindir.services.kick import kick_get, kick_time, live_info, live_variant, parse_link, playlist_duration
-from kickindir.core.util import fill_name, trim_playlist
+from kickindir.core.util import UserError, fill_name, trim_playlist
 
 
 class WorkerMixin:
@@ -58,7 +59,7 @@ class WorkerMixin:
                 d.status = "merging"
 
         opts = {
-            "format": "best" if q == "En iyi" else f"{q}/best",
+            "format": "best" if q == "best" else f"{q}/best",
             "outtmpl": os.path.join(self._folder, out_template(self._prefs["nameTemplate"], d.section)),
             "concurrent_fragment_downloads": self._frag_threads(),
             "retries": 10,
@@ -108,6 +109,7 @@ class WorkerMixin:
             else:
                 d.status = "error"
                 d.error = re.sub(r"^ERROR:\s*(\[[^\]]+\]\s*)?", "", str(e))[:200]
+                d.friendly = isinstance(e, UserError)
         finally:
             d.speed = 0.0
             if d.status == "done":
@@ -144,7 +146,7 @@ class WorkerMixin:
                 d.eta = d.size * (1 - d.pct / 100) / d.speed if d.size and d.speed else None
 
         opts = {
-            "format": "best" if q == "En iyi" else f"{q}/best",
+            "format": "best" if q == "best" else f"{q}/best",
             "concurrent_fragment_downloads": self._frag_threads(),
             "retries": 10,
             "fragment_retries": 20,
@@ -158,7 +160,7 @@ class WorkerMixin:
             opts["ffmpeg_location"] = self._ffmpeg
         try:
             if not self._ffmpeg:
-                raise RuntimeError("Kesitleri birleştirmek için ffmpeg gerekli.")
+                raise UserError(t("err.mergeNeedsFfmpeg"))
             name = out_template(self._prefs["nameTemplate"], d.section, len(d.sections))
             with yt_dlp.YoutubeDL({**opts, "outtmpl": os.path.join(self._folder, name)}) as ydl:
                 info = ydl.extract_info(d.url, download=False)
@@ -210,7 +212,7 @@ class WorkerMixin:
                    "-map", "0", "-c", "copy", "-movflags", "+faststart", tmp]
             r = subprocess.run(cmd, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
             if r.returncode != 0 or not os.path.exists(tmp):
-                raise RuntimeError("Kesitler birleştirilemedi: " + (r.stderr or "").strip()[-160:])
+                raise UserError(t("err.mergeFailed", e=(r.stderr or "").strip()[-160:]))
             os.replace(tmp, d.filename)
             shutil.rmtree(work, ignore_errors=True)
             d.size = os.path.getsize(d.filename)
@@ -221,6 +223,7 @@ class WorkerMixin:
             else:
                 d.status = "error"
                 d.error = re.sub(r"^ERROR:\s*(\[[^\]]+\]\s*)?", "", str(e))[:200]
+                d.friendly = isinstance(e, UserError)
         finally:
             d.speed = 0.0
             if d.status == "done":
@@ -254,7 +257,7 @@ class WorkerMixin:
         """Secilen formatin parca listesini kesite gore daraltir; yt-dlp yalnizca o parcalari
         her zamanki gibi cok thread'le indirir. Parca sinirlarindan tasan kisim sonra kesilir."""
         if not str(info.get("protocol", "")).startswith("m3u8"):
-            raise ValueError("Bu video kesit almayı desteklemiyor.")
+            raise UserError(t("err.noCutSupport"))
         start, end = section
         playlist = ydl.urlopen(info["url"]).read().decode("utf-8", "ignore")
         info["hls_media_playlist_data"], offset = trim_playlist(playlist, start, end)
@@ -270,7 +273,7 @@ class WorkerMixin:
                "-map", "0", "-c", "copy", "-avoid_negative_ts", "make_zero", "-movflags", "+faststart", tmp]
         r = subprocess.run(cmd, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
         if r.returncode != 0 or not os.path.exists(tmp):
-            raise RuntimeError("Kesit kırpılamadı: " + (r.stderr or "").strip()[-160:])
+            raise UserError(t("err.trimFailed", e=(r.stderr or "").strip()[-160:]))
         os.replace(tmp, path)
 
     def _record_live(self, d):
@@ -279,23 +282,20 @@ class WorkerMixin:
         errlog = tempfile.TemporaryFile()
         try:
             if not self._ffmpeg:
-                raise RuntimeError("Canlı kayıt için ffmpeg gerekli.")
+                raise UserError(t("err.liveNeedsFfmpeg"))
             slug = parse_link(d.url)[0]
             ch = kick_get(f"https://kick.com/api/v2/channels/{slug}")
             live = live_info(ch)
             if not live:
-                raise RuntimeError("Yayıncı şu an canlı değil.")
+                raise UserError(t("herr.notLive"))
             src = live_variant(ch["playback_url"], self._quality)
             if d.title == d.url:
                 d.title = live["title"] or slug
             d.thumb = d.thumb or live["thumb"]
             os.makedirs(self._folder, exist_ok=True)
-            name = self._prefs["nameTemplate"]
-            for key, value in (("kanal", slug), ("baslik", d.title[:70]), ("tarih", time.strftime("%Y-%m-%d")),
-                               ("id", f"canlı {time.strftime('%Y-%m-%d %H.%M')}")):
-                name = name.replace("{" + key + "}", value)
-            name = re.sub(r'[\\/:*?"<>|\r\n]+', "_", name)
-            base = os.path.join(self._folder, name.strip())
+            name = fill_name(self._prefs["nameTemplate"], slug, d.title, time.strftime("%Y-%m-%d"),
+                             t("file.live", when=time.strftime("%Y-%m-%d %H.%M")))
+            base = os.path.join(self._folder, name)
             ts, d.filename = base + ".ts", base + ".mp4"
             d.proc = subprocess.Popen(
                 [self._ffmpeg, "-v", "error", "-y", "-i", src, "-map", "0", "-c", "copy", "-f", "mpegts", ts],
@@ -303,7 +303,7 @@ class WorkerMixin:
                 creationflags=subprocess.CREATE_NO_WINDOW)
             d.status, d.started = "recording", time.time()
             self._push(force=True)
-            last, t = 0, time.monotonic()
+            last, tick = 0, time.monotonic()
             while d.proc.poll() is None:
                 if d.cancel:
                     self._stop_proc(d.proc)
@@ -311,12 +311,12 @@ class WorkerMixin:
                 time.sleep(1)
                 size = os.path.getsize(ts) if os.path.exists(ts) else 0
                 now = time.monotonic()
-                d.speed, d.size, last, t = (size - last) / (now - t), size, size, now
+                d.speed, d.size, last, tick = (size - last) / (now - tick), size, size, now
             if not os.path.exists(ts) or os.path.getsize(ts) == 0:
                 if d.cancel:
                     raise DownloadCancelled()
                 errlog.seek(0)
-                raise RuntimeError("Kayıt alınamadı: " + errlog.read().decode("utf-8", "ignore").strip()[-160:])
+                raise UserError(t("err.recFailed", e=errlog.read().decode("utf-8", "ignore").strip()[-160:]))
             if not self._prefs["liveRemux"]:      # .ts olarak kalsin
                 d.filename = ts
                 d.size = os.path.getsize(ts)
@@ -340,6 +340,7 @@ class WorkerMixin:
             else:
                 d.status = "error"
                 d.error = str(e)[:200]
+                d.friendly = isinstance(e, UserError)
         finally:
             if d.proc and d.proc.poll() is None:
                 d.proc.kill()
@@ -357,12 +358,12 @@ class WorkerMixin:
         try:
             m = re.search(r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", d.url)
             if not m:
-                raise ValueError("Sohbet yalnızca yayın (VOD) linkinden alınabilir.")
+                raise UserError(t("err.chatVodOnly"))
             uuid = m.group(1)
             v = kick_get(f"https://kick.com/api/v1/video/{uuid}")
             ls = v.get("livestream") or {}
             if ls.get("is_live"):
-                raise RuntimeError("Yayın hâlâ sürüyor; sohbet yayın bitince alınabilir.")
+                raise UserError(t("err.chatStillLive"))
             slug = (ls.get("channel") or {}).get("slug") or parse_link(d.url)[0] or "kick"
             if d.title == d.url:
                 d.title = ls.get("session_title") or uuid
@@ -421,6 +422,7 @@ class WorkerMixin:
             else:
                 d.status = "error"
                 d.error = str(e)[:200]
+                d.friendly = isinstance(e, UserError)
         finally:
             d.speed = 0.0
             if d.status == "done":

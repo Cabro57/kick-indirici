@@ -6,6 +6,7 @@ import subprocess
 from xml.sax.saxutils import escape as xml_escape
 
 from kickindir.config import DATA_DIR, TOAST_APP_ID, log, resource_dir
+from kickindir.core.i18n import t
 
 
 def register_toast_app():
@@ -21,7 +22,7 @@ def register_toast_app():
         log.info("bildirim ikonu kopyalanamadi: %s", e)
     try:
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, rf"Software\Classes\AppUserModelId\{TOAST_APP_ID}") as k:
-            winreg.SetValueEx(k, "DisplayName", 0, winreg.REG_SZ, "Kick İndirici")
+            winreg.SetValueEx(k, "DisplayName", 0, winreg.REG_SZ, t("app.name"))
             if os.path.exists(icon):
                 winreg.SetValueEx(k, "IconUri", 0, winreg.REG_SZ, icon)
     except OSError as e:

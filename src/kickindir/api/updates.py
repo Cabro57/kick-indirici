@@ -17,10 +17,10 @@ import urllib.parse
 import urllib.request
 
 from kickindir.config import ACTIVE_ALL, DATA_DIR, UPDATE_REPO, VERSION, app_dir, log
+from kickindir.core.i18n import t
 from kickindir.services import updater
 
 UA = f"KickIndirici/{VERSION}"
-BUSY = "Sürmekte olan indirmeler var. Bitince ya da durdurunca güncelle."
 
 
 def _get_json(url, timeout=10):
@@ -102,9 +102,9 @@ class UpdateMixin:
         restart: indirme bitince hemen uygulanir ve yeni surum acilir; degilse "ready" olur."""
         rel = self._release
         if not rel or not rel.get("mode"):
-            return {"ok": False, "error": "Bu kurulum kendini güncelleyemiyor; sürüm sayfasından indir."}
+            return {"ok": False, "error": t("upd.cantSelf")}
         if restart and self._busy():
-            return {"ok": False, "error": BUSY}
+            return {"ok": False, "error": t("upd.busy")}
         phase = self._update_state["phase"]
         if phase in ("downloading", "installing"):
             return {"ok": True, "started": False}
@@ -121,15 +121,15 @@ class UpdateMixin:
     def restart_to_update(self):
         """Hazir guncellemeyi simdi uygular ve programi yeni surumle yeniden acar."""
         if not self._update_ready:
-            return {"ok": False, "error": "Uygulanacak güncelleme yok."}
+            return {"ok": False, "error": t("upd.nothing")}
         if self._busy():
-            return {"ok": False, "error": BUSY}
+            return {"ok": False, "error": t("upd.busy")}
         try:
             with self._apply_lock:
                 self._apply(relaunch=True)
         except (updater.UpdateError, OSError) as e:
             log.info("guncelleme uygulanamadi: %s", e)
-            msg = str(e) if isinstance(e, updater.UpdateError) else "Güncelleme başlatılamadı."
+            msg = str(e) if isinstance(e, updater.UpdateError) else t("upd.startFailed")
             self._update_state.update(phase="error", error=msg)
             return {"ok": False, "error": msg}
         self._update_state["phase"] = "installing"
@@ -188,7 +188,7 @@ class UpdateMixin:
             return
         except Exception as e:  # noqa: BLE001
             log.info("guncelleme indirilemedi: %s", e)
-            state.update(phase="error", error="Güncelleme indirilemedi. İnterneti kontrol et.")
+            state.update(phase="error", error=t("upd.downloadFailed"))
             return
         state["phase"] = "ready"
         if restart:

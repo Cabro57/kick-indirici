@@ -7,7 +7,8 @@ import threading
 import time
 from yt_dlp.downloader.common import FileDownloader
 
-from kickindir.config import MAX_PARALLEL, NAME_TOKENS
+from kickindir.config import MAX_PARALLEL, NAME_TOKENS, norm_name
+from kickindir.core.i18n import t as tr
 from kickindir.core.util import fmt_hms
 
 
@@ -121,6 +122,7 @@ class Download:
         self.speed = 0.0
         self.eta = None
         self.error = ""
+        self.friendly = False  # hata metni kullaniciya hazir (UserError): arayuz yorumlamaz
         self.filename = ""
         self.exact = False
         self.cancel = False
@@ -131,7 +133,7 @@ class Download:
     def to_dict(self):
         return {k: getattr(self, k) for k in
                 ("id", "url", "section", "sections", "live", "chat", "started", "title", "thumb", "status", "pct", "size",
-                 "exact", "speed", "eta", "error", "filename")}
+                 "exact", "speed", "eta", "error", "friendly", "filename")}
 
     def to_saved(self):
         """queue.json kaydi: sonraki acilista ayni indirme yeniden kurulur (.part'tan devam eder)."""
@@ -143,11 +145,11 @@ class Download:
 def out_template(name, section, count=1):
     """Kullanici sablonundan yt-dlp sablonu. Kesitte sona kesit saatleri eklenir; birlesik
     videoda kesit sayisi da."""
-    t = name.replace("%", "%%")
+    t = norm_name(name).replace("%", "%%")
     for key, value in NAME_TOKENS.items():
-        if key == "baslik" and section:
+        if key == "title" and section:
             value = value.replace(".90B", ".70B")
         t = t.replace("{" + key + "}", value)
     if section:
-        t += (f" {count} kesit" if count > 1 else "") + f" {fmt_hms(section[0])}-{fmt_hms(section[1])}"
+        t += (" " + tr("file.cuts", n=count) if count > 1 else "") + f" {fmt_hms(section[0])}-{fmt_hms(section[1])}"
     return t + ".%(ext)s"

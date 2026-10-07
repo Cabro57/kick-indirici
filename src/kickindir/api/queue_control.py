@@ -13,7 +13,8 @@ from kickindir.core.engine import Download
 from kickindir.services.kick import parse_link
 from kickindir.services.notify import toast
 from kickindir.core.storage import save_history, save_queue, save_settings
-from kickindir.core.util import fmt_size, free_space
+from kickindir.core.i18n import t
+from kickindir.core.util import UserError, fmt_size, fmt_speed, free_space
 
 
 class QueueMixin:
@@ -181,13 +182,13 @@ class QueueMixin:
     def _update_title(self, items):
         """Pencere basligina toplam ilerleme: kucultulmusken gorev cubugunda okunur."""
         active = [d for d in items if d.status in ACTIVE_ALL]
-        title = "Kick İndirici"
+        title = t("app.name")
         if active:
             total = sum(d.size for d in active if d.size and not d.live)    # canli kaydin sonu belli degil
             done = sum(d.size * d.pct / 100 for d in active if d.size and not d.live)
             pct = int(100 * done / total) if total else 0
             speed = sum(d.speed for d in active) / (1024 * 1024)
-            title = f"%{pct} · {speed:.1f} MB/s · {len(active)} iniyor — Kick İndirici".replace(".", ",", 1)
+            title = t("title.progress", pct=t("pct", p=pct), speed=fmt_speed(speed), n=len(active), app=t("app.name"))
         if title != getattr(self, "_title", None):
             self._title = title
             try:
@@ -212,9 +213,9 @@ class QueueMixin:
         others = sum(o.size * (1 - o.pct / 100) for o in list(self._downloads.values())
                      if o is not d and o.status in ACTIVE_NET and o.size and not o.live)
         if need + others + DISK_RESERVE > free:
-            raise RuntimeError(f"Diskte yer yok: bu video ~{fmt_size(need)} istiyor, boş alan {fmt_size(free)}"
-                               + (f" (inmekte olanlar ~{fmt_size(others)} daha yazacak)" if others > 1 << 28 else "")
-                               + ". Yer açıp tekrar dene ya da indirme klasörünü değiştir.")
+            raise UserError(t("err.diskFull", need=fmt_size(need), free=fmt_size(free))
+                            + (t("err.diskOthers", others=fmt_size(others)) if others > 1 << 28 else "")
+                            + t("err.diskFix"))
 
     def _persist_queue(self):
         """Bitmemis indirmeleri queue.json'a yazar (yalnizca degisince). Canli kayit kaydedilmez:
@@ -232,7 +233,7 @@ class QueueMixin:
             return
         log.info("kuyruk bitti, %s", mode)
         if mode == "shutdown":
-            subprocess.run(["shutdown", "/s", "/t", "60", "/c", "Kick İndirici: indirmeler bitti, bilgisayar kapanıyor."],
+            subprocess.run(["shutdown", "/s", "/t", "60", "/c", t("shutdown.reason", app=t("app.name"))],
                            capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
             self._shutdown_at = time.time() + 60
         elif mode == "sleep":
@@ -281,9 +282,9 @@ class QueueMixin:
             return
         if done + failed == 1:
             d = next(d for d in items if d.status in ("done", "error"))
-            toast("İndirme bitti" if done else "İndirme başarısız", d.title)
+            toast(t("toast.dlDone") if done else t("toast.dlFailed"), d.title)
         else:
-            toast("İndirmeler bitti", f"{done} indirme tamamlandı" + (f", {failed} hata" if failed else ""))
+            toast(t("sb.allDone"), t("toast.dlSummary", n=done) + (t("toast.dlSummaryErr", n=failed) if failed else ""))
 
     def _remember(self, d):
         """Biten indirmeyi Indirilenler gecmisine yazar (ayni dosya tekrar inerse guncellenir)."""

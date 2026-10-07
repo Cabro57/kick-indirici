@@ -22,6 +22,8 @@ import time
 import urllib.request
 import winreg
 
+from kickindir.core.i18n import t
+
 SCHEMA = 1
 STAGE = ".update"
 CHUNK = 256 * 1024
@@ -42,10 +44,10 @@ def sha256_file(path):
 def safe_path(root, rel):
     """Manifestteki yolu uygulama klasoru icinde mutlak yola cevirir; disari cikan yollar reddedilir."""
     if not isinstance(rel, str) or not rel or os.path.isabs(rel) or ":" in rel:
-        raise UpdateError("Güncelleme bilgisi bozuk.")
+        raise UpdateError(t("upd.badManifest"))
     path = os.path.normpath(os.path.join(root, rel))
     if os.path.commonpath([path, os.path.normpath(root)]) != os.path.normpath(root):
-        raise UpdateError("Güncelleme bilgisi bozuk.")
+        raise UpdateError(t("upd.badManifest"))
     return path
 
 
@@ -61,7 +63,7 @@ def plan(manifest, root):
         target = safe_path(root, f.get("path"))
         urls = [u for u in (f.get("urls") or []) if isinstance(u, str) and u.startswith("https://")]
         if not urls or not isinstance(f.get("size"), int) or not isinstance(f.get("sha256"), str):
-            raise UpdateError("Güncelleme bilgisi bozuk.")
+            raise UpdateError(t("upd.badManifest"))
         if os.path.isfile(target) and os.path.getsize(target) == f["size"] and sha256_file(target) == f["sha256"].lower():
             continue
         need.append({"path": f["path"], "target": target, "size": f["size"], "sha256": f["sha256"].lower(), "urls": urls})
@@ -95,8 +97,8 @@ def download(need, root, user_agent, progress=None):
                 last = f"{f['path']}: {e}"
         else:
             if last == "mismatch":
-                raise UpdateError("İndirilen dosya doğrulanamadı. Daha sonra tekrar dene.")
-            raise UpdateError("Güncelleme indirilemedi. İnterneti kontrol et.") from Exception(last)
+                raise UpdateError(t("upd.verifyFailed"))
+            raise UpdateError(t("upd.downloadFailed")) from Exception(last)
         done += f["size"]
     return need
 
@@ -128,7 +130,7 @@ def apply(need, remove, root):
                     os.replace(old, target)
             except OSError:
                 pass
-        raise UpdateError("Dosyalar yerine konamadı; güncelleme geri alındı.") from e
+        raise UpdateError(t("upd.swapFailed")) from e
     shutil.rmtree(os.path.join(root, STAGE), ignore_errors=True)
 
 
