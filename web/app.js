@@ -104,6 +104,7 @@ const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAI
 
 /* ---------- gorunumler ---------- */
 function showView(view) {
+  if (view === "settings" && state.view !== "settings") track("settings_open");
   state.view = view;
   closeWatch();
   $("homeView").hidden = view !== "home";
@@ -178,6 +179,7 @@ function openChannelData(res) {
 
 async function openChannel(slug) {
   if (state.channel && state.channel.slug === slug && state.view === "channel") return;
+  track("channel_open", { channel: slug });
   $("linkForm").classList.add("loading");
   if (state.view !== "channel" || !state.channel || state.channel.slug !== slug) renderSkeletonChannel(slug);
   try {
@@ -438,6 +440,7 @@ async function onLiveAction(b) {
   if (act === "record") {
     const n = await state.api.enqueue([{ url: v.url, title: cleanTitle(v.title), thumb: v.thumb || v.avatar, live: true }]);
     toast(n ? t("toast.recStarted") : t("toast.recExists"));
+    if (n) track("live_record", { channel: state.channel ? state.channel.slug : "" });
   } else if (act === "stoprec") state.api.cancel(Number(b.dataset.id));
   else if (act === "cut") { hover.stop(); player.el().pause(); openCutter(liveCutVod()); }
 }
@@ -759,6 +762,8 @@ const hover = {
 
 /* ---------- inceleme paneli ---------- */
 function focusItem(url, start) {
+  const it = state.channel && itemByUrl(url);
+  if (it) track("watch_open", { kind: kindOf(it) });
   state.focus = url;
   state.libFocus = null;
   paintCards();
@@ -1052,6 +1057,7 @@ async function onInspectorAction(b) {
   else if (act === "record" && v) {
     const n = await state.api.enqueue([{ url: v.url, title: cleanTitle(v.title), thumb: v.thumb || v.avatar, live: true }]);
     toast(n ? t("toast.recStarted") : t("toast.recExists"));
+    if (n) track("live_record", { channel: state.channel ? state.channel.slug : "" });
   }
   else if (act === "stoprec" || act === "cancel") state.api.cancel(Number(b.dataset.id));
   else if (act === "retry") state.api.retry(Number(b.dataset.id));
@@ -1060,7 +1066,10 @@ async function onInspectorAction(b) {
   else if (act === "playfile" || act === "lplay") playFile(b.dataset.file);
   else if (act === "lopen") { player.el().pause(); state.api.open_file(b.dataset.file); }   // ayni anda iki yerde calmasin
   else if (act === "lreveal") state.api.reveal_file(b.dataset.file);
-  else if (act === "lchatvideo") state.api.chat_video_file(b.dataset.file).then((r) => toast(r.ok ? t("chat.vid.queued") : r.error));
+  else if (act === "lchatvideo") {
+    track("chat_video_file");
+    state.api.chat_video_file(b.dataset.file).then((r) => toast(r.ok ? t("chat.vid.queued") : r.error));
+  }
   else if (act === "ldel") deleteFile(b.dataset.file);
 }
 
@@ -1094,6 +1103,7 @@ async function refreshFavorites() {
 async function toggleFavorite() {
   const ch = state.channel;
   if (!ch) return;
+  if (!state.favorite) track("favorite_add", { channel: ch.slug });
   if (state.favorite) {
     state.favorites = await state.api.favorite_remove(ch.slug);
     state.favorite = false;
@@ -1190,6 +1200,7 @@ async function importCuts() {
   const res = await state.api.cuts_import();
   if (res.error) { toast(res.error); return; }
   if (!res.ok) return;
+  track("cuts_import");
   state.cutSets = res.cuts;
   renderCutSets();
   toast(res.added ? t("toast.cutsImported", { n: res.added }) : t("toast.cutsAlreadySaved"));
@@ -1198,7 +1209,7 @@ async function importCuts() {
 async function exportCuts() {
   const res = await state.api.cuts_export();
   if (res.error) toast(res.error);
-  else if (res.ok) toast(t("toast.cutsExported", { n: res.count }));
+  else if (res.ok) { toast(t("toast.cutsExported", { n: res.count })); track("cuts_export", { n: res.count }); }
 }
 
 /* ---------- indirmeler ---------- */
@@ -1548,6 +1559,7 @@ function renderSettings() {
   fillSelect($("setThreads"), [["auto", t("set.autoN", { n: s.autoFragThreads })], ...th.map((x) => [String(x), String(x)])], String(s.fragThreads));
   fillSelect($("setSection"), [...$("setSection").options].map((o) => [o.value, o.textContent]), String(s.sectionLength === "auto" ? 30 : s.sectionLength));
   for (const [id, key] of SWITCHES) $(id).setAttribute("aria-checked", !!s[key]);
+  $("setUsage").setAttribute("aria-checked", s.telemetry === true);
   renderChatFormats();
   renderChatVideo();
   fillSelect($("setLimit"), [["0", t("set.unlimited")], ...[1, 2, 5, 10, 20, 50, 100].map((x) => [String(x), `${x} MB/s`])], String(s.speedLimit || 0));
@@ -1613,7 +1625,34 @@ function renderChatFormats() {
     aria-pressed="${on.includes(f)}" title="${esc(t(`chat.fmtTip.${f}`))}">${esc(t(`chat.fmt.${f}`))}</button>`).join("");
 }
 
+/* ---------- anonim kullanim verisi ----------
+   Ilk acilista sorulur (cevap verilene kadar hicbir sey gonderilmez); Ayarlar'dan acilip kapatilir. */
+function askUsage() {
+  const list = (key) => t(key).split("|").map((x) => `<li>${esc(x)}</li>`).join("");
+  $("usageSends").innerHTML = list("usage.sends");
+  $("usageNever").innerHTML = list("usage.never");
+  const dlg = $("usageDlg");
+  dlg.returnValue = "";
+  dlg.oncancel = (e) => { if (state.settings.telemetry == null) e.preventDefault(); };   // ilk soruda Esc ile gecilmez
+  dlg.onclose = () => {
+    if (dlg.returnValue !== "yes" && dlg.returnValue !== "no") return;
+    const on = dlg.returnValue === "yes";
+    saveSetting({ telemetry: on }, true);
+    $("setUsage").setAttribute("aria-checked", on);
+  };
+  dlg.showModal();
+}
+
+/* ozellik kullanimi (izin yoksa Python tarafi atar) */
+const track = (name, props) => state.api && state.api.track(name, props || {});
+
 function bindSettings() {
+  $("setUsage").addEventListener("click", () => {
+    const on = $("setUsage").getAttribute("aria-checked") !== "true";
+    $("setUsage").setAttribute("aria-checked", on);
+    saveSetting({ telemetry: on });
+  });
+  $("usageWhat").addEventListener("click", askUsage);
   for (const [id, key] of SWITCHES) {
     $(id).addEventListener("click", async () => {
       const on = $(id).getAttribute("aria-checked") !== "true";
@@ -1873,6 +1912,7 @@ function lowestLevel(hls) {
 
 async function openCutter(vod) {
   if (!vod) return;
+  track("cut_editor_open", { live: !!vod.live });
   cut.vod = vod;
   cut.sel = null;
   cut.stopAt = null;
@@ -2648,6 +2688,7 @@ async function downloadCuts() {
   const vod = cut.vod;
   const list = cutClips();
   if (!list.length) return;
+  track("cut_download", { n: list.length, mode: cut.mode, with_chat: !!cut.withChat });
   const title = cleanTitle(vod.title);
   const merge = cut.mode === "merge" && list.length > 1;
   const items = merge
@@ -3404,13 +3445,14 @@ async function start(api) {
   setInterval(refreshFavorites, 10 * 60 * 1000);
   if (!state.favorites.length) $("linkInput").focus();   // ilk acilista nereden baslanacagi belli olsun
   if (cfg.restored) offerRestored(cfg.restored);
+  if (state.settings.telemetry == null) askUsage();
   state.api.just_updated().then((u) => u && updatedNotice(u));
   if (state.settings.updateCheck) setTimeout(() => checkUpdate(false), 3000);
   checkClipboard();
 }
 
 window.app = { sync };
-window.addEventListener("error", (e) => state.api && state.api.client_log(`${e.message} @${e.lineno}`));
+window.addEventListener("error", (e) => state.api && state.api.client_error(String(e.message), String(e.filename || ""), e.lineno || 0, String((e.error && e.error.stack) || "")));
 window.addEventListener("unhandledrejection", (e) => state.api && state.api.client_log(`promise: ${e.reason && (e.reason.message || e.reason)}`));
 if (window.pywebview && window.pywebview.api) start(window.pywebview.api);
 else window.addEventListener("pywebviewready", () => start(window.pywebview.api));

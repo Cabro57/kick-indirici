@@ -666,5 +666,17 @@
   "chat.vid.makeTip": "Draws this chat as a scrolling video (Settings → Chat sets its look)",
   "chat.vid.queued": "Chat video queued; it appears in Downloads when ready",
   "chat.vid.sel": "Make a video",
-  "chat.vid.selTip": "Make a short chat video of the selected messages"
+  "chat.vid.selTip": "Make a short chat video of the selected messages",
+  "usage.title": "Help make Kick Downloader better",
+  "usage.intro": "Can the app send anonymous usage data? It shows how many people use which version, how fast downloads are on real connections, and which errors happen, so we know what to fix and speed up first.",
+  "usage.sendsTitle": "What is sent",
+  "usage.sends": "App version, Windows version and language|A random install ID (not linked to you)|Hardware: processor, memory, graphics card, screen, SSD or HDD|For each download: type, channel name, size, duration, speed and download settings|Which features are used (cut editor, chat panel, chat video…)|Errors: error type and where in the code",
+  "usage.neverTitle": "What is never sent",
+  "usage.never": "Your IP address (not stored)|Video links and titles|File names and folders|Your Windows user name|Anything you type",
+  "usage.change": "Data goes to PostHog servers in the EU. You can change this any time in Settings → App.",
+  "usage.yes": "Yes, send",
+  "usage.no": "No",
+  "usage.setting": "Send anonymous usage data",
+  "usage.settingDesc": "Version, hardware, download speeds, used features and errors. No links, titles or files.",
+  "usage.what": "What is sent?"
 }

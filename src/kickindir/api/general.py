@@ -18,6 +18,7 @@ class AppMixin:
 
     def init(self):
         self._ready = True
+        self._usage_start()
         return {"folder": self._folder, "quality": self._quality, "qualities": QUALITIES,
                 "ffmpeg": bool(self._ffmpeg), "fragThreads": self._frag_threads(), "maxParallel": MAX_PARALLEL,
                 "settings": self.get_settings(), "favorites": self.favorites(), "version": VERSION,
@@ -96,6 +97,12 @@ class AppMixin:
                     rejected.append(key)
                 else:
                     self._prefs[key] = value
+                    if key == "telemetry":
+                        was = self._usage.enabled
+                        self._usage.set_enabled(value)
+                        if value and was is False:          # olaylar atilmisti: acilis olayi yeniden
+                            self._usage_started = False
+                            self._usage_start()
         if data.get("quality") in QUALITIES:
             self._quality = data["quality"]
         if "parallel" in data:

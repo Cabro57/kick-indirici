@@ -23,7 +23,7 @@ Watch, cut out the moments you want, record live. All in one window.
 
 ## Contents
 
-[What it does](#what-it-does) · [Install](#install) · [How to use](#how-to-use) · [Shortcuts](#shortcuts) · [Settings and files](#settings-and-files) · [Troubleshooting](#troubleshooting) · [Development](#development)
+[What it does](#what-it-does) · [Install](#install) · [How to use](#how-to-use) · [Shortcuts](#shortcuts) · [Settings and files](#settings-and-files) · [Troubleshooting](#troubleshooting) · [Privacy](#privacy) · [Development](#development)
 
 <br>
 
@@ -335,6 +335,16 @@ Check `%APPDATA%\KickIndirici\log.txt`. When running from source, `python kick_i
 </details>
 
 <br>
+
+## Privacy
+
+The app asks once, in the installer and again on first start, whether it may send **anonymous usage data**. Nothing is sent until you answer, and *No* means nothing is ever sent. Change it any time in **Settings → App → Send anonymous usage data** (*What is sent?* shows the full list).
+
+**Sent:** app version, Windows version and language; a random install ID made on your computer (not linked to you); hardware (processor, core count, memory, graphics card, screen, whether the download folder is on an SSD or HDD); for each download its type, the **channel name**, size, duration, speed and download settings; which features are used (cut editor, chat panel, chat video, live recording…); errors (error type and where in the code, with folders and your user name removed).
+
+**Never sent:** your IP address (not stored), video links or titles, file names or folders, your Windows user name, anything you type.
+
+The data goes to [PostHog](https://posthog.com) servers in the EU and is used only to see how many people use which version, how fast downloads are on real connections, and which errors to fix first.
 
 ## Development
 

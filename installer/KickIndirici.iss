@@ -41,6 +41,14 @@ english.DesktopIcon=Create a desktop shortcut
 turkish.DesktopIcon=Masaüstüne kısayol koy
 english.OpenApp=Open Kick Downloader
 turkish.OpenApp=Kick İndirici'yi aç
+english.UsageTitle=Anonymous usage data
+turkish.UsageTitle=Anonim kullanım verisi
+english.UsageSub=Help make Kick Downloader better
+turkish.UsageSub=Kick İndirici'yi geliştirmeye yardım et
+english.UsageText=The app can send anonymous usage data: app and Windows version, language, hardware (processor, memory, graphics card, screen, SSD/HDD), download type, channel name, size, speed and settings, used features and errors. It never sends your IP address, video links or titles, file names or your user name. Data goes to PostHog servers in the EU. The app asks again on first start, and you can change it any time in Settings → App.
+turkish.UsageText=Uygulama anonim kullanım verisi gönderebilir: uygulama ve Windows sürümü, dil, donanım (işlemci, bellek, ekran kartı, ekran, SSD/HDD), indirme türü, kanal adı, boyut, hız ve ayarlar, kullanılan özellikler ve hatalar. IP adresin, video linkleri ve başlıkları, dosya adları ve kullanıcı adın asla gönderilmez. Veriler PostHog'un AB'deki sunucularına gider. Uygulama ilk açılışta yine sorar; Ayarlar → Uygulama'dan istediğin zaman değiştirebilirsin.
+english.UsageCheck=Send anonymous usage data
+turkish.UsageCheck=Anonim kullanım verisi gönder
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:DesktopIcon}"; Flags: unchecked
@@ -71,4 +79,32 @@ Filename: "{cmd}"; Parameters: "/c set _PYI_APPLICATION_HOME_DIR=& set _PYI_ARCH
 function NoRun: Boolean;
 begin
   Result := ExpandConstant('{param:norun|0}') = '1';
+end;
+
+{ Anonim kullanim verisi izni: sihirbazda bir sayfa. Secim uygulamanin veri klasorune yazilir; uygulama
+  ilk acilista yine sorar. Sessiz kurulumda (guncelleme) sayfa yok, onceki secime dokunulmaz. }
+var
+  UsagePage: TInputOptionWizardPage;
+
+procedure InitializeWizard;
+begin
+  UsagePage := CreateInputOptionPage(wpSelectTasks, CustomMessage('UsageTitle'), CustomMessage('UsageSub'),
+    CustomMessage('UsageText'), False, False);
+  UsagePage.Add(CustomMessage('UsageCheck'));
+  UsagePage.Values[0] := True;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  Dir: String;
+begin
+  if (CurStep = ssPostInstall) and not WizardSilent then
+  begin
+    Dir := ExpandConstant('{userappdata}\KickIndirici');
+    ForceDirectories(Dir);
+    if UsagePage.Values[0] then
+      SaveStringToFile(Dir + '\telemetry-consent', '1', False)
+    else
+      SaveStringToFile(Dir + '\telemetry-consent', '0', False);
+  end;
 end;

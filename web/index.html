@@ -297,6 +297,11 @@
           <button class="btn ghost sm" id="checkUpdBtn" type="button" data-i18n="set.checkNow"></button>
           <button class="switch" id="setUpdate" type="button" role="switch" aria-checked="true"><i></i></button>
         </div>
+        <div class="setrow">
+          <div class="setlbl"><b data-i18n="usage.setting"></b><p data-i18n="usage.settingDesc"></p></div>
+          <button class="btn ghost sm" id="usageWhat" type="button" data-i18n="usage.what"></button>
+          <button class="switch" id="setUsage" type="button" role="switch" aria-checked="false"><i></i></button>
+        </div>
       </section>
     </div>
   </section>
@@ -391,6 +396,22 @@
     <div class="askbtns">
       <button class="btn" id="askNo" value="no" type="submit" autofocus data-i18n="common.cancel"></button>
       <button class="btn okbtn" id="askYes" value="yes" type="submit"></button>
+    </div>
+  </form>
+</dialog>
+<!-- anonim kullanim verisi izni: ilk acilista sorulur; Ayarlar'dan "Ne gonderiliyor?" ile yine acilir -->
+<dialog class="askdlg usagedlg" id="usageDlg" aria-labelledby="usageTitle">
+  <form method="dialog">
+    <div class="askhead"><span class="askic"><svg class="ic"><use href="#i-gauge"/></svg></span><h2 id="usageTitle" data-i18n="usage.title"></h2></div>
+    <p class="asktext" data-i18n="usage.intro"></p>
+    <div class="usagecols">
+      <div><h3 data-i18n="usage.sendsTitle"></h3><ul id="usageSends"></ul></div>
+      <div><h3 data-i18n="usage.neverTitle"></h3><ul id="usageNever"></ul></div>
+    </div>
+    <p class="asktext" data-i18n="usage.change"></p>
+    <div class="askbtns">
+      <button class="btn" value="no" type="submit" data-i18n="usage.no"></button>
+      <button class="btn okbtn" value="yes" type="submit" autofocus data-i18n="usage.yes"></button>
     </div>
   </form>
 </dialog>

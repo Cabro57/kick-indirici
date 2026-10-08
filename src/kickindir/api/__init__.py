@@ -2,6 +2,7 @@
 
 import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from kickindir.config import FRAG_THREADS_MAX, MAX_PARALLEL, QUALITIES, find_ffmpeg
@@ -18,9 +19,11 @@ from kickindir.api.queue_control import QueueMixin
 from kickindir.api.library import LibraryMixin
 from kickindir.api.workers import WorkerMixin
 from kickindir.api.chat import ChatMixin
+from kickindir.api.usage import UsageMixin
+from kickindir.services.telemetry import Telemetry, installer_consent
 
 
-class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMixin, LibraryMixin, WorkerMixin, ChatMixin):
+class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMixin, LibraryMixin, WorkerMixin, ChatMixin, UsageMixin):
     """JS tarafinin cagirdigi metotlar. '_' ile baslayan ozellikler JS'e acilmaz."""
 
     def __init__(self):
@@ -34,6 +37,11 @@ class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMi
             value = check(s[key]) if key in s else None
             self._prefs[key] = default if value is None else value
         set_lang(self._prefs["lang"])
+        # kullanim verisi: ilk acilista arayuz sorar. Cevaba kadar olaylar bekler; kurulum sihirbazinda
+        # "hayir" dendiyse cevaba kadar hic olay tutulmaz.
+        consent = self._prefs["telemetry"]
+        self._usage = Telemetry(consent if consent is not None else False if installer_consent() is False else None)
+        self._usage_started, self._usage_t0, self._usage_peak = False, time.time(), 0.0
         # favori: {"slug", "name", "avatar", "seen": en son gorulen VOD'un baslangic zamani}
         self._favorites = [f for f in s.get("favorites") or [] if isinstance(f, dict) and f.get("slug")]
         self._fav_lock = threading.Lock()

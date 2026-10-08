@@ -23,7 +23,7 @@
 
 ## İçindekiler
 
-[Neler yapar](#neler-yapar) · [Kurulum](#kurulum) · [Nasıl kullanılır](#nasıl-kullanılır) · [Kısayollar](#kısayollar) · [Ayarlar ve dosyalar](#ayarlar-ve-dosyalar) · [Sorun giderme](#sorun-giderme) · [Geliştirme](#geliştirme)
+[Neler yapar](#neler-yapar) · [Kurulum](#kurulum) · [Nasıl kullanılır](#nasıl-kullanılır) · [Kısayollar](#kısayollar) · [Ayarlar ve dosyalar](#ayarlar-ve-dosyalar) · [Sorun giderme](#sorun-giderme) · [Gizlilik](#gizlilik) · [Geliştirme](#geliştirme)
 
 <br>
 
@@ -335,6 +335,16 @@ Ayarlarda *Canlı kaydı mp4'e çevir* kapalıdır. Uygulamanın oynatıcısı `
 </details>
 
 <br>
+
+## Gizlilik
+
+Uygulama, **anonim kullanım verisi** gönderip gönderemeyeceğini bir kez kurulumda, bir kez de ilk açılışta sorar. Cevap verene kadar hiçbir şey gönderilmez; *Hayır* dersen hiç gönderilmez. İstediğin zaman **Ayarlar → Uygulama → Anonim kullanım verisi gönder**'den değiştirebilirsin (*Ne gönderiliyor?* tam listeyi gösterir).
+
+**Gönderilenler:** uygulama sürümü, Windows sürümü ve dil; bilgisayarında üretilen rastgele bir kurulum kimliği (seninle ilişkisi yok); donanım (işlemci, çekirdek sayısı, bellek, ekran kartı, ekran, indirme klasörünün SSD mi HDD mi olduğu); her indirme için türü, **kanal adı**, boyutu, süresi, hızı ve indirme ayarları; hangi özelliklerin kullanıldığı (kesit editörü, sohbet paneli, sohbet videosu, canlı kayıt…); hatalar (hata türü ve kodda nerede olduğu; klasörler ve kullanıcı adın çıkarılır).
+
+**Asla gönderilmeyenler:** IP adresin (saklanmaz), video linkleri ya da başlıkları, dosya adları ya da klasörler, Windows kullanıcı adın, yazdığın hiçbir şey.
+
+Veriler [PostHog](https://posthog.com)'un AB'deki sunucularına gider ve yalnızca kaç kişinin hangi sürümü kullandığını, indirmelerin gerçek bağlantılarda ne hızda olduğunu ve önce hangi hataların düzeltileceğini görmek için kullanılır.
 
 ## Geliştirme
 

@@ -118,6 +118,8 @@ class Download:
         self.video_len = 0              # ... ve videonun uzunlugu (sn)
         self.video_clock = False        # saatler yerel saat (canli yayindan secilen mesajlar)
         self.rendering = False          # sohbet videosu ciziliyor / kodlaniyor
+        self.began = None               # isin basladigi an (kullanim verisi: sure / hiz)
+        self.reported = False           # bitisi kullanim verisine yazildi
         span = ("#" + ",".join(f"{a}-{b}" for a, b in sections) if sections
                 else f"#{section[0]}-{section[1]}" if section else "")
         self.key = url + ("#live" if live else "#chat" + span if chat else span)

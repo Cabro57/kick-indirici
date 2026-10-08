@@ -1186,6 +1186,12 @@ kbd { font: 600 11px var(--font); padding: 1px 5px; border-radius: 4px; backgrou
 .askitem img { flex: none; width: 80px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: var(--s3); }
 .askitem p { min-width: 0; font-weight: 600; font-size: 13.5px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .asktext { margin-top: 14px; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+.usagedlg { width: min(560px, calc(100vw - 48px)); }
+.usagecols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
+.usagecols h3 { font: 600 13px var(--font-display); margin-bottom: 6px; }
+.usagecols ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.usagecols li + li { margin-top: 3px; }
+@media (max-width: 620px) { .usagecols { grid-template-columns: 1fr; } }
 .askbtns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .askbtns .btn { height: 36px; padding: 0 16px; }
 .btn.okbtn { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }

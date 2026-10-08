@@ -152,6 +152,12 @@ def main():
     register_toast_app()
 
     api = Api()
+
+    def report(exc_type, exc, tb, where):
+        log.error("yakalanmamis hata (%s)", where, exc_info=(exc_type, exc, tb))
+        api._usage.exception(exc_type, exc, tb, where, handled=False)
+    sys.excepthook = lambda t, e, tb: report(t, e, tb, "main")
+    threading.excepthook = lambda a: a.exc_type is not SystemExit and report(a.exc_type, a.exc_value, a.exc_traceback, "thread")
     api._just_updated = just_updated
     window = webview.create_window(
         t("app.name"), os.path.join(resource_dir(), "web", "index.html"), js_api=api,
@@ -189,6 +195,7 @@ def main():
             cleanup = threading.Thread(target=lambda: (api._stop_recordings(), api._persist_queue()), daemon=True)
             cleanup.start()
             cleanup.join(3)
+            api._usage_close()
             api._apply_pending_update()
             os._exit(0)
         timer = threading.Timer(4, hard_exit)
@@ -204,6 +211,7 @@ def main():
     webview.start(debug="--debug" in sys.argv, private_mode=True, storage_path=profile, icon=icon)
     api._stop_recordings()
     api._persist_queue()
+    api._usage_close()
     api._apply_pending_update()
     shutil.rmtree(profile, ignore_errors=True)
     os._exit(0)

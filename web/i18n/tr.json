@@ -592,5 +592,17 @@
   "chat.vid.makeTip": "Bu sohbeti akan bir video olarak çizer (görünümü Ayarlar → Sohbet'te)",
   "chat.vid.queued": "Sohbet videosu sıraya alındı; hazır olunca İndirilenler'de",
   "chat.vid.sel": "Video yap",
-  "chat.vid.selTip": "Seçili mesajlardan kısa bir sohbet videosu yap"
+  "chat.vid.selTip": "Seçili mesajlardan kısa bir sohbet videosu yap",
+  "usage.title": "Kick İndirici'yi geliştirmeye yardım et",
+  "usage.intro": "Uygulama anonim kullanım verisi gönderebilir mi? Bu veri kaç kişinin hangi sürümü kullandığını, indirmelerin gerçek bağlantılarda ne hızda olduğunu ve hangi hataların çıktığını gösterir; neyi önce düzeltip hızlandıracağımızı buradan biliriz.",
+  "usage.sendsTitle": "Gönderilenler",
+  "usage.sends": "Uygulama sürümü, Windows sürümü ve dil|Rastgele bir kurulum kimliği (seninle ilişkisi yok)|Donanım: işlemci, bellek, ekran kartı, ekran, SSD ya da HDD|Her indirme için: tür, kanal adı, boyut, süre, hız ve indirme ayarları|Hangi özelliklerin kullanıldığı (kesit editörü, sohbet paneli, sohbet videosu…)|Hatalar: hata türü ve kodda nerede olduğu",
+  "usage.neverTitle": "Asla gönderilmeyenler",
+  "usage.never": "IP adresin (saklanmaz)|Video linkleri ve başlıkları|Dosya adları ve klasörler|Windows kullanıcı adın|Yazdığın hiçbir şey",
+  "usage.change": "Veriler PostHog'un AB'deki sunucularına gider. Bunu istediğin zaman Ayarlar → Uygulama'dan değiştirebilirsin.",
+  "usage.yes": "Evet, gönder",
+  "usage.no": "Hayır",
+  "usage.setting": "Anonim kullanım verisi gönder",
+  "usage.settingDesc": "Sürüm, donanım, indirme hızları, kullanılan özellikler ve hatalar. Link, başlık ya da dosya yok.",
+  "usage.what": "Ne gönderiliyor?"
 }

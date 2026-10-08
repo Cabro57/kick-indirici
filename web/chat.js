@@ -66,6 +66,7 @@ class ChatPanel {
     if (!res.ok) { this.status(res.error); return; }
     this.id = res.id;
     this.live = res.live;
+    track("chat_panel", { source: Object.keys(spec)[0], where: this.root.id });
     if (this.live) this.poll(token);
     this.timer = setInterval(() => this.tick(), 250);
     this.tick();
@@ -255,6 +256,7 @@ class ChatPanel {
       else if (act === "opts") this.showOpts(this.root.querySelector(".chatp-opts").hidden);
       else if (act === "copy" || act === "save") await this.image(act, b);
       else if (act === "video") {
+        track("chat_video_selection", { n: this.sel.size, live: this.live });
         const res = await state.api.chat_video_selection(this.info(), this.selected(), this.live);
         toast(res.ok ? t("chat.vid.queued") : res.error);
       }
@@ -291,6 +293,7 @@ class ChatPanel {
     try {
       const res = await state.api.chat_image(msgs, { ...state.settings.chatImage, clock: this.live }, act);
       if (!res.ok) { toast(res.error); return; }
+      track("chat_image", { act, n: msgs.length, live: this.live });
       if (act === "save") { if (res.saved) toast(t("chat.img.saved")); return; }
       const bytes = Uint8Array.from(atob(res.png), (c) => c.charCodeAt(0));
       await navigator.clipboard.write([new ClipboardItem({ "image/png": new Blob([bytes], { type: "image/png" }) })]);

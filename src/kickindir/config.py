@@ -9,6 +9,8 @@ import sys
 VERSION = "1.0.0"
 
 
+POSTHOG_HOST = "https://eu.i.posthog.com"     # anonim kullanim verisi (izinle): PostHog AB
+POSTHOG_KEY = "phc_mkJ4ar97cCMK3qbYDR6J6bJ3zmsnEqQRT3FqfS5WwjJR"   # proje anahtari: yalnizca olay gonderir, gizli degil
 UPDATE_REPO = "Cabro57/kick-indirici"         # surumler bu GitHub deposunun release'lerinden okunur
 
 

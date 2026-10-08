@@ -144,6 +144,10 @@ class QueueMixin:
                        "fragThreads": self._threads, **self._prefs, "favorites": self.favorites(),
                        "cuts": self._cuts_snapshot()})
 
+    def _note_speed(self, total):
+        self._usage_peak = max(self._usage_peak, total)   # oturumdaki en yuksek toplam hiz (kullanim verisi)
+        return total
+
     def _frag_threads(self):
         return FRAG_THREADS if self._threads == "auto" else self._threads
 
@@ -174,7 +178,7 @@ class QueueMixin:
             "level": self._parallel_limit(),
             "autoParallel": self._parallel == "auto",
             "liveFavorites": sorted(self._live_favs),
-            "totalSpeed": sum(d.speed for d in net),
+            "totalSpeed": self._note_speed(sum(d.speed for d in net)),
             "free": self._free_space(),
             "afterDone": self._after,
             "shutdownAt": self._shutdown_at,
@@ -267,8 +271,12 @@ class QueueMixin:
             pending = [d for d in items if d.status == "queued" and not d.live and not d.chat]
             # canli kayit hemen baslar ve sira tutmaz: yayin beklemez, saatlerce surer.
             # sohbet kaydi da: kucuk JSON istekleri, video sirasini bekletmesin
+            for d in items:
+                if d.status in ("done", "error") and d.began and not d.reported:
+                    d.reported = True
+                    self._usage_download(d)
             for d in [d for d in items if d.status == "queued" and (d.live or d.chat)]:
-                d.status = "preparing"
+                d.status, d.began, d.reported = "preparing", time.time(), False
                 target = self._record_live if d.live else self._download_chat
                 threading.Thread(target=target, args=(d,), daemon=True).start()
             self._tuner.step(sum(d.speed for d in net), len(net), bool(pending))
@@ -280,7 +288,7 @@ class QueueMixin:
                 cap = MAX_PARALLEL if d.short and self._parallel == "auto" else limit
                 if running < cap:
                     running += 1
-                    d.status = "preparing"
+                    d.status, d.began, d.reported = "preparing", time.time(), False
                     threading.Thread(target=self._download, args=(d,), daemon=True).start()
             self._push()
 
