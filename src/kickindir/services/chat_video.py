@@ -1,17 +1,14 @@
-"""Sohbet videosu: mesajlar alttan girip yukari kayar (yesil perde .mp4 ya da saydam .webm). Kareleri Pillow
-cizer (chat_image.Painter), ffmpeg kodlar. Ekran yalnizca yeni mesaj gelince degisir: her degisen kare bir
-kez PNG olarak yazilir ve ffmpeg'e sureleriyle (concat listesi) verilir; arada ayni kare tekrar cizilmez."""
+"""Sohbet videosu: mesajlar alttan girip yukari kayar (yesil perde .mp4 ya da saydam .webm), hareketli
+emote'lar oynar. Kareleri Pillow cizer (chat_image.Painter), ffmpeg'e ham goruntu olarak akar. Bir kare
+yalnizca ekranda bir sey degisince (yeni mesaj, kayma, emote'un sonraki karesi) yeniden cizilir; degismeyen
+kare cizilmeden tekrar gonderilir."""
 
-import os
-import re
-import shutil
 import subprocess
-import tempfile
 import threading
 
 from PIL import Image
 
-from kickindir.services.chat_image import Painter
+from kickindir.services.chat_image import Painter, anim_frame, scaled
 
 FPS = 30
 SLIDE = 5            # yeni mesajin kayarak girisi (kare): ~0,17 sn
@@ -20,90 +17,90 @@ GREEN = (0, 177, 64)
 
 def render_video(messages, duration, opts, out, ffmpeg, progress=lambda frac: None, cancelled=lambda: False):
     """messages: chat_entry kayitlari, t videonun basindan sn (sirali). duration: videonun uzunlugu (sn).
-    opts: bg "green" | "transparent", width, height, font, time / badges / emotes. out: .mp4 ya da .webm.
-    Kare cizimi isin ilk %40'i, kodlama kalani."""
+    opts: bg "green" | "transparent", width, height, font, time / badges / emotes. out: .mp4 ya da .webm."""
     w, h, size = opts.get("width", 400), opts.get("height", 720), opts.get("font", 18)
     pad, gap = round(size * 0.6), round(size * 0.35)
     green = opts.get("bg") != "transparent"
     painter = Painter(opts, w - 2 * pad, size, True)
     painter.prefetch(messages)
     total = max(1, round(duration * FPS))
-    work = tempfile.mkdtemp(prefix="chatvid-")
-    try:
-        frames = []                                   # [(kare no, dosya)]
-        shown = []                                    # ekrandaki mesaj resimleri, en yenisi sonda
-        blank = Image.new("RGBA", (w, h), GREEN + (255,) if green else (0, 0, 0, 0))
+    if green:
+        codec = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-tune", "animation", "-pix_fmt", "yuv420p",
+                 "-movflags", "+faststart"]
+    else:
+        codec = ["-c:v", "libvpx-vp9", "-pix_fmt", "yuva420p", "-crf", "40", "-b:v", "0", "-deadline", "realtime",
+                 "-cpu-used", "8", "-row-mt", "1"]
+    cmd = [ffmpeg, "-hide_banner", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24" if green else "rgba", "-s", f"{w}x{h}",
+           "-r", str(FPS), "-i", "pipe:0", *codec, out]
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    err = []
+    threading.Thread(target=lambda: err.extend(proc.stderr), daemon=True).start()
 
-        def frame(no, offset):
-            im = blank.copy()
-            y = h - pad + offset
-            for tile in reversed(shown):
+    groups = {}
+    for m in messages:
+        no = round(m["t"] * FPS)
+        if 0 <= no < total:
+            groups.setdefault(no, []).append(m)
+    blank = Image.new("RGBA", (w, h), GREEN + (255,) if green else (0, 0, 0, 0))
+    shown = []                    # ekrandaki mesajlar, en yenisi sonda: (resim, hareketli resim yerleri)
+    arrived, rise = -SLIDE, 0     # son mesajin geldigi kare ve kayma payi
+    last_key, buf = None, None
+    try:
+        for f in range(total):
+            if f in groups:
+                new = []
+                for m in groups[f]:
+                    spots = []
+                    new.append((painter.tile(m, spots), spots))
+                shown.extend(new)
+                arrived, rise = f, sum(t.height + gap for t, _ in new)
+                used, keep = 0, 0
+                for tile, _ in reversed(shown):           # ekrandan tasanlari birak
+                    used += tile.height + gap
+                    keep += 1
+                    if used > h + h // 2:
+                        break
+                del shown[:-keep]
+            k = f - arrived
+            offset = round(rise * (1 - (k + 1) / SLIDE) ** 3) if k < SLIDE else 0   # yavaslayarak yerine oturur
+            # gorunen mesajlar ve hareketli resimlerinin o anki kareleri: degismediyse ayni kare tekrar gider
+            t = f / FPS
+            y, visible = h - pad + offset, []
+            for tile, spots in reversed(shown):
                 y -= tile.height
                 if y + tile.height < 0:
                     break
-                im.alpha_composite(tile, (pad, y))
+                visible.append((tile, spots, y))
                 y -= gap
-            path = os.path.join(work, f"{len(frames):07d}.png")
-            (im.convert("RGB") if green else im).save(path, compress_level=1)
-            frames.append((no, path))
-
-        frame(0, 0)
-        groups = {}
-        for m in messages:
-            no = round(m["t"] * FPS)
-            if 0 <= no < total:
-                groups.setdefault(no, []).append(m)
-        starts = sorted(groups)
-        for i, no in enumerate(starts):
-            if cancelled():
-                raise InterruptedError()
-            tiles = [painter.tile(m) for m in groups[no]]
-            shown.extend(tiles)
-            used, keep = 0, 0
-            for tile in reversed(shown):                  # ekrandan tasanlari birak
-                used += tile.height + gap
-                keep += 1
-                if used > h + h // 2:
-                    break
-            del shown[:-keep]
-            rise = sum(t.height + gap for t in tiles)
-            end = starts[i + 1] if i + 1 < len(starts) else total
-            for k in range(SLIDE):
-                if no + k >= end:
-                    break
-                p = (k + 1) / SLIDE
-                frame(no + k, round(rise * (1 - p) ** 3))        # yavaslayarak yerine oturur
-            if i % 50 == 0:
-                progress(0.4 * i / len(starts))
-        lst = os.path.join(work, "list.ffconcat")
-        with open(lst, "w", encoding="utf-8") as fh:
-            fh.write("ffconcat version 1.0\n")
-            for j, (no, path) in enumerate(frames):
-                nxt = frames[j + 1][0] if j + 1 < len(frames) else total
-                fh.write(f"file '{os.path.basename(path)}'\nduration {(nxt - no) / FPS:.6f}\n")
-            fh.write(f"file '{os.path.basename(frames[-1][1])}'\n")
-        if green:
-            codec = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-tune", "animation", "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
-        else:
-            codec = ["-c:v", "libvpx-vp9", "-pix_fmt", "yuva420p", "-crf", "40", "-b:v", "0", "-deadline", "realtime",
-                     "-cpu-used", "8", "-row-mt", "1"]
-        cmd = [ffmpeg, "-hide_banner", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-vf", f"fps={FPS}",
-               *codec, "-progress", "pipe:1", "-nostats", out]
-        proc = subprocess.Popen(cmd, cwd=work, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        err = []
-        threading.Thread(target=lambda: err.extend(proc.stderr), daemon=True).start()
-        for line in proc.stdout:
-            if cancelled():
-                proc.kill()
-                proc.wait()
-                raise InterruptedError()
-            m = re.match(r"out_time_us=(\d+)", line)
-            if m:
-                progress(0.4 + 0.6 * min(1.0, int(m.group(1)) / 1e6 / max(duration, 1)))
+            frames = [anim_frame(url, t) for _, spots, _ in visible for *_, url in spots]
+            key = (offset, len(shown), id(shown[-1][0]) if shown else 0, tuple(id(x) for x in frames))
+            if key != last_key:
+                im = blank.copy()
+                it = iter(frames)
+                for tile, spots, ty in visible:
+                    im.alpha_composite(tile, (pad, ty))
+                    for x, sy, sh, _ in spots:
+                        fr = scaled(next(it), sh)
+                        if 0 <= ty + sy and ty + sy + fr.height <= h:
+                            im.alpha_composite(fr, (pad + x, ty + sy))
+                        else:
+                            part = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+                            part.paste(fr, (pad + x, ty + sy))
+                            im.alpha_composite(part)
+                buf = (im.convert("RGB") if green else im).tobytes()
+                last_key = key
+            proc.stdin.write(buf)
+            if f % 300 == 0:
+                if cancelled():
+                    raise InterruptedError()
+                progress(f / total)
+        proc.stdin.close()
         if proc.wait() != 0:
-            raise RuntimeError("ffmpeg: " + "".join(err[-5:]).strip()[-300:])
-        progress(1.0)
-        return out
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
+            raise RuntimeError("ffmpeg: " + b"".join(err[-5:]).decode(errors="replace").strip()[-300:])
+    except BaseException:
+        proc.kill()
+        proc.wait()
+        raise
+    progress(1.0)
+    return out

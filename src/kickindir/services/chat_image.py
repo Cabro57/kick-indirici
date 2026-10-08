@@ -1,5 +1,7 @@
 """Sohbet mesajlarinin resmi (PNG): renkli adlar, rozetler, emote resimleri, emoji. Pillow ile cizilir;
-ileride sohbet videosunun kareleri de ayni cizimle uretilecek."""
+sohbet videosunun kareleri de ayni cizimle uretilir (hareketli emote'lar orada oynar)."""
+
+import bisect
 
 import io
 import os
@@ -15,6 +17,7 @@ from kickindir.services.chat import EMOTE_URL, hms
 
 FONTS = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")
 _fonts, _images = {}, {}
+_anims = {}                 # hareketli resim: adres -> (kareler, karelerin bitis anlari ms, toplam ms)
 EMOJI = re.compile(r"[\u2190-\u2bff\u3030\u303d\u3297\u3299\ufe0f\u200d\U0001f000-\U0001faff]")
 CJK = re.compile(r"[\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]")
 
@@ -31,15 +34,31 @@ def font(name, size):
 
 
 def fetch_image(url):
-    """Rozet / emote resmi (animasyonluysa ilk kare); alinamazsa None. Bellekte saklanir."""
+    """Rozet / emote resmi (hareketliyse ilk kare; tum kareler _anims'te); alinamazsa None. Bellekte saklanir."""
     if url not in _images:
         try:
             r = cffi_requests.get(url, impersonate="chrome", timeout=10)
             r.raise_for_status()
-            _images[url] = Image.open(io.BytesIO(r.content)).convert("RGBA")
+            im = Image.open(io.BytesIO(r.content))
+            frames, ends, total = [], [], 0
+            for i in range(getattr(im, "n_frames", 1)):
+                im.seek(i)
+                d = im.info.get("duration") or 0
+                total += d if d >= 20 else 100        # tarayicilar gibi: cok kisa / bos sure 100 ms
+                frames.append(im.convert("RGBA"))
+                ends.append(total)
+            _images[url] = frames[0]
+            if len(frames) > 1:
+                _anims[url] = (frames, ends, total)
         except Exception:  # noqa: BLE001 - resim gelmezse yerine ad yazilir
             _images[url] = None
     return _images[url]
+
+
+def anim_frame(url, t):
+    """Hareketli resmin t aninda (sn) gosterilen karesi; butun kopyalar ayni saate gore oynar."""
+    frames, ends, total = _anims[url]
+    return frames[min(len(frames) - 1, bisect.bisect_right(ends, (t * 1000) % total))]
 
 
 def runs(text, regular, emoji, cjk):
@@ -81,7 +100,7 @@ class Painter:
             list(pool.map(fetch_image, urls - _images.keys()))
 
     def items(self, m):
-        """Mesajin ogeleri: ("text", metin, yazi tipi, renk, emoji) | ("img", resim, yukseklik) | ("sp",) | ("gap",)"""
+        """Mesajin ogeleri: ("text", metin, yazi tipi, renk, emoji) | ("img", resim, yukseklik, adres) | ("sp",) | ("gap",)"""
         items = []
         if self.show_time:
             t = m.get("stamp", m.get("t")) or 0                 # stamp: kisa videoda asil saat
@@ -90,7 +109,7 @@ class Painter:
         for u in m.get("badges") or [] if self.show_badges else []:
             img = _images.get(u)
             if img:
-                items += [("img", img, self.badge_h), ("gap",)]
+                items += [("img", img, self.badge_h, u), ("gap",)]
         items += [("text", m.get("user") or "?", self.bold, color(m.get("color")), False),
                   ("text", ":", self.regular, (235, 235, 240), False), ("sp",)]
         content = m.get("content") or m.get("text") or ""
@@ -98,7 +117,7 @@ class Painter:
             em = re.fullmatch(r"\[emote:(\d+):([^\]]*)\]", part)
             img = em and self.show_emotes and _images.get(EMOTE_URL.format(em.group(1)))
             if img:
-                items += [("sp",), ("img", img, self.emote_h)]
+                items += [("sp",), ("img", img, self.emote_h, EMOTE_URL.format(em.group(1)))]
                 continue
             for i, word in enumerate((em.group(2) if em else part).split(" ")):
                 if i or em:
@@ -137,7 +156,9 @@ class Painter:
             x += w
         return [(max([self.line_h] + [it[2] + 2 * self.s for _, it in ln if it[0] == "img"]), ln) for ln in lines]
 
-    def tile(self, m):
+    def tile(self, m, spots=None):
+        """Mesajin resmi. spots bir liste verilirse hareketli resimler cizilmez, yerleri eklenir:
+        (x, y, yukseklik, adres); video her karede o anki kareyi oraya koyar."""
         laid = self.lines(m)
         im = Image.new("RGBA", (self.width, sum(h for h, _ in laid)), (0, 0, 0, 0))
         d = ImageDraw.Draw(im)
@@ -147,7 +168,10 @@ class Painter:
             for x, it in ln:
                 if it[0] == "img":
                     img = scaled(it[1], it[2])
-                    im.alpha_composite(img, (x, mid - img.height // 2))
+                    if spots is not None and it[3] in _anims:
+                        spots.append((x, mid - img.height // 2, it[2], it[3]))
+                    else:
+                        im.alpha_composite(img, (x, mid - img.height // 2))
                 else:
                     _, text, f, rgb, is_emoji = it
                     kw = {"embedded_color": True} if is_emoji else {"fill": rgb}
