@@ -11,8 +11,10 @@ import time
 import webview
 
 from kickindir.config import LIVE_CHAT_LAG, log
+from kickindir.core.engine import Download
+from kickindir.core.util import fill_name
 from kickindir.core.i18n import t
-from kickindir.services.chat import CHUNK, chat_entry, fetch_range
+from kickindir.services.chat import CHUNK, chat_entry, fetch_range, hms
 from kickindir.services.chat_image import render_chat
 from kickindir.services.kick import kick_get, kick_time
 
@@ -256,3 +258,49 @@ class ChatMixin:
         with open(path, "wb") as fh:
             fh.write(png)
         return {"ok": True, "saved": path}
+
+    def chat_video_file(self, path):
+        """Indirilenler'deki sohbetten sohbet videosu (siraya girer). Yanindaki .chat.json varsa mesajlar
+        ondan; yoksa VOD / klip sohbeti yeniden cekilir. Doner: {"ok"} ya da {"ok": False, "error"}."""
+        with self._lock:
+            e = next((x for x in self._history if x["file"] == path and x.get("chat")), None)
+        if not e:
+            return {"ok": False, "error": t("err.fileGone")}
+        base = re.sub(r"(\.chat)?\.(ass|txt|json|html|mp4|webm)$", "", path, flags=re.I)
+        side = base + ".chat.json"
+        if not os.path.isfile(side) and (e.get("live") or not e.get("url")):
+            return {"ok": False, "error": t("err.chatVideoNoJson")}
+        d = Download(e.get("url") or path, e.get("title") or os.path.basename(base), e.get("thumb") or "",
+                     section=None if e.get("sections") else tuple(e["section"]) if e.get("section") else None,
+                     sections=[tuple(x) for x in e["sections"]] if e.get("sections") else None, chat=True)
+        d.formats, d.chat_base, d.key = ["video"], base, d.key + "#video"
+        d.video_src = side if os.path.isfile(side) else ""
+        return self._add_video_job(d)
+
+    def chat_video_selection(self, info, messages, live=False):
+        """Sohbet panelinde secilen mesajlardan kisa sohbet videosu: ilk mesajdan 2 sn once baslar, sondan
+        5 sn sonra biter. Saatler videodaki (canlida yerel) saat olarak kalir. info: {"url", "title", "thumb"}."""
+        msgs = sorted((m for m in messages or [] if isinstance(m, dict) and isinstance(m.get("t"), (int, float))), key=lambda m: m["t"])
+        if not msgs:
+            return {"ok": False, "error": t("err.chatVideoEmpty")}
+        a, b = max(0, msgs[0]["t"] - 2), msgs[-1]["t"] + 5
+        info = info if isinstance(info, dict) else {}
+        title = str(info.get("title") or "chat")
+
+        def stamp(x):
+            return time.strftime("%H.%M.%S", time.localtime(x)) if live else hms(x).replace(":", ".")
+        span = f"{stamp(a)}-{stamp(b)}"
+        d = Download(str(info.get("url") or "chat"), title, str(info.get("thumb") or ""), chat=True)
+        d.key += f"#video@{a}-{b}"
+        d.formats, d.video_clock, d.video_len = ["video"], bool(live), b - a
+        d.video_msgs = [{**m, "t": round(m["t"] - a, 2), "stamp": m["t"]} for m in msgs]
+        d.chat_base = os.path.join(self._folder, fill_name("{title}", "", title, "", "") + " " + span)
+        return self._add_video_job(d)
+
+    def _add_video_job(self, d):
+        with self._lock:
+            if any(o.key == d.key and o.status in ("queued", "preparing", "downloading", "merging") for o in self._downloads.values()):
+                return {"ok": False, "error": t("toast.chatVideoBusy")}
+            self._downloads[d.id] = d
+        self._push(force=True)
+        return {"ok": True}

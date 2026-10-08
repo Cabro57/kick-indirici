@@ -1,6 +1,7 @@
 """Indirme is parcaciklari: video, kesit, canli kayit, sohbet."""
 
 import copy
+import json
 import glob
 import hashlib
 import os
@@ -13,6 +14,7 @@ import yt_dlp
 from yt_dlp.utils import DownloadCancelled
 
 from kickindir.services.chat import chat_entry, fetch_range, write_chat
+from kickindir.services.chat_video import render_video
 from kickindir.config import LIVE_CHAT_LAG, log
 from kickindir.core.engine import out_template
 from kickindir.core.i18n import t
@@ -357,6 +359,12 @@ class WorkerMixin:
         try:
             d.status = "preparing"
             self._push(force=True)
+            formats = d.formats or self._prefs["chatFormats"]
+            if "video" in formats and not self._ffmpeg:
+                raise UserError(t("err.chatVideoNoFfmpeg"))
+            if d.video_msgs is not None or d.video_src:         # yalnizca sohbet videosu: mesajlar hazir
+                self._render_chat_only(d)
+                return
             vid = ""
             if d.chat_range:                                    # biten canli kayit
                 slug = parse_link(d.url)[0] or "kick"
@@ -424,7 +432,9 @@ class WorkerMixin:
             self._push(force=True)
             os.makedirs(os.path.dirname(base) or ".", exist_ok=True)
             files = write_chat(base, messages, {"url": d.url, "channel": slug, "title": d.title,
-                                                "ranges": [[a, b] for a, b, _ in ranges]}, self._prefs["chatFormats"])
+                                                "ranges": [[a, b] for a, b, _ in ranges]}, formats)
+            if "video" in formats:
+                files.append(self._render_chat(d, base, messages, sum(b - a for a, b, _ in ranges)))
             d.filename = files[0]
             d.size = sum(os.path.getsize(f) for f in files)
             d.status, d.pct, d.eta = "done", 100.0, 0
@@ -437,10 +447,54 @@ class WorkerMixin:
                 d.error = str(e)[:200]
                 d.friendly = isinstance(e, UserError)
         finally:
-            d.speed = 0.0
+            d.speed, d.rendering = 0.0, False
             if d.status == "done":
                 self._remember(d)
+                video = os.path.splitext(d.filename)[0].removesuffix(".chat") + ".chat" + self._video_ext()
+                if video != d.filename and os.path.isfile(video) and "video" in (d.formats or self._prefs["chatFormats"]):
+                    self._remember(d, video)                    # sohbet videosu Indirilenler'de ayrica oynatilir
             self._push(force=True)
+
+    def _video_ext(self):
+        return ".webm" if self._prefs["chatVideo"]["bg"] == "transparent" else ".mp4"
+
+    def _render_chat(self, d, base, messages, duration):
+        """Sohbet videosunu base + .chat.mp4 / .chat.webm olarak yazar; ilerleme d.pct'de."""
+        d.status, d.rendering, d.pct, d.eta = "merging", True, 0.0, None
+        self._push(force=True)
+        out = base + ".chat" + self._video_ext()
+        t0 = time.monotonic()
+
+        def progress(frac):
+            d.pct = 100 * frac
+            d.eta = (time.monotonic() - t0) / frac * (1 - frac) if frac > 0.02 else None
+
+        os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+        try:
+            render_video(messages, duration, {**self._prefs["chatVideo"], "clock": d.video_clock}, out, self._ffmpeg,
+                         progress, cancelled=lambda: d.cancel)
+        except BaseException:
+            if os.path.isfile(out):
+                os.remove(out)                                  # yarim video kalmasin
+            raise
+        log.info("sohbet videosu: %s, %d mesaj, %.0f sn", os.path.basename(out), len(messages), time.monotonic() - t0)
+        return out
+
+    def _render_chat_only(self, d):
+        """Hazir mesajlardan (paneldeki secim ya da .chat.json) yalnizca sohbet videosu."""
+        if d.video_msgs is not None:
+            messages, duration = d.video_msgs, d.video_len
+        else:
+            with open(d.video_src, encoding="utf-8") as fh:
+                data = json.load(fh)
+            messages = sorted((m for m in data.get("messages") or [] if isinstance(m, dict) and "t" in m), key=lambda m: m["t"])
+            duration = sum(b - a for a, b in data.get("ranges") or []) or (messages[-1]["t"] + 5 if messages else 0)
+        if not messages:
+            raise UserError(t("err.chatVideoEmpty"))
+        base = d.chat_base
+        d.filename = self._render_chat(d, base, messages, duration)
+        d.size = os.path.getsize(d.filename)
+        d.status, d.pct, d.eta = "done", 100.0, 0
 
     def _chat_base(self, d, slug, when, vid):
         """Sohbet dosyalarinin yolu (uzantisiz): ayni video / kesit daha once indiyse onun adi,

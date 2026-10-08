@@ -70,6 +70,8 @@ Click a video and a large window opens over a dimmed background. On the side are
 
 The **chat** runs beside the video, in step with playback, for VODs, clips, live streams and downloaded files (the chat button in the player bar hides it). Scroll up to read back; *Back to now* follows the video again. Click a timestamp to jump there. Click messages to select them (**Shift** for a range), then **Copy** or **Save** them as a PNG image; the gear sets the background (dark / transparent), width, and whether time, badges and emotes are drawn. The cut editor has the same chat under its *Chat* tab.
 
+**Chat video:** the chat can also be made into its own scrolling video, to put beside the stream in your editor (it is never burned into the stream video). Green screen gives an `.mp4` to key out; transparent gives a `.webm` with alpha (Premiere, DaVinci Resolve, OBS). Size, text size and whether time, badges and emotes show are in Settings → Chat. Make one three ways: tick *Video* among the chat file types (it is made with every chat download), *Make chat video* on a chat in Downloads, or the film button under messages selected in the chat panel (a short video of just those). About 4 minutes per hour of busy chat.
+
 <img src="docs/img/en/watch.jpg" alt="The watch window in the middle" width="900">
 
 <br>

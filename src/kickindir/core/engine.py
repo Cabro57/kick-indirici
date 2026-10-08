@@ -112,6 +112,12 @@ class Download:
         self.chat_range = None          # canli kaydin sohbeti: (baslangic, bitis) epoch sn
         self.chat_base = ""             # sohbet dosyalarinin yolu (uzantisiz): videoyla ayni ad
         self.duration = 0               # sohbet: arayuzden gelen VOD suresi (sn), yoksa API'den
+        self.formats = None             # sohbet: yazilacak bicimler; None = ayarlardaki (or. yalnizca ["video"])
+        self.video_src = ""             # sohbet videosu: mesajlar bu .chat.json'dan (yeniden cekilmez)
+        self.video_msgs = None          # sohbet videosu: panelde secilen mesajlar (t videonun basindan) ...
+        self.video_len = 0              # ... ve videonun uzunlugu (sn)
+        self.video_clock = False        # saatler yerel saat (canli yayindan secilen mesajlar)
+        self.rendering = False          # sohbet videosu ciziliyor / kodlaniyor
         span = ("#" + ",".join(f"{a}-{b}" for a, b in sections) if sections
                 else f"#{section[0]}-{section[1]}" if section else "")
         self.key = url + ("#live" if live else "#chat" + span if chat else span)
@@ -137,13 +143,13 @@ class Download:
     def to_dict(self):
         return {k: getattr(self, k) for k in
                 ("id", "url", "section", "sections", "live", "chat", "started", "title", "thumb", "status", "pct", "size",
-                 "exact", "speed", "eta", "error", "friendly", "filename")}
+                 "exact", "speed", "eta", "error", "friendly", "filename", "rendering")}
 
     def to_saved(self):
         """queue.json kaydi: sonraki acilista ayni indirme yeniden kurulur (.part'tan devam eder)."""
         return {"url": self.url, "title": self.title, "thumb": self.thumb, "chat": self.chat, "withChat": self.with_chat,
                 "chatRange": list(self.chat_range) if self.chat_range else None, "chatBase": self.chat_base,
-                "duration": self.duration, "section": list(self.section) if self.section and not self.sections else None,
+                "duration": self.duration, "formats": self.formats, "videoSrc": self.video_src, "section": list(self.section) if self.section and not self.sections else None,
                 "sections": [list(x) for x in self.sections] if self.sections else None}
 
 

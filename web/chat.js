@@ -6,11 +6,13 @@
 const CHAT_SHOW = 150;     // listede tutulan en fazla mesaj
 
 class ChatPanel {
-  /* now(): oynatilan an (VOD: videoda saniye, canli: epoch sn) ya da null. seek(t): videoyu o ana goturur. */
-  constructor(root, { now, seek }) {
+  /* now(): oynatilan an (VOD: videoda saniye, canli: epoch sn) ya da null. seek(t): videoyu o ana goturur.
+     info(): sohbet videosunun adi icin {url, title, thumb}. */
+  constructor(root, { now, seek, info }) {
     this.root = root;
     this.now = now;
     this.seek = seek;
+    this.info = info;
     this.token = 0;
     this.reset();
     root.classList.add("chatp");
@@ -24,6 +26,7 @@ class ChatPanel {
           <button class="iconbtn" type="button" data-cp="opts" title="${esc(t("chat.img.optsTip"))}" aria-label="${esc(t("chat.img.opts"))}" aria-expanded="false">${icon("settings")}</button>
           <button class="btn sm" type="button" data-cp="copy" title="${esc(t("chat.img.copyTip"))}">${icon("clipboard")}<span>${esc(t("chat.img.copy"))}</span></button>
           <button class="btn sm" type="button" data-cp="save" title="${esc(t("chat.img.saveTip"))}">${icon("download")}<span>${esc(t("chat.img.save"))}</span></button>
+          <button class="iconbtn" type="button" data-cp="video" title="${esc(t("chat.vid.selTip"))}" aria-label="${esc(t("chat.vid.sel"))}">${icon("film")}</button>
           <button class="iconbtn" type="button" data-cp="clear" title="${esc(t("chat.panel.clearSel"))}" aria-label="${esc(t("chat.panel.clearSel"))}">${icon("x")}</button>
         </div>
         <div class="chatp-opts" hidden></div>
@@ -251,6 +254,10 @@ class ChatPanel {
       if (act === "clear") { this.clearSel(); this.resume(); }
       else if (act === "opts") this.showOpts(this.root.querySelector(".chatp-opts").hidden);
       else if (act === "copy" || act === "save") await this.image(act, b);
+      else if (act === "video") {
+        const res = await state.api.chat_video_selection(this.info(), this.selected(), this.live);
+        toast(res.ok ? t("chat.vid.queued") : res.error);
+      }
       return;
     }
     const o = e.target.closest("[data-co]");

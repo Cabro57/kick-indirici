@@ -83,6 +83,10 @@ class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMi
             d.duration = e.get("duration") or 0
             d.chat_range = tuple(e["chatRange"]) if e.get("chatRange") else None
             d.chat_base = e.get("chatBase") or ""
+            d.formats = e.get("formats") if isinstance(e.get("formats"), list) else None
+            d.video_src = e.get("videoSrc") or ""
+            if d.video_src:
+                d.key += "#video"
             d.status = "stopped"            # kendiliginden baslamaz; kullanici "devam" der
             self._downloads[d.id] = d
             self._restored += 1

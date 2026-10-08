@@ -73,7 +73,7 @@ QUEUE_PATH = os.path.join(DATA_DIR, "queue.json")   # bitmemis indirmeler: sonra
 DISK_RESERVE = 512 * 1024 * 1024             # indirme sonrasi diskte kalmasi gereken en az bos alan
 
 
-CHAT_FORMATS = ("ass", "txt", "json", "html")   # sohbet dosya bicimleri; hangileri yazilacagi ayarlardan
+CHAT_FORMATS = ("ass", "txt", "json", "html", "video")   # sohbet dosya bicimleri; hangileri yazilacagi ayarlardan
 
 
 LIVE_CHAT_LAG = 30                           # sohbet API'si canliyi bu kadar sn geriden verir

@@ -791,7 +791,7 @@ function onWatchClosed() {
 
 /* onceki / sonraki: kanalda izgaradaki sira (canli yayin basta), Indirilenler'de listedeki sira */
 function watchList() {
-  if (state.libFocus) return libVisible().filter((e) => e.exists && !e.chat).map((e) => e.file);
+  if (state.libFocus) return libVisible().filter((e) => e.exists && playable(e)).map((e) => e.file);
   const live = state.tab === "vods" && !filtering() && liveItem();
   return [...(live ? [live.url] : []), ...filtered().map((v) => v.url)];
 }
@@ -882,6 +882,14 @@ function syncWatchChat() {
   if (key === watchChat.key) return;
   watchChat.key = key;
   if (on) watchChat.start(spec); else watchChat.stop();
+}
+
+/* sohbet videosunun adi ve kapagi: izlenen video ya da dosya */
+function watchChatInfo() {
+  const e = state.libFocus && libEntry(state.libFocus);
+  const v = !e && state.focus && itemByUrl(state.focus);
+  const x = e || v || {};
+  return { url: x.url || "", title: cleanTitle(x.title || ""), thumb: x.thumb || "" };
 }
 
 /* oynatilan an: VOD'da videodaki saniye; canlida ekrandaki karenin gercek zamani (epoch sn) */
@@ -1052,6 +1060,7 @@ async function onInspectorAction(b) {
   else if (act === "playfile" || act === "lplay") playFile(b.dataset.file);
   else if (act === "lopen") { player.el().pause(); state.api.open_file(b.dataset.file); }   // ayni anda iki yerde calmasin
   else if (act === "lreveal") state.api.reveal_file(b.dataset.file);
+  else if (act === "lchatvideo") state.api.chat_video_file(b.dataset.file).then((r) => toast(r.ok ? t("chat.vid.queued") : r.error));
   else if (act === "ldel") deleteFile(b.dataset.file);
 }
 
@@ -1324,7 +1333,7 @@ function renderRows() {
     row.querySelector(".rtitle").innerHTML = (d.chat ? `<span class="kind">${t("kind.chat")}</span>` : "") + esc(cleanTitle(d.title));
     row.querySelector(".rtitle").title = d.title;
     row.querySelector(".bar i").style.transform = `scaleX(${d.status === "queued" ? 0 : d.pct / 100})`;
-    let status = d.chat && d.status === "merging" ? t("row.writingSubs") : d.chat && d.status === "downloading" ? t("row.chatDownloading") : d.sections && d.status === "merging" && d.pct >= 100 ? statusName("merging") : d.section && d.status === "merging" ? t("row.trimming") : d.live && d.status === "merging" ? t("row.remuxing") : statusName(d.status);
+    let status = d.rendering ? t("row.renderingChat") : d.chat && d.status === "merging" ? t("row.writingSubs") : d.chat && d.status === "downloading" ? t("row.chatDownloading") : d.sections && d.status === "merging" && d.pct >= 100 ? statusName("merging") : d.section && d.status === "merging" ? t("row.trimming") : d.live && d.status === "merging" ? t("row.remuxing") : statusName(d.status);
     if (d.status === "downloading" && d.size) status += ` · ${fmtBytes(d.size * d.pct / 100)} / ${d.exact ? "" : "~"}${fmtBytes(d.size)}`;
     if (d.status === "recording") status += ` · ${d.started ? fmtDuration(Date.now() / 1000 - d.started) : ""} · ${fmtBytes(d.size)}`;
     if (d.status === "stopped" && d.pct > 0) status += " · " + t("row.resumeHint");
@@ -1429,17 +1438,21 @@ function renderLibrary() {
   }
   $("libEmpty").hidden = state.library.length > 0 || state.downloads.length > 0;
   $("histGroups").innerHTML = [...groups].map(([label, list]) => `<section class="histgroup"><h2>${esc(label)}</h2>${list.map((e) => {
-    const sec = e.chat ? " · " + t("lib.chatSubs") : e.sections ? " · " + t("lib.mergedCuts", { n: e.sections.length }) : e.section ? " · " + t("lib.cutRange", { a: fmtDuration(e.section[0]), b: fmtDuration(e.section[1]) }) : e.live ? " · " + t("lib.liveRec") : "";
+    const sec = chatVid(e) ? " · " + t("lib.chatVideo") : e.chat ? " · " + t("lib.chatSubs") : e.sections ? " · " + t("lib.mergedCuts", { n: e.sections.length }) : e.section ? " · " + t("lib.cutRange", { a: fmtDuration(e.section[0]), b: fmtDuration(e.section[1]) }) : e.live ? " · " + t("lib.liveRec") : "";
     const time = new Date(e.done * 1000).toLocaleTimeString(i18n.locale, { hour: "2-digit", minute: "2-digit" });
     const b = (act, ic, label, cls = "") => `<button class="iconbtn ${cls}" type="button" data-ins="${act}" data-file="${esc(e.file)}" title="${esc(label)}" aria-label="${esc(label)}">${icon(ic)}</button>`;
     return `<div class="hrow${e.exists ? "" : " gone"}${state.libFocus === e.file ? " on" : ""}" data-file="${esc(e.file)}" tabindex="0">
       <img class="rthumb${!e.thumb && avatarFor(e.url) ? " avfb" : ""}" src="${esc(e.thumb || avatarFor(e.url) || BLANK)}" alt="">
       <div class="rmain"><p class="rtitle" title="${esc(e.title)}">${e.chat ? `<span class="kind">${t("kind.chat")}</span>` : ""}${esc(cleanTitle(e.title))}</p>
         <p class="hsub num">${esc(e.channel)}${sec} · ${fmtBytes(e.size)} · ${time}${e.exists ? "" : ` · <em>${t("lib.missing")}</em>`}</p></div>
-      <div class="ractions">${e.exists && !e.chat ? b("lplay", "play", t("lib.playHere")) + b("lopen", "external", t("lib.openWindows")) : ""}${e.exists ? b("lreveal", "reveal", t("act.reveal")) : ""}
+      <div class="ractions">${e.exists && playable(e) ? b("lplay", "play", t("lib.playHere")) + b("lopen", "external", t("lib.openWindows")) : ""}${e.exists ? b("lreveal", "reveal", t("act.reveal")) : ""}
         ${b("ldel", "trash", e.exists ? t("lib.deleteRecycle") : t("act.removeFromList"), "danger")}</div></div>`;
   }).join("")}</section>`).join("") || (q && state.library.length ? `<p class="gridnote">${t("lib.noMatch")}</p>` : "");
 }
+
+/* Indirilenler'deki sohbet videosu (.chat.mp4 / .chat.webm): sohbet kaydidir ama video gibi oynar */
+const chatVid = (e) => !!e && e.chat && /\.(mp4|webm)$/i.test(e.file);
+const playable = (e) => !e.chat || chatVid(e);
 
 function libEntry(file) {
   return state.library.find((e) => e.file === file);
@@ -1454,7 +1467,7 @@ async function playFile(file) {
   openWatch();
   renderLibraryInspector();
   if (!e || !e.exists) return;
-  if (e.chat) { player.poster(e.thumb, t("lib.chatPoster")); return; }
+  if (!playable(e)) { player.poster(e.thumb, t("lib.chatPoster")); return; }
   const r = await state.api.media_url(file);
   if (state.libFocus !== file) return;
   if (!r.ok) { player.poster(e.thumb, r.error); return; }
@@ -1473,8 +1486,9 @@ function renderLibraryInspector() {
   facts.push([t("fact.file"), `<span class="num">${esc(e.file.split(/[\\/]/).pop())}</span>`]);
   body.innerHTML = `<h2>${esc(cleanTitle(e.title))}</h2><dl class="facts">${facts.map(([k, x]) => `<dt>${k}</dt><dd>${x}</dd>`).join("")}</dl>
     ${e.exists ? "" : `<p class="insnote">${t("lib.fileGone")}</p>`}`;
-  btns.innerHTML = e.exists && e.chat
-    ? `<button class="btn span" data-ins="lreveal" data-file="${esc(e.file)}">${icon("reveal")}${t("act.reveal")}</button>
+  btns.innerHTML = e.exists && !playable(e)
+    ? `<button class="btn primary span" data-ins="lchatvideo" data-file="${esc(e.file)}" title="${esc(t("chat.vid.makeTip"))}">${icon("film")}${t("chat.vid.make")}</button>
+       <button class="btn span" data-ins="lreveal" data-file="${esc(e.file)}">${icon("reveal")}${t("act.reveal")}</button>
        <button class="btn ghost danger span" data-ins="ldel" data-file="${esc(e.file)}">${icon("trash")}${t("keys.deleteFile")}</button>`
     : e.exists
     ? `<button class="btn" data-ins="lreveal" data-file="${esc(e.file)}">${icon("reveal")}${t("act.reveal")}</button>
@@ -1535,6 +1549,7 @@ function renderSettings() {
   fillSelect($("setSection"), [...$("setSection").options].map((o) => [o.value, o.textContent]), String(s.sectionLength === "auto" ? 30 : s.sectionLength));
   for (const [id, key] of SWITCHES) $(id).setAttribute("aria-checked", !!s[key]);
   renderChatFormats();
+  renderChatVideo();
   fillSelect($("setLimit"), [["0", t("set.unlimited")], ...[1, 2, 5, 10, 20, 50, 100].map((x) => [String(x), `${x} MB/s`])], String(s.speedLimit || 0));
   $("setVersion").textContent = t("set.version", { v: state.cfg.version });
   $("setVolume").value = s.volume;
@@ -1572,7 +1587,25 @@ async function saveSetting(patch, quiet) {
 
 const SWITCHES = [["setHover", "hoverPreview"], ["setMuted", "previewMuted"], ["setNotifyDone", "notifyDone"], ["setNotifyLive", "notifyLive"],
   ["setRemux", "liveRemux"], ["setClip", "clipboardWatch"], ["setUpdate", "updateCheck"], ["setChatAuto", "chatAuto"]];
-const CHAT_FORMATS = ["ass", "txt", "json", "html"];
+const CHAT_FORMATS = ["ass", "txt", "json", "html", "video"];
+const CV_SIZES = [[360, 640], [400, 720], [480, 854], [540, 960], [720, 1280], [1080, 1920], [600, 1080], [1280, 720]];
+const CV_FONTS = [14, 16, 18, 22, 26, 32, 40];
+
+/* sohbet videosu secenekleri: olcu, yazi boyutu, arka plan, saat / rozet / emote */
+function renderChatVideo() {
+  const v = state.settings.chatVideo;
+  fillSelect($("setCvSize"), CV_SIZES.map(([w, h]) => [`${w}x${h}`, `${w}×${h}`]), `${v.width}x${v.height}`);
+  fillSelect($("setCvFont"), CV_FONTS.map((f) => [String(f), `${f} px`]), String(v.font));
+  const chip = (key, on, label, tip) => `<button class="btn sm chiptoggle" type="button" data-cv="${key}" aria-pressed="${on}"${tip ? ` title="${esc(tip)}"` : ""}>${esc(label)}</button>`;
+  $("setCvChips").innerHTML = chip("bg:green", v.bg === "green", t("chat.vid.green"), t("chat.vid.greenTip"))
+    + chip("bg:transparent", v.bg === "transparent", t("chat.vid.transparent"), t("chat.vid.transparentTip"))
+    + chip("time", v.time, t("chat.img.time")) + chip("badges", v.badges, t("chat.img.badges")) + chip("emotes", v.emotes, t("chat.img.emotes"));
+}
+
+async function saveChatVideo(change) {
+  await saveSetting({ chatVideo: { ...state.settings.chatVideo, ...change } });
+  renderChatVideo();
+}
 
 function renderChatFormats() {
   const on = state.settings.chatFormats || [];
@@ -1605,6 +1638,17 @@ function bindSettings() {
     if (!next.length) { toast(t("toast.chatFormatMin")); return; }
     await saveSetting({ chatFormats: next });
     renderChatFormats();
+  });
+  $("setCvSize").addEventListener("change", (e) => {
+    const [width, height] = e.target.value.split("x").map(Number);
+    saveChatVideo({ width, height });
+  });
+  $("setCvFont").addEventListener("change", (e) => saveChatVideo({ font: Number(e.target.value) }));
+  $("setCvChips").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-cv]");
+    if (!b) return;
+    const [k, v] = b.dataset.cv.split(":");
+    saveChatVideo(v ? { [k]: v } : { [k]: !state.settings.chatVideo[k] });
   });
   $("setSection").addEventListener("change", async (e) => {
     await saveSetting({ sectionLength: Number(e.target.value) });
@@ -2747,7 +2791,8 @@ function bindCutter() {
   $("cutDel").addEventListener("click", () => cut.sel != null && removeClip(cut.sel));
   $("cutChain").addEventListener("click", toggleChain);
   try { cut.tab = localStorage.getItem("cutTab") === "chat" ? "chat" : "cuts"; } catch { cut.tab = "cuts"; }
-  cutChat = new ChatPanel($("cutChatPane"), { now: () => (cut.vod ? nowTime() : null), seek: seekTo });
+  cutChat = new ChatPanel($("cutChatPane"), { now: () => (cut.vod ? nowTime() : null), seek: seekTo,
+    info: () => ({ url: cut.vod.url, title: cleanTitle(cut.vod.title), thumb: cut.vod.thumb }) });
   $("sideTabCuts").addEventListener("click", () => setSideTab("cuts"));
   $("sideTabChat").addEventListener("click", () => setSideTab("chat"));
   $("cutDownload").addEventListener("click", downloadCuts);
@@ -3253,7 +3298,7 @@ function bind() {
   });
   for (const id of ["quality", "selQuality"]) $(id).addEventListener("change", (e) => setQuality(e.target.value));
   bindPlayer();
-  watchChat = new ChatPanel($("wChatBody"), { now: watchChatNow, seek: (sec) => { player.el().currentTime = sec; } });
+  watchChat = new ChatPanel($("wChatBody"), { now: watchChatNow, seek: (sec) => { player.el().currentTime = sec; }, info: watchChatInfo });
   $("pChat").addEventListener("click", () => {
     state.settings.chatPanel = !state.settings.chatPanel;
     state.api.set_settings({ chatPanel: state.settings.chatPanel });

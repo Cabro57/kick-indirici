@@ -229,7 +229,7 @@ class QueueMixin:
     def _persist_queue(self):
         """Bitmemis indirmeleri queue.json'a yazar (yalnizca degisince). Canli kayit kaydedilmez:
         yayin o zamana bitmis olur."""
-        items = [d.to_saved() for d in list(self._downloads.values()) if d.status != "done" and not d.live]
+        items = [d.to_saved() for d in list(self._downloads.values()) if d.status != "done" and not d.live and d.video_msgs is None]
         if items != self._saved_queue:
             self._saved_queue = items
             save_queue(items)
@@ -295,20 +295,22 @@ class QueueMixin:
         else:
             toast(t("sb.allDone"), t("toast.dlSummary", n=done) + (t("toast.dlSummaryErr", n=failed) if failed else ""))
 
-    def _remember(self, d):
-        """Biten indirmeyi Indirilenler gecmisine yazar (ayni dosya tekrar inerse guncellenir)."""
-        if not d.filename or not os.path.isfile(d.filename):
+    def _remember(self, d, path=None):
+        """Biten indirmeyi Indirilenler gecmisine yazar (ayni dosya tekrar inerse guncellenir).
+        path: indirmenin ikinci dosyasi (or. sohbetin yanindaki sohbet videosu)."""
+        path = path or d.filename
+        if not path or not os.path.isfile(path):
             return
         thumb = d.thumb
         if (d.section or d.sections) and self._ffmpeg:
-            thumb = self._frame_thumb(d.filename) or thumb    # kesitin kapagi yayininki degil, kesitin kendi karesi
-        entry = {"file": d.filename, "title": d.title, "thumb": thumb, "url": d.url,
+            thumb = self._frame_thumb(path) or thumb    # kesitin kapagi yayininki degil, kesitin kendi karesi
+        entry = {"file": path, "title": d.title, "thumb": thumb, "url": d.url,
                  "section": list(d.section) if d.section else None,
                  "sections": [list(x) for x in d.sections] if d.sections else None, "live": d.live, "chat": d.chat,
                  "channel": parse_link(d.url)[0] or (re.match(r"https://kick\.com/([\w-]+)/clips?/", d.url) or [None, ""])[1],
-                 "size": os.path.getsize(d.filename), "done": time.time()}
+                 "size": os.path.getsize(path), "done": time.time()}
         with self._lock:
-            self._history = [e for e in self._history if e["file"] != d.filename] + [entry]
+            self._history = [e for e in self._history if e["file"] != path] + [entry]
             self._history = self._history[-HISTORY_MAX:]
             save_history(self._history)
         self._queue_chat_for(d)

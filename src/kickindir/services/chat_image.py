@@ -5,6 +5,7 @@ import io
 import os
 import re
 import time
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 
 from PIL import Image, ImageDraw, ImageFont
@@ -45,6 +46,8 @@ def runs(text, regular, emoji, cjk):
     """Metni yazi tipi degisen parcalara boler: [(metin, yazi tipi, emoji mi)]."""
     out = []
     for ch in text:
+        if ch not in "‍️" and unicodedata.category(ch) in ("Cf", "Co", "Cn", "Cc"):
+            continue                    # gorunmez isaretler (or. ayni mesaji tekrar yollamak icin eklenen U+E0000): kutu cizilmesin
         f, e = (emoji, True) if EMOJI.match(ch) else (cjk, False) if CJK.match(ch) else (regular, False)
         if out and out[-1][1] is f:
             out[-1][0] += ch
@@ -53,76 +56,78 @@ def runs(text, regular, emoji, cjk):
     return out
 
 
-def render_chat(messages, opts):
-    """messages: chat_entry kayitlari. opts: bg "dark" | "transparent", time / badges / emotes (bool),
-    width (px), clock (canli: t epoch, saat yerel saat olarak yazilir). Resim 2 kat cozunurlukte cizilir: paylasildiginda keskin kalsin."""
-    s = 2
-    width = max(240, min(1200, int(opts.get("width") or 420))) * s
-    show_time, show_badges, show_emotes = opts.get("time", True), opts.get("badges", True), opts.get("emotes", True)
-    dark = opts.get("bg") != "transparent"
-    size, emote_h, badge_h, pad, gap = 15 * s, 28 * s, 18 * s, 14 * s, 6 * s
-    regular, bold = font("segoeui.ttf", size), font("segoeuib.ttf", size)
-    emoji, cjk = font("seguiemj.ttf", size), font("msyh.ttc", size)
-    line_h = int(size * 1.45)
-    space = draw_len(" ", regular)
+class Painter:
+    """Tek tek mesaj resimleri (saydam zeminli, `width` genisliginde). Resim de video da bunlari dizer.
+    size: yazi boyutu (px, olcek dahil); outline: zemin koyu degilse yazilar okunsun diye siyah kontur."""
 
-    urls = set()
-    for m in messages:
-        if show_badges:
-            urls.update(m.get("badges") or [])
-        if show_emotes:
-            urls.update(EMOTE_URL.format(i) for i in re.findall(r"\[emote:(\d+):", m.get("content") or ""))
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        list(pool.map(fetch_image, urls - _images.keys()))
+    def __init__(self, opts, width, size, outline, s=1):
+        self.opts, self.width, self.s, self.outline = opts, width, s, outline
+        self.show_time, self.show_badges, self.show_emotes = opts.get("time", True), opts.get("badges", True), opts.get("emotes", True)
+        self.emote_h, self.badge_h = round(size * 28 / 15), round(size * 18 / 15)
+        self.regular, self.bold = font("segoeui.ttf", size), font("segoeuib.ttf", size)
+        self.emoji, self.cjk = font("seguiemj.ttf", size), font("msyh.ttc", size)
+        self.line_h = int(size * 1.45)
+        self.space = draw_len(" ", self.regular)
 
-    # her mesaj: ogeler ("text", metin, yazi tipi, renk, emoji) | ("img", resim, yukseklik) | ("sp",)
-    blocks = []
-    for m in messages:
+    def prefetch(self, messages):
+        """Rozet ve emote resimlerini paralel indirir (her biri bir kez)."""
+        urls = set()
+        for m in messages:
+            if self.show_badges:
+                urls.update(m.get("badges") or [])
+            if self.show_emotes:
+                urls.update(EMOTE_URL.format(i) for i in re.findall(r"\[emote:(\d+):", m.get("content") or ""))
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            list(pool.map(fetch_image, urls - _images.keys()))
+
+    def items(self, m):
+        """Mesajin ogeleri: ("text", metin, yazi tipi, renk, emoji) | ("img", resim, yukseklik) | ("sp",) | ("gap",)"""
         items = []
-        if show_time:
-            stamp = time.strftime("%H:%M:%S", time.localtime(m.get("t") or 0)) if opts.get("clock") else hms(m.get("t") or 0)
-            items += [("text", stamp, regular, (140, 140, 150), False), ("sp",)]
-        for u in m.get("badges") or [] if show_badges else []:
+        if self.show_time:
+            t = m.get("stamp", m.get("t")) or 0                 # stamp: kisa videoda asil saat
+            stamp = time.strftime("%H:%M:%S", time.localtime(t)) if self.opts.get("clock") else hms(t)
+            items += [("text", stamp, self.regular, (140, 140, 150), False), ("sp",)]
+        for u in m.get("badges") or [] if self.show_badges else []:
             img = _images.get(u)
             if img:
-                items += [("img", img, badge_h), ("gap",)]
-        items += [("text", m.get("user") or "?", bold, color(m.get("color")), False), ("text", ":", regular, (235, 235, 240), False), ("sp",)]
+                items += [("img", img, self.badge_h), ("gap",)]
+        items += [("text", m.get("user") or "?", self.bold, color(m.get("color")), False),
+                  ("text", ":", self.regular, (235, 235, 240), False), ("sp",)]
         content = m.get("content") or m.get("text") or ""
         for part in re.split(r"(\[emote:\d+:[^\]]*\])", content):
             em = re.fullmatch(r"\[emote:(\d+):([^\]]*)\]", part)
-            img = em and show_emotes and _images.get(EMOTE_URL.format(em.group(1)))
+            img = em and self.show_emotes and _images.get(EMOTE_URL.format(em.group(1)))
             if img:
-                items += [("sp",), ("img", img, emote_h)]
+                items += [("sp",), ("img", img, self.emote_h)]
                 continue
             for i, word in enumerate((em.group(2) if em else part).split(" ")):
                 if i or em:
                     items.append(("sp",))
-                for text, f, e in runs(word, regular, emoji, cjk):
+                for text, f, e in runs(word, self.regular, self.emoji, self.cjk):
                     items.append(("text", text, f, (235, 235, 240), e))
-        blocks.append(items)
+        return items
 
-    # satirlara yerlestirme: kelime sigmazsa alt satira; tek basina sigmayan uzun kelime harf harf bolunur
-    inner = width - 2 * pad
-    laid = []                       # [(satir yuksekligi, [(x, oge)])]
-    for items in blocks:
+    def lines(self, m):
+        """Satirlara yerlestirme: kelime sigmazsa alt satira; tek basina sigmayan uzun kelime harf harf
+        bolunur. [(satir yuksekligi, [(x, oge)])]"""
         lines, x, prev = [[]], 0, None
-        for it in items:
+        for it in self.items(m):
             if it[0] == "sp":
-                x += space if x and prev != "sp" else 0
+                x += self.space if x and prev != "sp" else 0
                 prev = "sp"
                 continue
             prev = it[0]
             if it[0] == "gap":
-                x += 3 * s
+                x += 3 * self.s
                 continue
             w = item_width(it)
-            if x + w > inner and x > 0:
+            if x + w > self.width and x > 0:
                 lines.append([])
                 x = 0
-            if w > inner and it[0] == "text":
+            if w > self.width and it[0] == "text":
                 for ch in it[1]:
                     cw = draw_len(ch, it[2])
-                    if x + cw > inner:
+                    if x + cw > self.width:
                         lines.append([])
                         x = 0
                     lines[-1].append((x, ("text", ch, it[2], it[3], it[4])))
@@ -130,32 +135,48 @@ def render_chat(messages, opts):
                 continue
             lines[-1].append((x, it))
             x += w
-        for ln in lines:
-            h = max([line_h] + [it[2] + 2 * s for _, it in ln if it[0] == "img"])
-            laid.append((h, ln))
-        laid.append((gap, []))
-    if laid:
-        laid.pop()
+        return [(max([self.line_h] + [it[2] + 2 * self.s for _, it in ln if it[0] == "img"]), ln) for ln in lines]
 
-    height = sum(h for h, _ in laid) + 2 * pad
-    im = Image.new("RGBA", (width, max(height, 2 * pad)), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
+    def tile(self, m):
+        laid = self.lines(m)
+        im = Image.new("RGBA", (self.width, sum(h for h, _ in laid)), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        y = 0
+        for h, ln in laid:
+            mid = y + h // 2
+            for x, it in ln:
+                if it[0] == "img":
+                    img = scaled(it[1], it[2])
+                    im.alpha_composite(img, (x, mid - img.height // 2))
+                else:
+                    _, text, f, rgb, is_emoji = it
+                    kw = {"embedded_color": True} if is_emoji else {"fill": rgb}
+                    if self.outline and not is_emoji:
+                        kw.update(stroke_width=self.s, stroke_fill=(0, 0, 0))
+                    d.text((x, mid), text, font=f, anchor="lm", **kw)
+            y += h
+        return im
+
+
+def render_chat(messages, opts):
+    """messages: chat_entry kayitlari. opts: bg "dark" | "transparent", time / badges / emotes (bool),
+    width (px), clock (canli: t epoch, saat yerel saat olarak yazilir). Resim 2 kat cozunurlukte
+    cizilir: paylasildiginda keskin kalsin."""
+    s = 2
+    width = max(240, min(1200, int(opts.get("width") or 420))) * s
+    dark = opts.get("bg") != "transparent"
+    pad, gap = 14 * s, 6 * s
+    painter = Painter(opts, width - 2 * pad, 15 * s, not dark, s)
+    painter.prefetch(messages)
+    tiles = [painter.tile(m) for m in messages]
+    height = sum(t.height for t in tiles) + gap * max(0, len(tiles) - 1) + 2 * pad
+    im = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     if dark:
-        d.rounded_rectangle((0, 0, width - 1, im.height - 1), radius=10 * s, fill=(24, 24, 27, 255))
+        ImageDraw.Draw(im).rounded_rectangle((0, 0, width - 1, height - 1), radius=10 * s, fill=(24, 24, 27, 255))
     y = pad
-    for h, ln in laid:
-        mid = y + h // 2
-        for x, it in ln:
-            if it[0] == "img":
-                img = scaled(it[1], it[2])
-                im.alpha_composite(img, (pad + x, mid - img.height // 2))
-            else:
-                _, text, f, rgb, is_emoji = it
-                kw = {"embedded_color": True} if is_emoji else {"fill": rgb}
-                if not dark and not is_emoji:
-                    kw.update(stroke_width=s, stroke_fill=(0, 0, 0))
-                d.text((pad + x, mid), text, font=f, anchor="lm", **kw)
-        y += h
+    for tile in tiles:
+        im.alpha_composite(tile, (pad, y))
+        y += tile.height + gap
     out = io.BytesIO()
     im.save(out, "PNG", optimize=True)
     return out.getvalue()

@@ -164,8 +164,8 @@ time {{ color: #777; font-variant-numeric: tabular-nums; margin-right: 8px; }}
 
 def write_chat(base, messages, meta, formats):
     """Secilen bicimlerde base + uzanti dosyalari yazar; yazilan dosyalarin listesini dondurur
-    (ilki Indirilenler'de gosterilecek dosya)."""
-    order = [f for f in ("ass", "html", "txt", "json") if f in formats] or ["ass"]
+    (ilki Indirilenler'de gosterilecek dosya). Video bicimi burada yazilmaz (services.chat_video)."""
+    order = [f for f in ("ass", "html", "txt", "json") if f in formats]
     files = []
     for f in order:
         path = base + (".chat.json" if f == "json" else ".chat.html" if f == "html" else ".chat.txt" if f == "txt" else ".ass")

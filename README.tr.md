@@ -70,6 +70,8 @@ Bir videoya tıkla: karartılmış bir arka plan üstünde büyük bir pencere a
 
 **Sohbet** videonun yanında, oynatmayla eşzamanlı akar: yayın geçmişlerinde, kliplerde, canlı yayında ve indirilen dosyalarda (oynatıcı çubuğundaki sohbet düğmesi gizler). Geriye okumak için yukarı kaydır; *Şimdiye dön* yeniden videoyu takip eder. Saate tıklayınca video o ana gider. Mesajlara tıklayıp seç (**Shift** ile aralık), sonra **Kopyala** ya da **Kaydet** ile PNG resmi al; dişli düğmesi arka planı (koyu / saydam), genişliği ve saat, rozet, emote çizilip çizilmeyeceğini ayarlar. Kesit editöründe aynı sohbet *Sohbet* sekmesinde.
 
+**Sohbet videosu:** sohbet ayrı, akan bir video olarak da hazırlanabilir; düzenleyicide yayının yanına koymak için (yayın videosunun üstüne gömülmez). Yeşil perde, yeşili silinecek bir `.mp4` verir; saydam, saydamlığı olan bir `.webm` verir (Premiere, DaVinci Resolve, OBS). Ölçü, yazı boyutu ve saat, rozet, emote gösterilip gösterilmeyeceği Ayarlar → Sohbet'te. Üç yoldan yapılır: sohbet dosya türlerinde *Video*yu seç (her sohbet indirmesiyle hazırlanır), İndirilenler'deki bir sohbette *Sohbet videosu oluştur*, ya da sohbet panelinde seçilen mesajların altındaki film düğmesi (yalnızca o mesajların kısa videosu). Yoğun sohbetin saati yaklaşık 4 dakika sürer.
+
 <img src="docs/img/izleme-penceresi.jpg" alt="Ortada açılan izleme penceresi" width="900">
 
 <br>
