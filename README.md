@@ -7,7 +7,7 @@
 **Kick yayınlarını, kliplerini ve canlı yayınlarını hattın izin verdiği hızla indir.**
 İzle, içinden istediğin anı kes, canlıyı kaydet. Hepsi tek pencerede.
 
-![Sürüm](https://img.shields.io/badge/sürüm-1.1.0-53FC18?style=flat-square&labelColor=0b0e0f)
+![Sürüm](https://img.shields.io/badge/sürüm-1.0.0-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-53FC18?style=flat-square&labelColor=0b0e0f)
 
 <br>
@@ -20,7 +20,7 @@
 
 ## İçindekiler
 
-[Neler yapar](#neler-yapar) · [Kurulum](#kurulum) · [Nasıl kullanılır](#nasıl-kullanılır) · [Kısayollar](#kısayollar) · [Ayarlar ve dosyalar](#ayarlar-ve-dosyalar) · [Güncellemeler](#güncellemeler) · [Sorun giderme](#sorun-giderme) · [Gizlilik](#gizlilik) · [Lisans ve uyarılar](#lisans-ve-uyarılar)
+[Neler yapar](#neler-yapar) · [Kurulum](#kurulum) · [Nasıl kullanılır](#nasıl-kullanılır) · [Kısayollar](#kısayollar) · [Ayarlar ve dosyalar](#ayarlar-ve-dosyalar) · [Güncellemeler](#güncellemeler) · [Sorun giderme](#sorun-giderme) · [Lisans ve uyarılar](#lisans-ve-uyarılar)
 
 <br>
 
@@ -64,8 +64,6 @@ Yıldıza basınca yayıncı soldaki şeride eklenir. Canlıya geçince yeşil h
 Bir videoya tıkla: karartılmış bir arka plan üstünde büyük bir pencere açılır. Sağ tarafta **kalite seçimi** ve işlemler durur: *Tamamını indir*, *Kesit al*, *Sohbeti indir*.
 
 **← →** tuşları ya da kenarlardaki oklar bir önceki / sonraki videoya geçer. **Esc** kapatır ve videoyu durdurur.
-
-**Sohbet** videonun yanında, oynatmayla eşzamanlı akar: yayın geçmişlerinde, kliplerde, canlı yayında ve indirilen dosyalarda (oynatıcı çubuğundaki sohbet düğmesi gizler). Geriye okumak için yukarı kaydır; *Şimdiye dön* yeniden videoyu takip eder. Saate tıklayınca video o ana gider. Mesajlara tıklayıp seç (**Shift** ile aralık), sonra **Kopyala** ya da **Kaydet** ile PNG resmi al; dişli düğmesi arka planı, genişliği ve saat, rozet, emote gösterimini ayarlar. Kesit editöründe aynı sohbet *Sohbet* sekmesinde.
 
 <img src="images/izleme-penceresi.jpg" alt="Ortada açılan izleme penceresi" width="900">
 
@@ -134,9 +132,7 @@ Bitenler güne göre gruplanır. Dosya uygulamanın içinde oynar, Windows oynat
 | **Hız ayarı gerektirmez** | Aynı anda kaç video ineceğini (1–6) program, toplam hızı ölçerek kendisi ayarlar. Her video parçalarını 8–32 bağlantıyla çeker. |
 | **Hız sınırı** | Oyun ya da yayın izlerken hattı doldurmasın diye toplam hıza üst sınır koyabilirsin. |
 | **Canlı kayıt** | Canlı yayını şu andan itibaren kaydeder. Bitince `.ts` dosyası `.mp4`'e çevrilir. |
-| **Sohbeti indir** | Yayının, kesitin, klibin ya da canlı kaydın sohbetini eksiksiz indirir: `.ass` altyazı (VLC / MPC videonun üstünde akıtır), `.txt`, `.json`, `.html`. *Videolarla birlikte sohbeti de indir* açıksa her indirmeyle gelir. |
-| **Sohbet videosu** | Sohbeti ayrı, akan bir video olarak hazırlar; düzenleyicide yayının yanına koymak için. Yeşil perde `.mp4` ya da saydam `.webm`; ölçü, yazı boyutu, saat / rozet / emote Ayarlar → Sohbet'te. İndirilenler'deki sohbetten ya da paneldeki seçili mesajlardan da yapılır. |
-| **İngilizce arayüz** | Windows dili Türkçe değilse İngilizce açılır; Ayarlar'dan değişir. |
+| **Sohbeti indir** | VOD'un sohbetini `.ass` altyazı (VLC / MPC videonun üstünde akıtır) ve `.chat.json` olarak kaydeder. |
 | **Kaldığı yerden devam** | Program kapanırsa yarım kalanlar bir sonraki açılışta *Devam et* ile sürer. |
 | **Disk koruması** | İndirmeden önce boş yer kontrol edilir. Sığmayan indirme açık bir mesajla başarısız olur, kuyruğun geri kalanı sürer. |
 | **Bitince** | Kuyruk bitince hiçbir şey yapma, uykuya al ya da bilgisayarı kapat (60 sn geri sayım, iptal edilebilir). |
@@ -337,18 +333,6 @@ Ayarlarda *Canlı kaydı mp4'e çevir* kapalıdır. Uygulamanın oynatıcısı `
 </details>
 
 <br>
-
-<br>
-
-## Gizlilik
-
-Program, **anonim kullanım verisi** gönderip gönderemeyeceğini bir kez kurulumda, bir kez de ilk açılışta sorar. Cevap verene kadar hiçbir şey gönderilmez; *Hayır* dersen hiç gönderilmez. İstediğin zaman **Ayarlar → Uygulama → Anonim kullanım verisi gönder**'den değiştirebilirsin (*Ne gönderiliyor?* tam listeyi gösterir).
-
-**Gönderilenler:** program sürümü, Windows sürümü ve dil; bilgisayarında üretilen rastgele bir kurulum kimliği (seninle ilişkisi yok); donanım (işlemci, çekirdek sayısı, bellek, ekran kartı, ekran, indirme klasörünün SSD mi HDD mi olduğu); her indirme için türü, **kanal adı**, boyutu, süresi, hızı ve indirme ayarları; hangi özelliklerin kullanıldığı; hatalar (hata türü ve kodda nerede olduğu; klasörler ve kullanıcı adın çıkarılır).
-
-**Asla gönderilmeyenler:** IP adresin (saklanmaz), video linkleri ya da başlıkları, dosya adları ya da klasörler, Windows kullanıcı adın, yazdığın hiçbir şey.
-
-Veriler [PostHog](https://posthog.com)'un AB'deki sunucularına gider ve yalnızca kaç kişinin hangi sürümü kullandığını, indirmelerin gerçek bağlantılarda ne hızda olduğunu ve önce hangi hataların düzeltileceğini görmek için kullanılır.
 
 <br>
 
