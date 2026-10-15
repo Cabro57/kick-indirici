@@ -678,5 +678,15 @@
   "usage.no": "No",
   "usage.setting": "Send anonymous usage data",
   "usage.settingDesc": "Version, hardware, download speeds, used features and errors. No links, titles or files.",
-  "usage.what": "What is sent?"
+  "usage.what": "What is sent?",
+  "err.capcutMissing": "CapCut is not installed. Install CapCut for Windows and try again.",
+  "err.capcutProbe": "Could not read the video's length and size. The file may be damaged.",
+  "err.capcutWrite": "Could not write the CapCut project. Check that the CapCut drafts folder is writable.",
+  "capcut.withChat": "Add chat video",
+  "capcut.open": "Open in CapCut",
+  "capcut.done": "CapCut project \"{name}\" is ready. If CapCut was already open, restart it to see the project.",
+  "capcut.cutsTip": "Downloads the cuts, then puts them one after another in a new CapCut project at the stream's own size and opens CapCut.",
+  "capcut.cutsQueued": "{n} cuts are downloading. CapCut opens when they are done.",
+  "capcut.cutsFailed": "A cut did not download, so the CapCut project was not made. Retry the cut in Downloads.",
+  "cut.follow": "Back to playhead"
 }

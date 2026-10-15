@@ -527,7 +527,7 @@
   "err.chatVideoNoFfmpeg": "Sohbet videosu için ffmpeg gerekli.",
   "err.chatVideoEmpty": "Videoya konacak mesaj yok.",
   "err.chatVideoNoJson": "Bu sohbetin yanında .chat.json dosyası yok, yeniden okunamıyor. Sonraki indirmeler için Ayarlar → Sohbet'te \"Veri (.json)\" seçeneğini aç.",
-  "cut.withChat": "Sohbetiyle",
+  "cut.withChat": "Sohbetle",
   "cut.withChatTip": "Her kesitin sohbetini de videoyla aynı adla indir",
   "set.chat": "Sohbet",
   "set.chatAuto": "Videoyla birlikte sohbeti indir",
@@ -604,5 +604,15 @@
   "usage.no": "Hayır",
   "usage.setting": "Anonim kullanım verisi gönder",
   "usage.settingDesc": "Sürüm, donanım, indirme hızları, kullanılan özellikler ve hatalar. Link, başlık ya da dosya yok.",
-  "usage.what": "Ne gönderiliyor?"
+  "usage.what": "Ne gönderiliyor?",
+  "err.capcutMissing": "CapCut kurulu değil. Windows için CapCut'ı kurup yeniden dene.",
+  "err.capcutProbe": "Videonun süresi ve boyutu okunamadı. Dosya bozuk olabilir.",
+  "err.capcutWrite": "CapCut projesi yazılamadı. CapCut taslak klasörüne yazılabildiğini kontrol et.",
+  "capcut.withChat": "Sohbet videosunu ekle",
+  "capcut.open": "CapCut'ta aç",
+  "capcut.done": "\"{name}\" CapCut projesi hazır. CapCut zaten açıksa projeyi görmek için yeniden başlat.",
+  "capcut.cutsTip": "Kesitleri indirir, sonra yayının kendi boyutunda yeni bir CapCut projesinde arka arkaya dizer ve CapCut'ı açar.",
+  "capcut.cutsQueued": "{n} kesit iniyor. Bitince CapCut açılacak.",
+  "capcut.cutsFailed": "Bir kesit inmedi, bu yüzden CapCut projesi oluşturulmadı. Kesiti İndirilenler'den yeniden dene.",
+  "cut.follow": "Oynatma çizgisine dön"
 }

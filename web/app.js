@@ -1070,6 +1070,8 @@ async function onInspectorAction(b) {
     track("chat_video_file");
     state.api.chat_video_file(b.dataset.file).then((r) => toast(r.ok ? t("chat.vid.queued") : r.error));
   }
+  else if (act === "lcapcut") openInCapcut(b);
+  else if (act === "lccchat") { capcut.chat = !capcut.chat; saveCapcut(); b.setAttribute("aria-checked", capcut.chat); }
   else if (act === "ldel") deleteFile(b.dataset.file);
 }
 
@@ -1504,9 +1506,36 @@ function renderLibraryInspector() {
     : e.exists
     ? `<button class="btn" data-ins="lreveal" data-file="${esc(e.file)}">${icon("reveal")}${t("act.reveal")}</button>
        <button class="btn" data-ins="lopen" data-file="${esc(e.file)}">${icon("external")}${t("lib.openOutside")}</button>
+       ${e.chat ? "" : capcutBox(e)}
        <button class="btn ghost danger span" data-ins="ldel" data-file="${esc(e.file)}">${icon("trash")}${t("keys.deleteFile")}</button>`
     : `<button class="btn ghost span" data-ins="ldel" data-file="${esc(e.file)}">${icon("x")}${t("act.removeFromList")}</button>`;
   syncWatchChat();
+}
+
+/* CapCut'ta ac: video kendi boyutunda gider; varsa ayni anin sohbet videosu ust ize eklenir (son secim hatirlanir) */
+const capcut = { chat: true };
+try { Object.assign(capcut, JSON.parse(localStorage.getItem("capcut") || "{}")); } catch { /* depolama kapali */ }
+const saveCapcut = () => { try { localStorage.setItem("capcut", JSON.stringify(capcut)); } catch { /* depolama kapali */ } };
+const chatFileFor = (file) => {
+  const base = file.replace(/\.[^.\\/]+$/, "");
+  return [".chat.mp4", ".chat.webm"].map((x) => libEntry(base + x)).find((c) => c && c.exists);
+};
+
+function capcutBox(e) {
+  const chat = chatFileFor(e.file)
+    ? `<div class="ccrow"><span>${t("capcut.withChat")}</span><button class="switch" type="button" role="switch" aria-checked="${capcut.chat}" aria-label="${esc(t("capcut.withChat"))}" data-ins="lccchat"><i></i></button></div>` : "";
+  return `<div class="capcutbox span">${chat}
+    <button class="btn primary" data-ins="lcapcut" data-file="${esc(e.file)}">${icon("film")}${t("capcut.open")}</button></div>`;
+}
+
+async function openInCapcut(btn) {
+  const file = btn.dataset.file;
+  btn.disabled = true;
+  try {
+    const r = await state.api.capcut_open(file, capcut.chat && !!chatFileFor(file));
+    toast(r.ok ? t("capcut.done", { name: r.name }) : r.error);
+    if (r.ok) track("capcut_open", {});
+  } finally { btn.disabled = false; }
 }
 
 /* onay penceresi: true/false doner. Varsayilan odak "Vazgec"te; Esc ve disari tik de vazgecer. */
@@ -1864,6 +1893,7 @@ const cut = {
   strip: null,               // cizelgenin kare/ses seridi: { uuid, segs, pps, fe, data, busy, note }
   src: "",                   // onizlemenin HLS adresi (canlida "Canliya git" yeniden yukler)
   stripTimer: 0,
+  follow: true,              // oynarken cizelge oynatma cizgisini izler; kullanici gezinince kapanir
 };
 const LIVE_BACK = 60;       // canlidan kesitte oynatici yayinin ucundan bu kadar once acilir
 const RATES = [0.25, 0.5, 0.75, 1, 1.5, 2, 4];
@@ -2063,7 +2093,20 @@ function seekTo(t) {
   cut.stopAt = null;
   if (cut.chain) { cut.chain = null; renderCutter(); }
   cut.main.to(t);
+  cut.follow = true;
   followView(t, true);
+}
+
+/* kullanici gorunen araligi degistirdi (kaydirma, yakinlasma, genel bakis): oynatma cizgisi
+   gorunumde kaldiysa izlemeye devam, disarida kaldiysa birakir ve "Oynatma cizgisine don" cikar */
+function userView() {
+  const t = nowTime();
+  cut.follow = $("cutVideo").paused && t >= cut.view[0] && t <= cut.view[1];
+}
+function backToHead() {
+  cut.follow = true;
+  followView(nowTime(), true);
+  drawTimeline();
 }
 
 /* ---------- kayitli kesitler ----------
@@ -2573,6 +2616,8 @@ function paintHeads() {
   $("cutDur").textContent = dur ? fmtDuration(dur) : "–";
   const x = xOf(t);
   $("tlHead").hidden = !dur || x < 0 || x > 100;
+  $("tlFollow").hidden = !dur || (x >= 0 && x <= 100 && (cut.follow || v.paused));
+  $("tlFollow").classList.toggle("left", x < 50);
   $("tlHead").style.left = `${x}%`;
   $("ovHead").style.left = dur ? `${(100 * t) / dur}%` : "0";
   const icon_ = v.paused ? "play" : "pause";
@@ -2595,7 +2640,8 @@ function tick() {
   }
   if (!v.paused && !cut.drag) {
     const [s, e] = cut.view;
-    if (v.currentTime > e || v.currentTime < s) { followView(v.currentTime, false); drawTimeline(); }
+    const inside = v.currentTime >= s && v.currentTime <= e;
+    if (cut.follow && !inside) { followView(v.currentTime, false); drawTimeline(); }
   }
   paintHeads();
   cut.raf = requestAnimationFrame(tick);
@@ -2649,8 +2695,10 @@ function renderCutter() {
         </div>
       </div>` + (sel ? `
       <div class="cutedit">
-        <input class="cfield" data-field="name" maxlength="80" spellcheck="false" placeholder="${esc(t("cut.namePh"))}" aria-label="${esc(t("cut.name"))}" value="${esc(c.name || "")}">
-        <input class="cfield" data-field="note" maxlength="300" placeholder="${esc(t("cut.notePh"))}" aria-label="${esc(t("cut.note"))}" value="${esc(c.note || "")}">
+        <div class="cfields">
+          <input class="cfield" data-field="name" maxlength="80" spellcheck="false" placeholder="${esc(t("cut.namePh"))}" title="${esc(t("cut.namePh"))}" aria-label="${esc(t("cut.name"))}" value="${esc(c.name || "")}">
+          <input class="cfield" data-field="note" maxlength="300" placeholder="${esc(t("cut.notePh"))}" aria-label="${esc(t("cut.note"))}" value="${esc(c.note || "")}">
+        </div>
         ${["a", "b"].map((k) => `
         <div class="edgerow">
           <span class="edgelbl">${t(`cut.edge.${k}`)}</span>
@@ -2664,17 +2712,23 @@ function renderCutter() {
       </div>` : "");
     ol.append(li);
   });
+  if (cut.sel !== cut.shownSel) {         // secim degisti: satirin basi gorunsun
+    cut.shownSel = cut.sel;
+    const li = ol.querySelector(".cutrow.sel");
+    li && li.scrollIntoView({ block: "nearest" });
+  }
   $("cutEmpty").hidden = list.length > 0;
   $("cutCount").textContent = list.length || "";
   const total = list.reduce((s, c) => s + c.b - c.a, 0);
   const merge = cut.mode === "merge" && list.length > 1;
   for (const b of document.querySelectorAll(".outmode [data-mode]")) b.setAttribute("aria-checked", String(b.dataset.mode === cut.mode));
-  $("cutChat").setAttribute("aria-pressed", String(!!cut.withChat));
+  $("cutChat").setAttribute("aria-checked", String(!!cut.withChat));
   const q = qualityName($("quality").value);
   $("cutInfo").textContent = !list.length ? t("cut.infoEmpty", { q, n: MIN_CUT })
     : merge ? t("cut.infoMerge", { n: list.length, d: fmtDuration(total), q })
     : t("cut.infoSplit", { n: list.length, d: fmtDuration(total), q });
   $("cutDownload").disabled = !list.length;
+  $("cutCapcut").disabled = !list.length;
   $("cutDownloadLabel").textContent = merge ? t("cut.dlMerge") : t("cut.dl", { n: list.length });
   $("cutDel").disabled = cut.sel == null;
   persistCuts(cut.vod);
@@ -2684,19 +2738,43 @@ function renderCutter() {
   drawTimeline();
 }
 
-async function downloadCuts() {
+/* kesit editorundeki kesitlerden siraya girecek ogeler (ayir: her kesit ayri dosya, birlestir: tek dosya) */
+function cutItems(list) {
   const vod = cut.vod;
-  const list = cutClips();
-  if (!list.length) return;
-  track("cut_download", { n: list.length, mode: cut.mode, with_chat: !!cut.withChat });
   const title = cleanTitle(vod.title);
-  const merge = cut.mode === "merge" && list.length > 1;
-  const items = merge
+  return cut.mode === "merge" && list.length > 1
     ? [{ url: vod.url, thumb: vod.thumb, sections: list.map((c) => [c.a, c.b]), title: `${t("cut.count", { n: list.length })} · ${title}`, withChat: !!cut.withChat }]
     : list.map((c) => ({
       url: vod.url, thumb: vod.thumb, start: c.a, end: c.b, withChat: !!cut.withChat,
       title: `${c.name ? `${c.name} · ` : ""}${fmtDuration(c.a)}–${fmtDuration(c.b)} · ${title}`,
     }));
+}
+
+/* kesitleri indirir; hepsi inince arka ucta tek CapCut taslagi yazilir, CapCut acilir (app.capcutDone) */
+async function capcutCuts() {
+  const list = cutClips();
+  if (!list.length) return;
+  const vod = cut.vod;
+  track("capcut_cuts", { n: list.length, mode: cut.mode, with_chat: !!cut.withChat });
+  const name = `${vod.channel || (state.channel && state.channel.slug) || "Kick"} ${cleanTitle(vod.title)}`.slice(0, 70);
+  const r = await state.api.capcut_cuts(cutItems(list), name);
+  if (!r.ok) { toast(r.error); return; }
+  state.cuts.delete(vod.url);
+  closeCutter();
+  toast(t("capcut.cutsQueued", { n: list.length }));
+}
+
+function capcutDone(r) {
+  toast(r.ok ? t("capcut.done", { name: r.name }) : r.error);
+}
+
+async function downloadCuts() {
+  const vod = cut.vod;
+  const list = cutClips();
+  if (!list.length) return;
+  track("cut_download", { n: list.length, mode: cut.mode, with_chat: !!cut.withChat });
+  const merge = cut.mode === "merge" && list.length > 1;
+  const items = cutItems(list);
   const n = await state.api.enqueue(items);
   state.cuts.delete(vod.url);
   closeCutter();
@@ -2716,7 +2794,7 @@ function cutterKey(e) {
   if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
   if (e.ctrlKey || e.altKey || e.metaKey) return;
   const v = $("cutVideo");
-  const k = e.key.toLowerCase();
+  const k = e.key.toLowerCase().replace(/[ıİ]|i̇/g, "i");   // Turkce klavyede I tusu "ı" yazar
   const c = selClip();
   if (k === " ") { e.preventDefault(); v.paused ? v.play() : v.pause(); }
   else if (k === "arrowleft") { e.preventDefault(); seekTo(nowTime() - (e.shiftKey ? 30 : 5)); }
@@ -2837,6 +2915,7 @@ function bindCutter() {
   $("sideTabCuts").addEventListener("click", () => setSideTab("cuts"));
   $("sideTabChat").addEventListener("click", () => setSideTab("chat"));
   $("cutDownload").addEventListener("click", downloadCuts);
+  $("cutCapcut").addEventListener("click", capcutCuts);
   $("cutChat").addEventListener("click", () => { cut.withChat = !cut.withChat; renderCutter(); });
   for (const b of document.querySelectorAll(".outmode [data-mode]")) b.addEventListener("click", () => {
     cut.mode = b.dataset.mode;
@@ -2851,11 +2930,12 @@ function bindCutter() {
   for (const b of document.querySelectorAll("[data-seek]")) b.addEventListener("click", () => seekTo(nowTime() + Number(b.dataset.seek)));
   $("zoomIn").addEventListener("click", () => zoomAt(0.5, zoomAnchor()));
   $("zoomOut").addEventListener("click", () => zoomAt(2, zoomAnchor()));
-  $("zoomFit").addEventListener("click", () => { setView(0, cutDuration()); drawTimeline(); });
+  $("zoomFit").addEventListener("click", () => { setView(0, cutDuration()); cut.follow = true; drawTimeline(); });
   $("zoomRange").addEventListener("input", (e) => {
     const dur = cutDuration(), lo = Math.min(MIN_VIEW, dur);
-    if (dur) zoomSpan(dur * Math.pow(lo / dur, Number(e.target.value) / 1000), zoomAnchor());
+    if (dur) { zoomSpan(dur * Math.pow(lo / dur, Number(e.target.value) / 1000), zoomAnchor()); userView(); }
   });
+  $("tlFollow").addEventListener("click", backToHead);
 
   /* ana serit: bos yerde surukle = gezin; kesit = sec / tasi; tutamac = kenari uzat */
   const track = $("tlTrack");
@@ -2919,8 +2999,9 @@ function bindCutter() {
       const d = (e.shiftKey ? e.deltaY : e.deltaX) || e.deltaX;
       const shift = (d / $("tlLane").clientWidth) * (en - s);
       setView(s + shift, en + shift);
+      userView();
       drawTimeline();
-    } else zoomAt(Math.exp(e.deltaY * 0.0015), timeAt(e.clientX));
+    } else { zoomAt(Math.exp(e.deltaY * 0.0015), timeAt(e.clientX)); userView(); }
     showPeek(e.clientX);
   }, { passive: false });
 
@@ -2934,6 +3015,7 @@ function bindCutter() {
     const span = cut.view[1] - cut.view[0];
     if (span >= dur - 0.5) { seekTo(t); return; }
     setView(t - span / 2, t + span / 2);
+    userView();
     drawTimeline();
   };
   ov.addEventListener("pointerdown", (e) => { ov.setPointerCapture(e.pointerId); ov.dataset.drag = "1"; ovMove(e); });
@@ -3451,7 +3533,7 @@ async function start(api) {
   checkClipboard();
 }
 
-window.app = { sync };
+window.app = { sync, capcutDone };
 window.addEventListener("error", (e) => state.api && state.api.client_error(String(e.message), String(e.filename || ""), e.lineno || 0, String((e.error && e.error.stack) || "")));
 window.addEventListener("unhandledrejection", (e) => state.api && state.api.client_log(`promise: ${e.reason && (e.reason.message || e.reason)}`));
 if (window.pywebview && window.pywebview.api) start(window.pywebview.api);

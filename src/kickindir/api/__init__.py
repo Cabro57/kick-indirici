@@ -20,10 +20,11 @@ from kickindir.api.library import LibraryMixin
 from kickindir.api.workers import WorkerMixin
 from kickindir.api.chat import ChatMixin
 from kickindir.api.usage import UsageMixin
+from kickindir.api.capcut import CapcutMixin
 from kickindir.services.telemetry import Telemetry, installer_consent
 
 
-class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMixin, LibraryMixin, WorkerMixin, ChatMixin, UsageMixin):
+class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMixin, LibraryMixin, WorkerMixin, ChatMixin, UsageMixin, CapcutMixin):
     """JS tarafinin cagirdigi metotlar. '_' ile baslayan ozellikler JS'e acilmaz."""
 
     def __init__(self):
