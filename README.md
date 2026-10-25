@@ -69,6 +69,33 @@ Bir videoya tıkla: karartılmış bir arka plan üstünde büyük bir pencere a
 
 <img src="images/izleme-penceresi.jpg" alt="Ortada açılan izleme penceresi" width="900">
 
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Hız ve kalite**
+
+Oynatıcı çubuğunda bir hız menüsü (0,25× – 2×; **,** ve **.** tuşları da değiştirir) ve bir kalite menüsü var: *Otomatik* ya da 720p60 gibi sabit bir çözünürlük. İkisi de sonra açtığın videolarda da geçerli kalır. Canlı yayında yalnızca kalite menüsü vardır.
+
+<img src="images/oynatici-menusu.jpg" alt="Hız menüsü açık oynatıcı çubuğu">
+
+</td>
+<td width="50%" valign="top">
+
+**Sohbetten mesaj seç**
+
+Bir mesaja tıkla, **Shift** ile başka birine tıklayınca arası seçilir. **Kopyala** ya da **Kaydet** onları PNG resmi yapar; film düğmesi yalnızca o mesajların kısa sohbet videosunu hazırlar.
+
+<img src="images/sohbet-secimi.jpg" alt="Üç mesajın seçili olduğu sohbet paneli">
+
+</td>
+</tr>
+</table>
+
+Hangi sohbet dosyalarının kaydedileceği ve sohbet videosunun görünümü Ayarlar → Sohbet'te:
+
+<img src="images/ayarlar-sohbet.jpg" alt="Ayarlar: sohbet dosyaları ve sohbet videosu" width="900">
+
 <br>
 
 ### Çok sayıda videoyu seç, tek tıkla indir
@@ -95,6 +122,8 @@ Başlığın yanındaki **⋮** düğmesi ya da **sağ tık**. Menü videonun du
 
 - **K** ile playhead'in çevresine otomatik uzunlukta kesit eklenir. Kenarları sürükleyerek ya da saat yazarak ayarlarsın.
 - Kesitler **ayrı dosyalar** ya da **tek video** olarak iner.
+- **CapCut'ta aç** kesitleri indirir, yayının kendi ölçüsünde yeni bir CapCut projesine art arda dizer ve CapCut'u açar (sohbet videosu da eklenebilir). Windows için CapCut kurulu olmalı.
+- Ses dalgasının altındaki **sohbet şeridi** sohbetin dakika dakika ne kadar yoğun olduğunu gösterir: yüksek çubuklar bir şeyin olduğu anlardır. Sohbetten alınan örnekle yapılan hızlı bir tahmindir, arkada yüklenir (uzun yayında yaklaşık 30 saniye) ve yalnızca biten yayınlarda vardır.
 - Yalnızca o aralığı kapsayan parçalar indirilir. 4 saatlik yayından 30 saniyelik kesit için 4 saatlik veri çekilmez.
 - Canlı yayından da kesit alabilirsin: yayın sürerken geçmişe dönüp istediğin anı kes.
 
@@ -222,6 +251,7 @@ Listeyi uygulamada **?** tuşuyla da görebilirsin.
 | `K` | Oynat / durdur |
 | `M` | Sesi kapat / aç |
 | `F` | Tam ekran |
+| `,` `.` | Yavaşlat / hızlandır |
 | `←` `→` | Önceki / sonraki video |
 | `Esc` | Kapat |
 
