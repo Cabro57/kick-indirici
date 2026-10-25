@@ -23,7 +23,7 @@
 
 ## İçindekiler
 
-[Neler yapar](#neler-yapar) · [Kurulum](#kurulum) · [Nasıl kullanılır](#nasıl-kullanılır) · [Kısayollar](#kısayollar) · [Ayarlar ve dosyalar](#ayarlar-ve-dosyalar) · [Sorun giderme](#sorun-giderme) · [Gizlilik](#gizlilik) · [Geliştirme](#geliştirme)
+[Neler yapar](#neler-yapar) · [Kurulum](#kurulum) · [Nasıl kullanılır](#nasıl-kullanılır) · [Kısayollar](#kısayollar) · [Ayarlar ve dosyalar](#ayarlar-ve-dosyalar) · [Güncellemeler](#güncellemeler) · [Sorun giderme](#sorun-giderme) · [Gizlilik](#gizlilik) · [Lisans ve uyarılar](#lisans-ve-uyarılar) · [Geliştirme](#geliştirme)
 
 <br>
 
@@ -187,11 +187,15 @@ Bitenler güne göre gruplanır. Dosya uygulamanın içinde oynar, Windows oynat
 ### Tek tıkla kurulum (önerilen)
 
 1. [**Releases**](https://github.com/Cabro57/kick-indirici/releases/latest) sayfasından **`KickIndirici-Setup-….exe`** dosyasını indir.
-2. Aç ve **Kur**'a bas. Yönetici izni gerekmez, `ffmpeg` içinde hazır gelir. Yeni sürümler program içinden **Güncelle ve yeniden başlat** ile kendiliğinden kurulur.
+2. Aç ve **Kur**'a bas. Yönetici izni gerekmez. Başlat menüsüne kısayol eklenir, `ffmpeg` içinde hazır gelir.
 
-Kurulumsuz kullanmak için `KickIndirici-…-windows.zip`'i bir klasöre çıkar ve **`KickIndirici.exe`**'yi aç. `ffmpeg.exe` exe'nin yanında durmalı.
+> Windows "bilgisayarını korudu" (SmartScreen) uyarısı gösterirse **Ek bilgi → Yine de çalıştır**'a bas. Program henüz imzasız olduğu için çıkar.
 
-> ffmpeg olmadan videolar iner ama kesit, canlı kayıt ve son mp4 düzeltmesi çalışmaz. Kaynaktan çalıştırıyorsan ffmpeg'i kendin kur: `winget install Gyan.FFmpeg`, ya da [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) üzerinden "release essentials".
+### Kurulumsuz (zip)
+
+`KickIndirici-…-windows.zip` dosyasını bir klasöre çıkar ve **`KickIndirici.exe`**'yi aç. `ffmpeg.exe` exe'nin yanında durmalı.
+
+> ffmpeg olmadan videolar iner ama kesit, canlı kayıt ve son mp4 düzeltmesi çalışmaz.
 
 ### Gereksinimler
 
@@ -200,7 +204,7 @@ Kurulumsuz kullanmak için `KickIndirici-…-windows.zip`'i bir klasöre çıkar
 | **İşletim sistemi** | Windows 10 ya da 11 |
 | **WebView2 Runtime** | Windows 11'de hazır gelir. Yoksa program açılışta indirme sayfasını önerir. |
 | **.NET Framework 4.6.2+** | Windows'ta hazır gelir. |
-| **ffmpeg** | Kesit, canlı kayıt ve mp4 düzeltmesi için (zip'te hazır) |
+| **ffmpeg** | Kesit, canlı kayıt ve mp4 düzeltmesi için (kurucuda ve zip'te hazır) |
 
 ### Kaynaktan çalıştır
 
@@ -211,7 +215,7 @@ pip install -r requirements.txt
 python kick_indir.py
 ```
 
-`baslat.bat` da aynı şeyi konsol penceresi açmadan yapar.
+`baslat.bat` da aynı şeyi konsol penceresi açmadan yapar. ffmpeg'i kendin kur: `winget install Gyan.FFmpeg`, ya da [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) üzerinden "release essentials".
 
 <br>
 
@@ -316,6 +320,19 @@ Program verisini şurada tutar: `%APPDATA%\KickIndirici\`
 
 <br>
 
+## Güncellemeler
+
+Yeni sürüm çıkınca program açılışta haber verir (ayarlardan kapatılır) ve kendini günceller; yalnızca değişen dosyalar iner.
+
+- **Güncelle:** yeni sürüm arka planda iner. Bitince **Yeniden başlat**'a basarsan hemen geçer; basmazsan programı bir sonraki açışında yeni sürüm açılır.
+- **Güncelle ve yeniden başlat:** indirir ve hemen yeni sürümle yeniden açar.
+
+Zip'ten kurulumsuz kullanıyorsan da aynı şekilde çalışır; yeter ki klasör yazılabilir olsun.
+
+Ayarların ve geçmişin `%APPDATA%` içinde durduğu için güncellemede kaybolmaz.
+
+<br>
+
 ## Sorun giderme
 
 <details>
@@ -377,6 +394,16 @@ Uygulama, **anonim kullanım verisi** gönderip gönderemeyeceğini bir kez kuru
 
 Veriler [PostHog](https://posthog.com)'un AB'deki sunucularına gider ve yalnızca kaç kişinin hangi sürümü kullandığını, indirmelerin gerçek bağlantılarda ne hızda olduğunu ve önce hangi hataların düzeltileceğini görmek için kullanılır.
 
+<br>
+
+## Lisans ve uyarılar
+
+- `ffmpeg.exe` [FFmpeg](https://ffmpeg.org) projesine aittir ve GPLv3 lisanslıdır. Lisans metni ve kaynak kod bilgisi zip'teki `LICENSE-ffmpeg.txt` dosyasındadır.
+- Kick İndirici'nin Kick ile resmi bir bağlantısı yoktur ve Kick tarafından onaylanmamıştır. Kişisel kullanım için yazılmıştır. İndirdiğin içeriklerin telif hakkı yayıncılara aittir; Kick'in kullanım koşullarına ve yayıncıların isteklerine saygı göster.
+- *Kick* adı ve "K" simgesi Kick'e aittir. Bu depodaki logo kişisel kullanım içindir; dağıtılan bir sürüm kendi simgesini kullanmalıdır.
+
+<br>
+
 ## Geliştirme
 
 Arayüz HTML / CSS / JS (`web/`), motor Python. Pencereyi **pywebview** (Edge WebView2) çizer; indirme `yt-dlp`, ağ istekleri `curl_cffi`, kesme ve birleştirme `ffmpeg` ile yapılır.
@@ -416,11 +443,3 @@ python -m PyInstaller --noconfirm KickIndirici.spec
 Çıktı `dist\KickIndirici.exe`. Kurucuyu (`dist\KickIndirici-Setup-<sürüm>.exe`) [Inno Setup 6](https://jrsoftware.org/isinfo.php) ile `ISCC /DAppVersion=1.0.0 installer\KickIndirici.iss` derler.
 
 **Sürüm çıkarmak:** `src/kickindir/config.py` içindeki `VERSION`'ı artır, commit'le, `git tag v1.0.1 && git push --tags`. `.github/workflows/release.yml` exe'yi, kurucuyu ve zip'i derleyip [kick-indirici](https://github.com/Cabro57/kick-indirici) deposuna sürüm olarak yükler. Uygulama içi güncelleme bu sürümdeki `manifest.json`'a bakar ve yalnızca değişen dosyaları (SHA-256 ile doğrulayarak) indirir; manifest okunamazsa kurucuya döner. Yeni bir dosya eklemek için workflow'daki `make_manifest.py` satırına eklemek yeter. Bunun için bu depoda `RELEASE_TOKEN` secret'ı (kick-indirici'ye *Contents: write* yetkili bir fine-grained token) tanımlı olmalı. Hız denemelerinin kaydı için [PERF.md](PERF.md)'ye bak.
-
-<br>
-
-## Uyarı
-
-Bu program Kick ile bağlantılı değildir ve Kick tarafından onaylanmamıştır. Kişisel kullanım için yazılmıştır: kendi yayınlarını yedeklemek, izin verilen içerikleri arşivlemek gibi. İndirdiğin içeriklerin telif hakkı yayıncılara aittir; Kick'in kullanım koşullarına ve yayıncıların haklarına uymak sana aittir.
-
-*Kick* adı ve "K" simgesi Kick'e aittir. Bu depodaki logo kişisel kullanım içindir; dağıtılan bir sürüm kendi simgesini kullanmalıdır.

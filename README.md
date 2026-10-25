@@ -23,7 +23,7 @@ Watch, cut out the moments you want, record live. All in one window.
 
 ## Contents
 
-[What it does](#what-it-does) · [Install](#install) · [How to use](#how-to-use) · [Shortcuts](#shortcuts) · [Settings and files](#settings-and-files) · [Troubleshooting](#troubleshooting) · [Privacy](#privacy) · [Development](#development)
+[What it does](#what-it-does) · [Install](#install) · [How to use](#how-to-use) · [Shortcuts](#shortcuts) · [Settings and files](#settings-and-files) · [Updates](#updates) · [Troubleshooting](#troubleshooting) · [Privacy](#privacy) · [License and notices](#license-and-notices) · [Development](#development)
 
 <br>
 
@@ -187,11 +187,15 @@ Finished files are grouped by day. A file plays inside the app, opens in the Win
 ### One-click installer (recommended)
 
 1. Download **`KickIndirici-Setup-….exe`** from the [**Releases**](https://github.com/Cabro57/kick-indirici/releases/latest) page.
-2. Open it and press **Install**. No administrator rights needed; `ffmpeg` is included. New versions install themselves from inside the app with **Update and restart**.
+2. Open it and press **Install**. No administrator rights needed. A Start menu shortcut is added and `ffmpeg` is included.
 
-To use it without installing, extract `KickIndirici-…-windows.zip` to a folder and open **`KickIndirici.exe`**. `ffmpeg.exe` must stay next to the exe.
+> If Windows shows a "protected your PC" (SmartScreen) warning, press **More info → Run anyway**. It appears because the program is not signed yet.
 
-> Without ffmpeg, videos still download, but cuts, live recording and the final mp4 fix-up do not work. When running from source, install ffmpeg yourself: `winget install Gyan.FFmpeg`, or the "release essentials" build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/).
+### Without installing (zip)
+
+Extract `KickIndirici-…-windows.zip` to a folder and open **`KickIndirici.exe`**. `ffmpeg.exe` must stay next to the exe.
+
+> Without ffmpeg, videos still download, but cuts, live recording and the final mp4 fix-up do not work.
 
 ### Requirements
 
@@ -200,7 +204,7 @@ To use it without installing, extract `KickIndirici-…-windows.zip` to a folder
 | **Operating system** | Windows 10 or 11 |
 | **WebView2 Runtime** | Included in Windows 11. If missing, the app offers the download page at startup. |
 | **.NET Framework 4.6.2+** | Included in Windows. |
-| **ffmpeg** | For cuts, live recording and the mp4 fix-up (included in the zip) |
+| **ffmpeg** | For cuts, live recording and the mp4 fix-up (included in the installer and the zip) |
 
 ### Run from source
 
@@ -211,7 +215,7 @@ pip install -r requirements.txt
 python kick_indir.py
 ```
 
-`baslat.bat` does the same without a console window.
+`baslat.bat` does the same without a console window. Install ffmpeg yourself: `winget install Gyan.FFmpeg`, or the "release essentials" build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/).
 
 <br>
 
@@ -316,6 +320,19 @@ The app keeps its data in `%APPDATA%\KickIndirici\`
 
 <br>
 
+## Updates
+
+When a new version is out, the app tells you at startup (this can be turned off in Settings) and updates itself; only the changed files are downloaded.
+
+- **Update:** the new version downloads in the background. Press **Restart** when it finishes to switch at once; if you do not, the new version opens the next time you start the app.
+- **Update and restart:** downloads and reopens with the new version straight away.
+
+It works the same from the zip, as long as the folder is writable.
+
+Your settings and history live in `%APPDATA%`, so an update does not lose them.
+
+<br>
+
 ## Troubleshooting
 
 <details>
@@ -377,6 +394,16 @@ The app asks once, in the installer and again on first start, whether it may sen
 
 The data goes to [PostHog](https://posthog.com) servers in the EU and is used only to see how many people use which version, how fast downloads are on real connections, and which errors to fix first.
 
+<br>
+
+## License and notices
+
+- `ffmpeg.exe` belongs to the [FFmpeg](https://ffmpeg.org) project and is licensed under GPLv3. The licence text and source code information are in `LICENSE-ffmpeg.txt` in the zip.
+- This program is not affiliated with or endorsed by Kick. It was written for personal use, such as backing up your own streams or archiving content you are allowed to keep. Copyright in downloaded content belongs to the streamers; following Kick's terms of use and the streamers' rights is your responsibility.
+- The *Kick* name and the "K" symbol belong to Kick. The logo in this repository is for personal use; a distributed version should use its own icon.
+
+<br>
+
 ## Development
 
 The interface is HTML / CSS / JS (`web/`), the engine is Python. **pywebview** (Edge WebView2) draws the window; downloads use `yt-dlp`, network requests `curl_cffi`, cutting and merging `ffmpeg`.
@@ -417,11 +444,3 @@ python -m PyInstaller --noconfirm KickIndirici.spec
 The output is `dist\KickIndirici.exe`. [Inno Setup 6](https://jrsoftware.org/isinfo.php) builds the installer (`dist\KickIndirici-Setup-<version>.exe`) with `ISCC /DAppVersion=1.0.0 installer\KickIndirici.iss`. The installer is English and Turkish and follows the Windows language.
 
 **Releasing:** bump `VERSION` in `src/kickindir/config.py`, commit, then `git tag v1.0.1 && git push --tags`. `.github/workflows/release.yml` builds the exe, the installer and the zip and uploads them as a release to the [kick-indirici](https://github.com/Cabro57/kick-indirici) repository. The in-app updater reads that release's `manifest.json` and downloads only the changed files (verified with SHA-256); if the manifest cannot be read, it falls back to the installer. To ship a new file, add it to the `make_manifest.py` line in the workflow. This repository needs a `RELEASE_TOKEN` secret (a fine-grained token with *Contents: write* on kick-indirici). See [PERF.md](PERF.md) for the speed experiments.
-
-<br>
-
-## Disclaimer
-
-This program is not affiliated with or endorsed by Kick. It was written for personal use, such as backing up your own streams or archiving content you are allowed to keep. Copyright in downloaded content belongs to the streamers; following Kick's terms of use and the streamers' rights is your responsibility.
-
-The *Kick* name and the "K" symbol belong to Kick. The logo in this repository is for personal use; a distributed version should use its own icon.
