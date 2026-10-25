@@ -65,7 +65,9 @@ Bir videoya tıkla: karartılmış bir arka plan üstünde büyük bir pencere a
 
 **← →** tuşları ya da kenarlardaki oklar bir önceki / sonraki videoya geçer. **Esc** kapatır ve videoyu durdurur.
 
-**Sohbet** videonun yanında, oynatmayla eşzamanlı akar: yayın geçmişlerinde, kliplerde, canlı yayında ve indirilen dosyalarda (oynatıcı çubuğundaki sohbet düğmesi gizler). Geriye okumak için yukarı kaydır; *Şimdiye dön* yeniden videoyu takip eder. Saate tıklayınca video o ana gider. Mesajlara tıklayıp seç (**Shift** ile aralık), sonra **Kopyala** ya da **Kaydet** ile PNG resmi al; dişli düğmesi arka planı, genişliği ve saat, rozet, emote gösterimini ayarlar. Kesit editöründe aynı sohbet *Sohbet* sekmesinde.
+**Sohbet** videonun yanında, oynatmayla eşzamanlı akar: yayın geçmişlerinde, kliplerde, canlı yayında ve indirilen dosyalarda (oynatıcı çubuğundaki sohbet düğmesi gizler). Geriye okumak için yukarı kaydır; *Şimdiye dön* yeniden videoyu takip eder. Saate tıklayınca video o ana gider. Mesajlara tıklayıp seç (**Shift** ile aralık), sonra **Kopyala** ya da **Kaydet** ile PNG resmi al; dişli düğmesi arka planı (koyu / saydam), genişliği ve saat, rozet, emote çizilip çizilmeyeceğini ayarlar. Kesit editöründe aynı sohbet *Sohbet* sekmesinde.
+
+**Sohbet videosu:** sohbet ayrı, akan bir video olarak da hazırlanabilir; düzenleyicide yayının yanına koymak için (yayın videosunun üstüne gömülmez). Yeşil perde, yeşili silinecek bir `.mp4` verir; saydam, saydamlığı olan bir `.webm` verir (Premiere, DaVinci Resolve, OBS). Ölçü, yazı boyutu ve saat, rozet, emote gösterilip gösterilmeyeceği Ayarlar → Sohbet'te. Üç yoldan yapılır: sohbet dosya türlerinde *Video*yu seç (her sohbet indirmesiyle hazırlanır), İndirilenler'deki bir sohbette *Sohbet videosu oluştur*, ya da sohbet panelinde seçilen mesajların altındaki film düğmesi (yalnızca o mesajların kısa videosu). Yoğun sohbetin saati yaklaşık 4 dakika sürer.
 
 <img src="images/izleme-penceresi.jpg" alt="Ortada açılan izleme penceresi" width="900">
 
@@ -165,13 +167,13 @@ Bitenler güne göre gruplanır. Dosya uygulamanın içinde oynar, Windows oynat
 | **Canlı kayıt** | Canlı yayını şu andan itibaren kaydeder. Bitince `.ts` dosyası `.mp4`'e çevrilir. |
 | **Sohbeti indir** | Yayının, kesitin, klibin ya da canlı kaydın sohbetini eksiksiz indirir: `.ass` altyazı (VLC / MPC videonun üstünde akıtır), `.txt`, `.json`, `.html`. *Videolarla birlikte sohbeti de indir* açıksa her indirmeyle gelir. |
 | **Sohbet videosu** | Sohbeti ayrı, akan bir video olarak hazırlar; düzenleyicide yayının yanına koymak için. Yeşil perde `.mp4` ya da saydam `.webm`; ölçü, yazı boyutu, saat / rozet / emote Ayarlar → Sohbet'te. İndirilenler'deki sohbetten ya da paneldeki seçili mesajlardan da yapılır. |
-| **İngilizce arayüz** | Windows dili Türkçe değilse İngilizce açılır; Ayarlar'dan değişir. |
 | **Kaldığı yerden devam** | Program kapanırsa yarım kalanlar bir sonraki açılışta *Devam et* ile sürer. |
 | **Disk koruması** | İndirmeden önce boş yer kontrol edilir. Sığmayan indirme açık bir mesajla başarısız olur, kuyruğun geri kalanı sürer. |
 | **Bitince** | Kuyruk bitince hiçbir şey yapma, uykuya al ya da bilgisayarı kapat (60 sn geri sayım, iptal edilebilir). |
 | **Pano ve sürükle-bırak** | Panoda Kick linki varsa pencereye dönünce önerir. Tarayıcıdan linki pencereye bırakabilir ya da Ctrl+V ile yapıştırabilirsin. |
 | **Windows bildirimleri** | Kuyruk bitince ve favorin canlıya geçince bildirim. İkisi de ayarlardan kapatılır. |
-| **Dosya adı şablonu** | `{kanal} - {baslik} [{id}]` gibi: `{kanal}` `{baslik}` `{tarih}` `{id}` kullanılabilir. |
+| **Dosya adı şablonu** | `{channel} - {title} [{id}]` gibi: `{channel}` `{title}` `{date}` `{id}` kullanılabilir. Eski `{kanal}` `{baslik}` `{tarih}` adları da çalışır. |
+| **Arayüz dili** | Türkçe ve İngilizce. İlk açılışta Windows diline göre seçilir; Ayarlar → Uygulama → Dil ile değişir. |
 | **Tek örnek** | Program zaten açıksa ikinci kez açmak mevcut pencereyi öne getirir. |
 | **Güncelleme denetimi** | Açılışta GitHub'daki son sürümü denetler, yenisi varsa şeritte haber verir. |
 
@@ -280,7 +282,7 @@ Editördeki tüm kısayollar sağ üstteki **Kısayollar** düğmesinde.
 <tr>
 <td width="55%" valign="top">
 
-Ayarlar sol alttaki dişli ile açılır: indirme klasörü, varsayılan kalite, dosya adı şablonu, aynı anda inen video sayısı, video başına bağlantı, hız sınırı, önizleme ve oynatıcı davranışı, bildirimler, varsayılan kesit uzunluğu ve güncelleme denetimi.
+Ayarlar sol alttaki dişli ile açılır: arayüz dili, indirme klasörü, varsayılan kalite, dosya adı şablonu, aynı anda inen video sayısı, video başına bağlantı, hız sınırı, önizleme ve oynatıcı davranışı, bildirimler, varsayılan kesit uzunluğu ve güncelleme denetimi.
 
 **Kalite:** En iyi · 1080p60 · 720p60 · 480p · 360p · 160p. İstenen kalite yoksa en yakın düşük kalite iner.
 
@@ -368,13 +370,11 @@ Ayarlarda *Canlı kaydı mp4'e çevir* kapalıdır. Uygulamanın oynatıcısı `
 
 <br>
 
-<br>
-
 ## Gizlilik
 
-Program, **anonim kullanım verisi** gönderip gönderemeyeceğini bir kez kurulumda, bir kez de ilk açılışta sorar. Cevap verene kadar hiçbir şey gönderilmez; *Hayır* dersen hiç gönderilmez. İstediğin zaman **Ayarlar → Uygulama → Anonim kullanım verisi gönder**'den değiştirebilirsin (*Ne gönderiliyor?* tam listeyi gösterir).
+Uygulama, **anonim kullanım verisi** gönderip gönderemeyeceğini bir kez kurulumda, bir kez de ilk açılışta sorar. Cevap verene kadar hiçbir şey gönderilmez; *Hayır* dersen hiç gönderilmez. İstediğin zaman **Ayarlar → Uygulama → Anonim kullanım verisi gönder**'den değiştirebilirsin (*Ne gönderiliyor?* tam listeyi gösterir).
 
-**Gönderilenler:** program sürümü, Windows sürümü ve dil; bilgisayarında üretilen rastgele bir kurulum kimliği (seninle ilişkisi yok); donanım (işlemci, çekirdek sayısı, bellek, ekran kartı, ekran, indirme klasörünün SSD mi HDD mi olduğu); her indirme için türü, **kanal adı**, boyutu, süresi, hızı ve indirme ayarları; hangi özelliklerin kullanıldığı; hatalar (hata türü ve kodda nerede olduğu; klasörler ve kullanıcı adın çıkarılır).
+**Gönderilenler:** uygulama sürümü, Windows sürümü ve dil; bilgisayarında üretilen rastgele bir kurulum kimliği (seninle ilişkisi yok); donanım (işlemci, çekirdek sayısı, bellek, ekran kartı, ekran, indirme klasörünün SSD mi HDD mi olduğu); her indirme için türü, **kanal adı**, boyutu, süresi, hızı ve indirme ayarları; hangi özelliklerin kullanıldığı (kesit editörü, sohbet paneli, sohbet videosu, canlı kayıt…); hatalar (hata türü ve kodda nerede olduğu; klasörler ve kullanıcı adın çıkarılır).
 
 **Asla gönderilmeyenler:** IP adresin (saklanmaz), video linkleri ya da başlıkları, dosya adları ya da klasörler, Windows kullanıcı adın, yazdığın hiçbir şey.
 
@@ -384,7 +384,6 @@ Veriler [PostHog](https://posthog.com)'un AB'deki sunucularına gider ve yalnız
 
 ## Lisans ve uyarılar
 
-- Bu depo yalnızca programın hazır sürümlerini barındırır.
 - `ffmpeg.exe` [FFmpeg](https://ffmpeg.org) projesine aittir ve GPLv3 lisanslıdır. Lisans metni ve kaynak kod bilgisi zip'teki `LICENSE-ffmpeg.txt` dosyasındadır.
 - Kick İndirici'nin Kick ile resmi bir bağlantısı yoktur ve Kick tarafından onaylanmamıştır. Kişisel kullanım için yazılmıştır. İndirdiğin içeriklerin telif hakkı yayıncılara aittir; Kick'in kullanım koşullarına ve yayıncıların isteklerine saygı göster.
-- *Kick* adı ve "K" simgesi Kick'e aittir.
+- *Kick* adı ve "K" simgesi Kick'e aittir. Bu depodaki logo kişisel kullanım içindir; dağıtılan bir sürüm kendi simgesini kullanmalıdır.
