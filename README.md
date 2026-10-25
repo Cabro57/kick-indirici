@@ -9,7 +9,7 @@
 **Download Kick streams, clips and live streams as fast as your connection allows.**
 Watch, cut out the moments you want, record live. All in one window.
 
-![Version](https://img.shields.io/badge/version-1.0.0-53FC18?style=flat-square&labelColor=0b0e0f)
+![Version](https://img.shields.io/badge/version-1.2.0-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Python](https://img.shields.io/badge/Python-3-53FC18?style=flat-square&labelColor=0b0e0f)
 
@@ -74,6 +74,33 @@ The **chat** runs beside the video, in step with playback, for VODs, clips, live
 
 <img src="docs/img/en/watch.jpg" alt="The watch window in the middle" width="900">
 
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Speed and quality**
+
+The player bar has a speed menu (0.25× – 2×; **,** and **.** step it) and a quality menu: *Auto*, or a fixed resolution such as 720p60. Both stay for the next videos you open. A live stream has the quality menu only.
+
+<img src="docs/img/en/player-menu.jpg" alt="Player bar with the speed menu open">
+
+</td>
+<td width="50%" valign="top">
+
+**Pick chat messages**
+
+Click a message, then **Shift**-click another to select everything between. **Copy** or **Save** makes a PNG image of them; the film button makes a short chat video of just those messages.
+
+<img src="docs/img/en/chat-select.jpg" alt="Chat panel with three messages selected">
+
+</td>
+</tr>
+</table>
+
+Which chat files are saved, and how the chat video looks, are set in Settings → Chat:
+
+<img src="docs/img/en/settings-chat.jpg" alt="Settings: chat files and chat video" width="900">
+
 <br>
 
 ### Select many videos, download with one click
@@ -100,6 +127,8 @@ The **⋮** button beside the title, or **right-click**. The menu follows the vi
 
 - **K** adds a cut of preset length around the playhead. Adjust the edges by dragging or by typing times.
 - Cuts download as **separate files** or as **a single video**.
+- **Open in CapCut** downloads the cuts, lays them one after another in a new CapCut project at the stream's own size and opens CapCut (the chat video can be added too). CapCut for Windows must be installed.
+- A **chat track** under the audio waveform shows how busy the chat is, minute by minute: tall bars are where something happened. It is a quick estimate from a sample of the chat, loaded in the background (about 30 seconds for a long stream), for finished streams only.
 - Only the parts covering the range are downloaded. A 30-second cut from a 4-hour stream does not fetch 4 hours of data.
 - You can cut from a live stream too: go back while it is still running and cut the moment you want.
 
@@ -139,7 +168,8 @@ Finished files are grouped by day. A file plays inside the app, opens in the Win
 | **No speed tuning** | The app measures total speed and decides how many videos download at once (1–6). Each video fetches its parts over 8–32 connections. |
 | **Speed limit** | Cap the total speed so the line is not full while you game or watch streams. |
 | **Live recording** | Records a live stream from now on. When it ends, the `.ts` file becomes `.mp4`. |
-| **Download chat** | Saves a VOD's chat as an `.ass` subtitle (VLC / MPC scroll it over the video) and `.chat.json`. |
+| **Download chat** | Downloads the full chat of a stream, cut, clip or live recording: `.ass` subtitle (VLC / MPC scroll it over the video), `.txt`, `.json`, `.html`. With *Download chat with videos* on, it comes with every download. |
+| **Chat video** | Makes the chat into its own scrolling video to put beside the stream in your editor. Green screen `.mp4` or transparent `.webm`; size, text size and time / badges / emotes are in Settings → Chat. Also made from a chat in Downloads or from the messages selected in the panel. |
 | **Resume** | If the app closes, unfinished downloads continue on next start with *Resume*. |
 | **Disk guard** | Free space is checked before a download starts. A download that does not fit fails with a clear message; the rest of the queue continues. |
 | **When done** | When the queue finishes: do nothing, sleep, or shut down (60 s countdown, cancellable). |
@@ -233,6 +263,7 @@ Press **?** in the app to see the list.
 | `K` | Play / pause |
 | `M` | Mute / unmute |
 | `F` | Full screen |
+| `,` `.` | Slower / faster |
 | `←` `→` | Previous / next video |
 | `Esc` | Close |
 

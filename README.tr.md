@@ -9,13 +9,13 @@
 **Kick yayınlarını, kliplerini ve canlı yayınlarını hattın izin verdiği hızla indir.**
 İzle, içinden istediğin anı kes, canlıyı kaydet. Hepsi tek pencerede.
 
-![Sürüm](https://img.shields.io/badge/sürüm-1.0.0-53FC18?style=flat-square&labelColor=0b0e0f)
+![Sürüm](https://img.shields.io/badge/sürüm-1.2.0-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Python](https://img.shields.io/badge/Python-3-53FC18?style=flat-square&labelColor=0b0e0f)
 
 <br>
 
-<img src="docs/img/kanal.jpg" alt="Bir yayıncının sayfası: canlı yayın şeridi ve yayın ızgarası" width="900">
+<img src="docs/img/tr/channel.jpg" alt="Bir yayıncının sayfası: canlı yayın şeridi ve yayın ızgarası" width="900">
 
 </div>
 
@@ -35,7 +35,7 @@
 
 Yayıncı **canlıysa**, listenin en üstünde tam genişlikte bir **canlı şeridi** çıkar: canlı önizleme, başlık, izleyici sayısı ve iki düğme (**Kaydı başlat**, **Kesit al**).
 
-<img src="docs/img/canli-seridi.jpg" alt="Canlı yayın şeridi: önizleme oynuyor" width="900">
+<img src="docs/img/tr/live-strip.jpg" alt="Canlı yayın şeridi: önizleme oynuyor" width="900">
 
 <table>
 <tr>
@@ -45,7 +45,7 @@ Yayıncı **canlıysa**, listenin en üstünde tam genişlikte bir **canlı şer
 
 Kartın üzerinde bekleyince video sessizce oynar. Tıkladığında izleme penceresi aynı andan devam eder.
 
-<img src="docs/img/onizleme.jpg" alt="Kartın üzerinde oynayan önizleme ve yükleme halkası">
+<img src="docs/img/tr/preview.jpg" alt="Kartın üzerinde oynayan önizleme ve yükleme halkası">
 
 </td>
 <td width="50%" valign="top">
@@ -54,7 +54,7 @@ Kartın üzerinde bekleyince video sessizce oynar. Tıkladığında izleme pence
 
 Yıldıza basınca yayıncı soldaki şeride eklenir. Canlıya geçince yeşil halka yanar, yeni yayın gelince sayısı görünür. İstersen yeni yayınlar kendiliğinden iner, canlıya geçince kayıt kendiliğinden başlar.
 
-<img src="docs/img/ana-sayfa.jpg" alt="Ana sayfa: favori yayıncılar ve son indirilenler">
+<img src="docs/img/tr/home.jpg" alt="Ana sayfa: favori yayıncılar ve son indirilenler">
 
 </td>
 </tr>
@@ -72,7 +72,34 @@ Bir videoya tıkla: karartılmış bir arka plan üstünde büyük bir pencere a
 
 **Sohbet videosu:** sohbet ayrı, akan bir video olarak da hazırlanabilir; düzenleyicide yayının yanına koymak için (yayın videosunun üstüne gömülmez). Yeşil perde, yeşili silinecek bir `.mp4` verir; saydam, saydamlığı olan bir `.webm` verir (Premiere, DaVinci Resolve, OBS). Ölçü, yazı boyutu ve saat, rozet, emote gösterilip gösterilmeyeceği Ayarlar → Sohbet'te. Üç yoldan yapılır: sohbet dosya türlerinde *Video*yu seç (her sohbet indirmesiyle hazırlanır), İndirilenler'deki bir sohbette *Sohbet videosu oluştur*, ya da sohbet panelinde seçilen mesajların altındaki film düğmesi (yalnızca o mesajların kısa videosu). Yoğun sohbetin saati yaklaşık 4 dakika sürer.
 
-<img src="docs/img/izleme-penceresi.jpg" alt="Ortada açılan izleme penceresi" width="900">
+<img src="docs/img/tr/watch.jpg" alt="Ortada açılan izleme penceresi" width="900">
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Hız ve kalite**
+
+Oynatıcı çubuğunda bir hız menüsü (0,25× – 2×; **,** ve **.** tuşları da değiştirir) ve bir kalite menüsü var: *Otomatik* ya da 720p60 gibi sabit bir çözünürlük. İkisi de sonra açtığın videolarda da geçerli kalır. Canlı yayında yalnızca kalite menüsü vardır.
+
+<img src="docs/img/tr/player-menu.jpg" alt="Hız menüsü açık oynatıcı çubuğu">
+
+</td>
+<td width="50%" valign="top">
+
+**Sohbetten mesaj seç**
+
+Bir mesaja tıkla, **Shift** ile başka birine tıklayınca arası seçilir. **Kopyala** ya da **Kaydet** onları PNG resmi yapar; film düğmesi yalnızca o mesajların kısa sohbet videosunu hazırlar.
+
+<img src="docs/img/tr/chat-select.jpg" alt="Üç mesajın seçili olduğu sohbet paneli">
+
+</td>
+</tr>
+</table>
+
+Hangi sohbet dosyalarının kaydedileceği ve sohbet videosunun görünümü Ayarlar → Sohbet'te:
+
+<img src="docs/img/tr/settings-chat.jpg" alt="Ayarlar: sohbet dosyaları ve sohbet videosu" width="900">
 
 <br>
 
@@ -82,7 +109,7 @@ Kartın köşesindeki kutuya (ya da **Ctrl+tık**) basınca seçim başlar. Seç
 
 Altta bir çubuk belirir: kaç video seçtiğin, **toplam süre**, kalite ve **İndir (n)**. Sayıya tıklarsan seçtiklerin listelenir, her birini tek tek çıkarabilirsin.
 
-<img src="docs/img/secim.jpg" alt="Seçim çubuğu ve seçilenlerin listesi" width="900">
+<img src="docs/img/tr/selection.jpg" alt="Seçim çubuğu ve seçilenlerin listesi" width="900">
 
 <br>
 
@@ -90,7 +117,7 @@ Altta bir çubuk belirir: kaç video seçtiğin, **toplam süre**, kalite ve **�
 
 Başlığın yanındaki **⋮** düğmesi ya da **sağ tık**. Menü videonun durumuna göre değişir: henüz inmediyse *İndir*, iniyorsa *Durdur*, durmuşsa *Devam ettir*, inmişse *Oynat* ve *Klasörde göster*. Ayrıca *Kesit al*, *Sohbeti indir*, *Kick'te aç* ve *Linki kopyala*.
 
-<img src="docs/img/kart-menusu.jpg" alt="Kartın üç nokta menüsü" width="900">
+<img src="docs/img/tr/card-menu.jpg" alt="Kartın üç nokta menüsü" width="900">
 
 <br>
 
@@ -100,10 +127,12 @@ Başlığın yanındaki **⋮** düğmesi ya da **sağ tık**. Menü videonun du
 
 - **K** ile playhead'in çevresine otomatik uzunlukta kesit eklenir. Kenarları sürükleyerek ya da saat yazarak ayarlarsın.
 - Kesitler **ayrı dosyalar** ya da **tek video** olarak iner.
+- **CapCut'ta aç** kesitleri indirir, yayının kendi ölçüsünde yeni bir CapCut projesine art arda dizer ve CapCut'u açar (sohbet videosu da eklenebilir). Windows için CapCut kurulu olmalı.
+- Ses dalgasının altındaki **sohbet şeridi** sohbetin dakika dakika ne kadar yoğun olduğunu gösterir: yüksek çubuklar bir şeyin olduğu anlardır. Sohbetten alınan örnekle yapılan hızlı bir tahmindir, arkada yüklenir (uzun yayında yaklaşık 30 saniye) ve yalnızca biten yayınlarda vardır.
 - Yalnızca o aralığı kapsayan parçalar indirilir. 4 saatlik yayından 30 saniyelik kesit için 4 saatlik veri çekilmez.
 - Canlı yayından da kesit alabilirsin: yayın sürerken geçmişe dönüp istediğin anı kes.
 
-<img src="docs/img/kesit-editoru.jpg" alt="Kesit editörü: zaman çizelgesi ve kesit listesi" width="900">
+<img src="docs/img/tr/cut-editor.jpg" alt="Kesit editörü: zaman çizelgesi ve kesit listesi" width="900">
 
 <br>
 
@@ -117,7 +146,7 @@ Başlığın yanındaki **⋮** düğmesi ya da **sağ tık**. Menü videonun du
 
 Kartlar üzerinde durum görünür (*İniyor %37*, *Sırada*, *İndirildi*). Alt çubuk toplam ilerlemeyi, kalan süreyi, hızı ve diskteki boş yeri gösterir.
 
-<img src="docs/img/indirme.jpg" alt="İniyor durumundaki kartlar ve alt çubuk">
+<img src="docs/img/tr/downloading.jpg" alt="İniyor durumundaki kartlar ve alt çubuk">
 
 </td>
 <td width="50%" valign="top">
@@ -126,7 +155,7 @@ Kartlar üzerinde durum görünür (*İniyor %37*, *Sırada*, *İndirildi*). Alt
 
 Bitenler güne göre gruplanır. Dosya uygulamanın içinde oynar, Windows oynatıcısında açılır, klasörde gösterilir ya da Geri Dönüşüm Kutusu'na gönderilir.
 
-<img src="docs/img/indirilenler.jpg" alt="İndirilenler listesi">
+<img src="docs/img/tr/downloads.jpg" alt="İndirilenler listesi">
 
 </td>
 </tr>
@@ -139,7 +168,8 @@ Bitenler güne göre gruplanır. Dosya uygulamanın içinde oynar, Windows oynat
 | **Hız ayarı gerektirmez** | Aynı anda kaç video ineceğini (1–6) program, toplam hızı ölçerek kendisi ayarlar. Her video parçalarını 8–32 bağlantıyla çeker. |
 | **Hız sınırı** | Oyun ya da yayın izlerken hattı doldurmasın diye toplam hıza üst sınır koyabilirsin. |
 | **Canlı kayıt** | Canlı yayını şu andan itibaren kaydeder. Bitince `.ts` dosyası `.mp4`'e çevrilir. |
-| **Sohbeti indir** | VOD'un sohbetini `.ass` altyazı (VLC / MPC videonun üstünde akıtır) ve `.chat.json` olarak kaydeder. |
+| **Sohbeti indir** | Yayının, kesitin, klibin ya da canlı kaydın sohbetini eksiksiz indirir: `.ass` altyazı (VLC / MPC videonun üstünde akıtır), `.txt`, `.json`, `.html`. *Videolarla birlikte sohbeti de indir* açıksa her indirmeyle gelir. |
+| **Sohbet videosu** | Sohbeti ayrı, akan bir video olarak hazırlar; düzenleyicide yayının yanına koymak için. Yeşil perde `.mp4` ya da saydam `.webm`; ölçü, yazı boyutu, saat / rozet / emote Ayarlar → Sohbet'te. İndirilenler'deki sohbetten ya da paneldeki seçili mesajlardan da yapılır. |
 | **Kaldığı yerden devam** | Program kapanırsa yarım kalanlar bir sonraki açılışta *Devam et* ile sürer. |
 | **Disk koruması** | İndirmeden önce boş yer kontrol edilir. Sığmayan indirme açık bir mesajla başarısız olur, kuyruğun geri kalanı sürer. |
 | **Bitince** | Kuyruk bitince hiçbir şey yapma, uykuya al ya da bilgisayarı kapat (60 sn geri sayım, iptal edilebilir). |
@@ -233,6 +263,7 @@ Listeyi uygulamada **?** tuşuyla da görebilirsin.
 | `K` | Oynat / durdur |
 | `M` | Sesi kapat / aç |
 | `F` | Tam ekran |
+| `,` `.` | Yavaşlat / hızlandır |
 | `←` `→` | Önceki / sonraki video |
 | `Esc` | Kapat |
 
@@ -250,7 +281,7 @@ Editördeki tüm kısayollar sağ üstteki **Kısayollar** düğmesinde.
 </table>
 
 <div align="center">
-<img src="docs/img/kisayollar.jpg" alt="Kısayol listesi" width="760">
+<img src="docs/img/tr/shortcuts.jpg" alt="Kısayol listesi" width="760">
 </div>
 
 <br>
@@ -268,7 +299,7 @@ Ayarlar sol alttaki dişli ile açılır: arayüz dili, indirme klasörü, varsa
 </td>
 <td width="45%" valign="top">
 
-<img src="docs/img/ayarlar.jpg" alt="Ayarlar sayfası">
+<img src="docs/img/tr/settings.jpg" alt="Ayarlar sayfası">
 
 </td>
 </tr>

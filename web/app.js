@@ -2482,8 +2482,10 @@ async function loadChatDensity(vod) {
   const res = await state.api.chat_density(vod.uuid, vod.duration, false);
   if (cut.vod !== vod) return;
   const counts = res.ok ? res.counts : [];
+  const sorted = [...counts].sort((a, b) => a - b);
+  const at = (q) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] || 0;
   cut.density = res.ok
-    ? { uuid: vod.uuid, state: "ok", bin: res.bin, counts, max: Math.max(1, ...[...counts].sort((a, b) => a - b).slice(0, Math.max(1, Math.floor(counts.length * 0.98)))) }
+    ? { uuid: vod.uuid, state: "ok", bin: res.bin, counts, lo: at(0.1), hi: Math.max(at(0.98), at(0.1) + 1) }   // goreli yogunluk: sakin = alcak, patlama = tam boy
     : { uuid: vod.uuid, state: "error" };
   drawChatDensity();
 }
@@ -2512,8 +2514,8 @@ function drawChatDensity() {
   const px = cw / span;
   const first = Math.max(0, Math.floor(s / d.bin));
   for (let i = first; i < d.counts.length && i * d.bin < e; i++) {
-    const r = Math.min(1, d.counts[i] / d.max);
-    if (!r) continue;
+    if (!d.counts[i]) continue;
+    const r = 0.1 + 0.9 * clamp((d.counts[i] - d.lo) / (d.hi - d.lo), 0, 1);
     const x0 = (i * d.bin - s) * px;
     const h = Math.max(1.5, r * (ch - 2));
     g.globalAlpha = r > 0.7 ? 1 : 0.35 + r * 0.6;

@@ -37,7 +37,7 @@ if SLUGS:
     favorites = [{"slug": s, "name": s, "avatar": ""} for s in SLUGS]
 with open(os.path.join(tmp, "KickIndirici", "settings.json"), "w", encoding="utf-8") as f:
     json.dump({"lang": LANG, "favorites": favorites, "updateCheck": False, "clipboardWatch": False,
-               "notifyLive": False, "folder": r"C:\Users\you\Downloads\Kick"}, f)   # indirme olmaz; gercek kullanici adi gorunmesin
+               "notifyLive": False, "telemetry": False, "folder": r"C:\Users\you\Downloads\Kick"}, f)   # indirme olmaz; gercek kullanici adi gorunmesin
 
 sys.path.insert(0, os.path.join(ROOT, "src"))
 import webview                                   # noqa: E402
@@ -151,10 +151,21 @@ def driver(window):
     shot("preview", 2.5)
     reset()
 
-    # 4 izleme penceresi
-    js("focusItem(state.vods[1].url)")
+    # 4 izleme penceresi: sohbet yan panelde, yogun bir ani gosterir
+    js("const v = state.vods[1]; focusItem(v.url, Math.min(1800, Math.floor((v.duration || 3600) * 0.3)))")
     wait("$('player').classList.contains('playing')", 25)
+    wait("document.querySelectorAll('#wChatBody .chatp-list li').length > 8", 40)
     shot("watch", 2.5)
+
+    # 4b oynatici cubugu: hiz menusu acik (cubuk yalniz fare ustundeyken gorunur, o yuzden zorlanir)
+    js("document.head.insertAdjacentHTML('beforeend', '<style id=\"shotCtl\">.pctl{opacity:1!important}</style>'); $('pRate').click()")
+    shot("player-menu", 1)
+    js("$('pRate').click(); $('shotCtl').remove()")
+
+    # 4c sohbetten mesaj sec: secim cubugu ve Kopyala / Kaydet
+    js("const li = document.querySelectorAll('#wChatBody .chatp-list li'); const n = li.length; li[n - 4].click();"
+       "li[n - 2].dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }))")
+    shot("chat-select", 1)
     reset()
 
     # 5 secim: dort video secili, liste acik
@@ -194,6 +205,7 @@ def driver(window):
     wait("$('cutVideo').readyState >= 2", 30)
     js("seekTo(310)")
     wait("!!(cut.strip && cut.strip.segs) && $('waveNote').hidden", 90)
+    wait("!!cut.density && cut.density.state !== 'loading'", 150)      # sohbet yogunlugu seridi
     shot("cut-editor", 6)
     js("closeCutter()")
 
@@ -205,6 +217,10 @@ def driver(window):
     # 12 ayarlar
     js("showView('settings')")
     shot("settings")
+
+    # 13 sohbet ayarlari: sohbet videosu (yesil perde / saydam), dosya turleri
+    js("const c = $('setCvChips'); c.scrollIntoView({ block: 'center' })")
+    shot("settings-chat", 1)
     window.destroy()
 
 
