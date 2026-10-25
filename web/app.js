@@ -568,6 +568,7 @@ async function hlsUrl(v) {
    yerel dosyaysa dogrudan. Ses ayari kalici (ayarlar: volume, previewMuted). */
 const player = {
   hls: null, key: null, live: false, volTimer: 0,
+  rate: 1, qual: "auto",   // oturum boyunca hatirlanir: sonraki videolarda da gecerli
   el: () => $("insVideo"),
   load(key, { source, file, poster, start = 0, live = false, autoplay = true }) {
     const v = this.el();
@@ -584,6 +585,9 @@ const player = {
     v.volume = clamp((state.settings.volume ?? 50) / 100, 0, 1);
     paintVolume();
     $("pSeek").disabled = live;
+    v.defaultPlaybackRate = v.playbackRate = live ? 1 : this.rate;
+    $("pRate").parentElement.hidden = live;
+    paintRate();
     const go = () => {
       if (start && !live) v.currentTime = start;
       if (autoplay) v.play().catch(() => $("player").classList.remove("loading"));
@@ -597,7 +601,10 @@ const player = {
       hls.on(Hls.Events.ERROR, (_, d) => {
         if (d.fatal && this.hls === hls) this.msg(live ? t("player.liveFailed") : t("player.failed"));
       });
-      hls.on(Hls.Events.MANIFEST_PARSED, () => { if (autoplay) v.play().catch(() => $("player").classList.remove("loading")); });
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        applyQuality(hls);
+        if (autoplay) v.play().catch(() => $("player").classList.remove("loading"));
+      });
       Promise.resolve(source).then((src) => {
         if (this.hls !== hls) return;
         hls.loadSource(src);
@@ -617,6 +624,8 @@ const player = {
     v.removeAttribute("src");
     v.load();
     this.key = null;
+    closeMenus();
+    $("pQualWrap").hidden = true;
     $("player").classList.remove("playing", "loading");
     paintPlayer();
   },
@@ -674,8 +683,77 @@ function paintVolume() {
   if ($("pMute").dataset.ic !== ic) { $("pMute").dataset.ic = ic; $("pMute").innerHTML = icon(ic); }
 }
 
+/* hiz ve kalite menuleri: oynaticinin alt cubugunda acilir */
+const PLAY_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+const rateText = (r) => `${r}×`;
+
+function closeMenus() {
+  for (const id of ["pRate", "pQual"]) { $(`${id}Menu`).hidden = true; $(id).setAttribute("aria-expanded", "false"); }
+}
+
+function openMenu(id, items, current, pick) {
+  const menu = $(`${id}Menu`);
+  const was = !menu.hidden;
+  closeMenus();
+  if (was) return;
+  menu.innerHTML = "";
+  for (const [value, label] of items) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("role", "menuitemradio");
+    b.setAttribute("aria-checked", String(value === current));
+    b.textContent = label;
+    b.addEventListener("click", () => { closeMenus(); pick(value); });
+    menu.append(b);
+  }
+  menu.hidden = false;
+  $(id).setAttribute("aria-expanded", "true");
+}
+
+function paintRate() { $("pRate").textContent = rateText(player.rate); }
+
+function setPlayRate(r) {
+  player.rate = r;
+  const v = player.el();
+  v.defaultPlaybackRate = v.playbackRate = r;
+  paintRate();
+}
+
+/* hls seviyeleri: yukseklige gore, buyukten kucuge. "auto" = hls.js secer. */
+function qualityLevels(hls) {
+  const seen = new Set();
+  return hls.levels
+    .map((l, i) => {
+      const fps = Math.round(Number(l.attrs && l.attrs["FRAME-RATE"]) || 0);
+      return { i, h: l.height || 0, label: l.height ? `${l.height}p${fps > 30 ? fps : ""}` : `${Math.round(l.bitrate / 1000)} kb/s` };
+    })
+    .filter((l) => !seen.has(l.label) && seen.add(l.label))
+    .sort((a, b) => b.h - a.h || b.i - a.i);
+}
+
+function applyQuality(hls) {
+  const lv = qualityLevels(hls);
+  $("pQualWrap").hidden = lv.length < 2;
+  if (lv.length < 2) return;
+  let pick = null;
+  if (player.qual !== "auto") pick = lv.find((l) => l.label === player.qual) || lv.find((l) => l.h && l.h <= parseInt(player.qual, 10)) || lv[lv.length - 1];
+  hls.currentLevel = pick ? pick.i : -1;
+  $("pQual").textContent = pick ? pick.label : t("player.auto");
+}
+
 function bindPlayer() {
   const v = player.el();
+  $("pRate").addEventListener("click", () =>
+    openMenu("pRate", PLAY_RATES.map((r) => [r, rateText(r)]), player.rate, setPlayRate));
+  $("pQual").addEventListener("click", () => {
+    if (!player.hls) return;
+    const lv = qualityLevels(player.hls);
+    openMenu("pQual", [["auto", t("player.auto")], ...lv.map((l) => [l.label, l.label])], player.qual, (q) => {
+      player.qual = q;
+      applyQuality(player.hls);
+    });
+  });
+  document.addEventListener("click", (e) => { if (!e.target.closest(".pmenuwrap")) closeMenus(); });
   for (const ev of ["play", "pause", "timeupdate", "durationchange", "seeked"]) v.addEventListener(ev, paintPlayer);
   v.addEventListener("playing", () => { $("player").classList.add("playing"); $("player").classList.remove("loading"); });
   v.addEventListener("waiting", () => { if (player.key) $("player").classList.add("loading"); });   // takildi, tampon doluyor
@@ -1963,6 +2041,8 @@ async function openCutter(vod) {
   video.poster = vod.thumb || "";
   video.muted = false;
   cut.view = [0, Math.min(WAVE_MAX, vod.duration || WAVE_MAX)];   // 15 dk'lik yakin gorunumle ac
+  cut.density = null;
+  loadChatDensity(vod);
   cut.strip = { uuid: vod.uuid, segs: null, data: new Map(), thumbs: new Map(), busy: 0, tbusy: 0, note: "" };
   loadStrip(cut.strip);
   setSideTab(cut.tab);
@@ -2053,6 +2133,7 @@ function closeCutter() {
   }
   cutChat.stop();
   cutChat.uuid = null;
+  cut.density = null;
   cut.vod = null;
 }
 
@@ -2388,8 +2469,58 @@ function drawTimeline() {
   $("zoomIn").disabled = !dur || span <= Math.min(MIN_VIEW, dur) + 0.5;
   $("zoomOut").disabled = $("zoomFit").disabled = !dur || span >= dur - 0.5;
   drawStrip();
+  drawChatDensity();
   scheduleStrip();
   paintHeads();
+}
+
+/* sohbet yogunlugu: dakika basina mesaj; hareketli anlar yuksek cubuk. Veri editor acilinca arkada gelir. */
+async function loadChatDensity(vod) {
+  if (vod.live || !vod.uuid || !vod.duration) return;
+  cut.density = { uuid: vod.uuid, state: "loading" };
+  drawChatDensity();
+  const res = await state.api.chat_density(vod.uuid, vod.duration, false);
+  if (cut.vod !== vod) return;
+  const counts = res.ok ? res.counts : [];
+  cut.density = res.ok
+    ? { uuid: vod.uuid, state: "ok", bin: res.bin, counts, max: Math.max(1, ...[...counts].sort((a, b) => a - b).slice(0, Math.max(1, Math.floor(counts.length * 0.98)))) }
+    : { uuid: vod.uuid, state: "error" };
+  drawChatDensity();
+}
+
+function drawChatDensity() {
+  const cv = $("tlChat");
+  const d = cut.density;
+  const note = !d ? "" : d.state === "loading" ? t("cut.chatLoading") : d.state === "error" ? t("cut.chatFailed") : "";
+  $("chatNote").hidden = !note;
+  $("chatNote").textContent = note;
+  const dpr = window.devicePixelRatio || 1;
+  const cw = cv.clientWidth, ch = cv.clientHeight;
+  if (cv.width !== Math.round(cw * dpr) || cv.height !== Math.round(ch * dpr)) {
+    cv.width = Math.round(cw * dpr);
+    cv.height = Math.round(ch * dpr);
+  }
+  const g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, cw, ch);
+  if (!d || d.state !== "ok" || !cut.view) return;
+  const [s, e] = cut.view;
+  const span = e - s;
+  if (!(span > 0)) return;
+  const css = getComputedStyle(document.documentElement);
+  const accent = css.getPropertyValue("--accent").trim();
+  const px = cw / span;
+  const first = Math.max(0, Math.floor(s / d.bin));
+  for (let i = first; i < d.counts.length && i * d.bin < e; i++) {
+    const r = Math.min(1, d.counts[i] / d.max);
+    if (!r) continue;
+    const x0 = (i * d.bin - s) * px;
+    const h = Math.max(1.5, r * (ch - 2));
+    g.globalAlpha = r > 0.7 ? 1 : 0.35 + r * 0.6;
+    g.fillStyle = accent;
+    g.fillRect(Math.floor(x0), ch - h, Math.max(1, Math.ceil(d.bin * px) - 1), h);
+  }
+  g.globalAlpha = 1;
 }
 
 /* ---------- kare ve ses seridi ---------- */
@@ -3478,6 +3609,12 @@ function bind() {
     const v = player.el();
     if (e.key === "m" && player.key) { v.muted = !v.muted; return; }
     if (e.key === "f" && player.key) { fullscreen(); return; }
+    if ((e.key === "," || e.key === ".") && player.key && !player.live) {
+      const i = PLAY_RATES.indexOf(player.rate);
+      setPlayRate(PLAY_RATES[clamp((i < 0 ? 3 : i) + (e.key === "." ? 1 : -1), 0, PLAY_RATES.length - 1)]);
+      toast(t("cut.rateToast", { r: player.rate }));
+      return;
+    }
     if (e.key === "k" && player.key) { v.paused ? v.play().catch(() => {}) : v.pause(); return; }
     if ($("watch").open) {
       if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.target.type !== "range") { e.preventDefault(); watchStep(e.key === "ArrowLeft" ? -1 : 1); }

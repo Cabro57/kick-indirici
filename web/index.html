@@ -339,6 +339,8 @@
             <button class="iconbtn" id="pPlay" type="button" data-i18n-title="player.playPause" data-i18n-aria="player.playPause"><svg class="ic"><use href="#i-play"/></svg></button>
             <span class="ptime num" id="pTime">0:00</span>
             <span class="grow"></span>
+            <div class="pmenuwrap"><button class="pbtn num" id="pRate" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n-title="player.rateTip">1×</button><div class="pmenu" id="pRateMenu" role="menu" hidden></div></div>
+            <div class="pmenuwrap" id="pQualWrap" hidden><button class="pbtn num" id="pQual" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n-title="player.qualityTip"></button><div class="pmenu" id="pQualMenu" role="menu" hidden></div></div>
             <button class="iconbtn" id="pChat" type="button" aria-pressed="false" data-i18n-title="chat.panel.toggleTip" data-i18n-aria="chat.panel.title"><svg class="ic"><use href="#i-chat"/></svg></button>
             <button class="iconbtn" id="pMute" type="button" data-i18n-title="player.muteTip" data-i18n-aria="player.mute"><svg class="ic"><use href="#i-volume"/></svg></button>
             <input type="range" class="pvol" id="pVol" min="0" max="100" step="1" data-i18n-aria="common.volume">
@@ -552,6 +554,7 @@
         <span class="h-ru"></span>
         <span class="h-film"><svg class="ic"><use href="#i-film"/></svg><span data-i18n="cut.trackVideo"></span></span>
         <span class="h-wave"><svg class="ic"><use href="#i-volume"/></svg><span data-i18n="cut.trackAudio"></span></span>
+        <span class="h-chatd"><svg class="ic"><use href="#i-chat"/></svg><span data-i18n="cut.trackChat"></span></span>
         <span class="h-lane"><svg class="ic"><use href="#i-scissors"/></svg><span data-i18n="cut.trackCuts"></span></span>
       </div>
       <div class="tracks">
@@ -567,6 +570,10 @@
           <div class="wavebox">
             <canvas class="wave" id="tlWave"></canvas>
             <p class="wavenote" id="waveNote" hidden></p>
+          </div>
+          <div class="chatrow">
+            <canvas class="wave" id="tlChat"></canvas>
+            <p class="wavenote" id="chatNote" hidden></p>
           </div>
           <div class="bands" id="tlBands"></div>
           <div class="lane" id="tlLane"></div>

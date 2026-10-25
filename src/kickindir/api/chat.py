@@ -3,10 +3,12 @@ ve secilen mesajlarin resmi (PNG)."""
 
 import base64
 import json
+import math
 import os
 import re
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import webview
 
@@ -14,13 +16,15 @@ from kickindir.config import LIVE_CHAT_LAG, log
 from kickindir.core.engine import Download
 from kickindir.core.util import fill_name
 from kickindir.core.i18n import t
-from kickindir.services.chat import CHUNK, chat_entry, fetch_range, hms
+from kickindir.services.chat import CHUNK, chat_entry, chat_page, fetch_range, hms
 from kickindir.services.chat_image import render_chat
 from kickindir.services.kick import kick_get, kick_time
 
 PUSHER = "wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false"
 PART = 20                 # panelin 5 dk'lik parcasi 20 sn'lik dilimlerle paralel cekilir: ~1 sn
 LIVE_KEEP = 2000          # canli panelde tutulan en fazla mesaj
+DENSITY_BINS = 360        # yogunluk seridi en fazla bu kadar dilim (her biri tek istek)
+_density = {}             # (uuid, sure) -> sonuc; biten yayinlar icin
 
 
 class ChatSource:
@@ -230,6 +234,46 @@ class ChatMixin:
             return {"ok": False, "error": t("chat.panel.none")}
         msgs, last = src.since(seq if isinstance(seq, int) else 0)
         return {"ok": True, "messages": msgs, "seq": last}
+
+    def chat_density(self, uuid, dur, live=False):
+        """Kesit editoru icin sohbet yogunlugu: videoyu esit dilimlere boler, her dilimin sonundan tek sayfa (25 mesaj)
+        okuyup dilimdeki mesaj sayisini kestirir. Tam sohbeti indirmekten cok daha hizli. Doner: {"ok", "bin", "counts"}."""
+        try:
+            dur = float(dur)
+            if not isinstance(uuid, str) or not 0 < dur < 7 * 86400:
+                return {"ok": False, "error": t("chat.panel.none")}
+            key = (uuid, int(dur))
+            if key in _density and not live:
+                return _density[key]
+            v = kick_get(f"https://kick.com/api/v1/video/{uuid}")
+            ls = v.get("livestream") or {}
+            when, channel = kick_time(ls.get("start_time") or ls.get("created_at")), ls["channel_id"]
+            width = max(60.0, math.ceil(dur / DENSITY_BINS))
+            n = math.ceil(dur / width)
+
+            def count(i):
+                a, b = when + i * width, when + min((i + 1) * width, dur)
+                msgs, _ = chat_page(channel, int(b * 1_000_000))
+                times = []
+                for m in msgs:
+                    try:
+                        times.append(kick_time(m.get("created_at")))
+                    except ValueError:
+                        pass
+                inside = [x for x in times if a <= x < b]
+                if not times or min(times) < a:       # sayfa dilimin basini asti: dilimdeki sayi kesin
+                    return len(inside)
+                return round(len(inside) * (b - a) / max(b - min(times), 1))   # dilim 25'ten kalabalik: oranla
+
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                counts = list(pool.map(count, range(n)))
+            out = {"ok": True, "bin": width, "counts": counts}
+            if not live:
+                _density[key] = out
+            return out
+        except Exception as e:  # noqa: BLE001
+            log.info("sohbet yogunlugu alinamadi (%s): %s", uuid, e)
+            return {"ok": False, "error": t("chat.panel.failed", e=str(e)[:120])}
 
     def chat_close(self, cid):
         with self._chat_lock:
