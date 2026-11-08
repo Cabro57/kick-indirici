@@ -9,7 +9,7 @@
 **Download Kick streams, clips and live streams as fast as your connection allows.**
 Watch, cut out the moments you want, record live. All in one window.
 
-![Version](https://img.shields.io/badge/version-1.2.0-53FC18?style=flat-square&labelColor=0b0e0f)
+![Version](https://img.shields.io/badge/version-1.2.1-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-53FC18?style=flat-square&labelColor=0b0e0f)
 ![Python](https://img.shields.io/badge/Python-3-53FC18?style=flat-square&labelColor=0b0e0f)
 
