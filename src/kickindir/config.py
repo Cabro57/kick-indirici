@@ -6,7 +6,7 @@ import shutil
 import sys
 
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 
 POSTHOG_HOST = "https://eu.i.posthog.com"     # anonim kullanim verisi (izinle): PostHog AB
