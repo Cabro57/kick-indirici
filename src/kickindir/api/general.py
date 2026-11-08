@@ -58,7 +58,11 @@ class AppMixin:
     def open_url(self, url):
         """Tarayicida acar. Yalnizca GitHub surum sayfasi ve kick.com: arayuz baska adres acamaz."""
         if isinstance(url, str) and (url.startswith(f"https://github.com/{UPDATE_REPO}/") or url.startswith("https://kick.com/")):
-            os.startfile(url)
+            try:
+                os.startfile(url)
+            except OSError as e:   # varsayilan tarayici iliskisi bozuksa ShellExecute WinError 32 verebilir
+                log.info("startfile basarisiz (%s); explorer ile aciliyor", e)
+                subprocess.Popen(["explorer.exe", url], creationflags=subprocess.CREATE_NO_WINDOW)
             return True
         return False
 
