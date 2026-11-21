@@ -302,6 +302,7 @@
   "fact.categories": "Kategoriler",
   "watch.liveRecNote": "<b>Canlı kayıt (beta):</b> yayın şu andan itibaren kaydedilir. Durdurunca ya da yayın bitince mp4 olur ve İndirilenler'e düşer.",
   "watch.liveCutNote": "<b>Kesit al:</b> yayının başından şu ana kadar istediğin anı seç; yayın sürerken iner.",
+  "act.download": "İndir",
   "act.dlClip": "Klibi indir",
   "act.dlAll": "Tamamını indir",
   "act.dlChat": "Sohbeti indir",

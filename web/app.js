@@ -459,15 +459,22 @@ function paintCards() {
     tp.hidden = !d || !["downloading", "merging", "done"].includes(d.status);
     if (d) tp.style.transform = `scaleX(${(d.pct || 0) / 100})`;
     if (!d) continue;
-    st.classList.add("on");
-    if (d.status === "downloading") { st.classList.add("active"); st.textContent = t("card.downloadingPct", { p: Math.floor(d.pct) }); }
-    else if (d.status === "recording") { st.classList.add("active"); st.textContent = statusName("recording"); }
-    else if (d.status === "preparing" || d.status === "merging") { st.classList.add("active"); st.textContent = statusName(d.status); }
-    else if (d.status === "done") { st.classList.add("done"); st.textContent = t("card.downloaded"); }
-    else if (d.status === "error") { st.classList.add("bad"); st.textContent = statusName("error"); }
-    else if (d.status === "stopped") { st.classList.add("stopped"); st.textContent = statusName("stopped"); }
-    else { st.classList.add("queued"); st.textContent = statusName("queued"); }
+    const [cls, text] = cardState(d);
+    st.classList.add("on", cls);
+    st.textContent = text;
   }
+  hcard.paint();
+}
+
+/* indirme durumu -> [sinif, metin] (kart rozeti ve buyuyen kartin bilgi alani ayni kaynagi kullanir) */
+function cardState(d) {
+  if (d.status === "downloading") return ["active", t("card.downloadingPct", { p: Math.floor(d.pct) })];
+  if (d.status === "recording") return ["active", statusName("recording")];
+  if (d.status === "preparing" || d.status === "merging") return ["active", statusName(d.status)];
+  if (d.status === "done") return ["done", t("card.downloaded")];
+  if (d.status === "error") return ["bad", statusName("error")];
+  if (d.status === "stopped") return ["stopped", statusName("stopped")];
+  return ["queued", statusName("queued")];
 }
 
 function toggleSel(url, on) {
@@ -476,6 +483,7 @@ function toggleSel(url, on) {
 }
 
 function selectionChanged() {
+  if (hcard.el) hover.stop();
   paintCards();
   renderSelBar();
 }
@@ -799,12 +807,13 @@ const hover = {
       video.muted = true;
       video.playsInline = true;
       video.loop = v.kind !== "live";
-      const img = card.querySelector(".thumb img");
-      img.after(video);
-      const thumb = card.querySelector(".thumb");
+      const kind = kindOf(v);
+      // secim varken ya da canli ogede yerinde onizleme; aksi halde buyuyen kart (video + zaman cubugu onun icinde)
+      const floating = !state.selected.size && kind !== "live" && !v.live && !card.classList.contains("livecard");
+      const thumb = floating ? hcard.open(card, v) : card.querySelector(".thumb");
+      thumb.querySelector("img").after(video);
       if (!thumb.querySelector(".spin")) thumb.insertAdjacentHTML("beforeend", SPIN);
       thumb.classList.add("loading");
-      const kind = kindOf(v);
       const start = kind === "live" ? -1 : kind === "vod" ? Math.floor((v.duration || 0) * 0.2) : 0;
       const hls = new Hls({ maxBufferLength: 6, startPosition: start, capLevelToPlayerSize: true, autoStartLoad: true });
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -892,11 +901,83 @@ const hover = {
     clearTimeout(this.timer);
     clearTimeout(this.peekTimer);
     if (this.zone) { this.zone.remove(); this.zone = null; }
+    hcard.close();
     if (this.card) this.card.querySelector(".thumb").classList.remove("loading", "scrub");
     if (this.hls) { this.hls.destroy(); this.hls = null; }
     if (this.video) { this.video.pause(); this.video.remove(); this.video = null; }
     this.card = null;
     this.url = null;
+  },
+};
+
+/* buyuyen kart (YouTube tarzi): onizleme basladiginda kartin dikdortgeninden ~1.2x'e buyur; gorsel rozetler yok,
+   indirme durumu bilgi alaninda metin + ince cubuk. Onizleme videosu ve zaman cubugu bunun icine konur (tek Hls). */
+const hcard = {
+  el: null, card: null, url: null, key: "",
+  open(card, v) {
+    const el = $("hCard");
+    this.el = el; this.card = card; this.url = v.url; this.key = "";
+    el.querySelector(".hcmedia img").src = card.querySelector(".thumb img").src;
+    el.querySelector(".hctitle").textContent = cleanTitle(v.title);
+    el.querySelector(".hctitle").title = v.title;
+    el.querySelector(".hcmeta").textContent = [fmtAgo(v.start), t("card.views", { n: v.views, c: fmtCount(v.views) }), fmtDuration(v.duration)].filter(Boolean).join(" · ");
+    el.classList.remove("in");
+    el.hidden = false;
+    this.paint();
+    // kartin kucuk resminin dikdortgeni -> 1.2x; kaydirma alani icine sigdir (kenar kartlar iceri buyur)
+    const r = card.querySelector(".thumb").getBoundingClientRect();
+    const wrap = $("gridWrap").getBoundingClientRect();
+    const W = Math.round(r.width * 1.2);
+    el.style.width = `${W}px`;
+    const H = el.offsetHeight;
+    const x = clamp(r.left + r.width / 2 - W / 2, wrap.left + 4, wrap.right - W - 4);
+    const y = clamp(r.top + r.height / 2 - (W * 9 / 16) / 2, wrap.top + 4, Math.max(wrap.top + 4, wrap.bottom - H - 4));
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    el.style.transition = "none";
+    el.style.opacity = "0.6";
+    el.style.transform = `translate(${r.left - x}px, ${r.top - y}px) scale(${r.width / W})`;
+    void el.offsetWidth;
+    el.style.transition = "";
+    el.style.opacity = "";
+    el.style.transform = "";
+    el.classList.add("in");
+    return el.querySelector(".hcmedia");
+  },
+  close() {
+    if (!this.el) return;
+    this.el.hidden = true;
+    this.el.querySelector(".hcmedia").replaceChildren(this.el.querySelector(".hcmedia img"));
+    this.el.querySelector(".hcmedia").classList.remove("loading", "scrub");
+    this.el = this.card = this.url = null;
+  },
+  /* indirme durumu: metin + cubuk her guncellemede, islem dugmeleri yalnizca durum degisince */
+  paint() {
+    if (!this.el) return;
+    const v = itemByUrl(this.url);
+    if (!v) return;
+    const d = state.byUrl.get(v.url), kind = kindOf(v);
+    const box = this.el.querySelector(".hcstate"), bar = box.querySelector(".hcbar");
+    box.hidden = !d;
+    if (d) {
+      const [cls, text] = cardState(d);
+      box.className = `hcstate ${cls === "active" || cls === "done" ? "" : cls}`;
+      box.firstElementChild.textContent = text;
+      const pct = ["downloading", "merging"].includes(d.status);
+      bar.hidden = !pct;
+      bar.firstElementChild.style.transform = `scaleX(${(d.pct || 0) / 100})`;
+    }
+    const key = `${d ? d.status : ""}:${d ? d.id : ""}`;
+    if (key === this.key) return;
+    this.key = key;
+    const b = (act, label, ic, cls) => `<button type="button" class="btn sm ${cls || ""}" data-hc="${act}">${icon(ic)}<span>${esc(label)}</span></button>`;
+    let main;
+    if (!d) main = b("dl", kind === "clip" ? t("act.dlClip") : t("act.download"), "download", "primary");
+    else if (d.status === "done") main = b("playfile", t("act.playDownloaded"), "play", "primary");
+    else if (["stopped", "error"].includes(d.status)) main = b("retry", d.status === "error" ? t("act.retry") : t("act.resume"), "retry", "primary");
+    else main = b("cancel", t("act.stopDl"), "stop", "danger");
+    this.el.querySelector(".hcact").innerHTML = main + (kind === "vod" ? b("cut", t("card.cut"), "scissors") : "")
+      + `<button type="button" class="btn ghost sm hcmore" data-hc="more" title="${esc(t("card.more"))}" aria-label="${esc(t("card.more"))}" aria-haspopup="menu">${icon("more")}</button>`;
   },
 };
 
@@ -1116,6 +1197,7 @@ function cardMenuItems(v) {
 function openCardMenu(url, at, btn) {
   const v = itemByUrl(url);
   if (!v) return;
+  const anchor = btn ? btn.getBoundingClientRect() : at && at.rect;     // buyuyen kartin dugmesi onizleme kapaninca kalkar: dikdortgen once alinir
   closeCardMenu(false);
   hover.stop();
   cmenu.url = url;
@@ -1125,8 +1207,8 @@ function openCardMenu(url, at, btn) {
     : `<button type="button" role="menuitem" data-cm="${x[0]}" class="${x[3] || ""}">${icon(x[1])}<span>${esc(x[2])}</span>${x[4] ? `<small>${x[4]}</small>` : ""}</button>`).join("");
   m.hidden = false;
   const w = m.offsetWidth, h = m.offsetHeight;
-  const r = btn ? btn.getBoundingClientRect() : { left: at.x, right: at.x, top: at.y, bottom: at.y };
-  const left = btn ? r.right - w : r.left;
+  const r = anchor || { left: at.x, right: at.x, top: at.y, bottom: at.y };
+  const left = anchor ? r.right - w : r.left;
   const down = window.innerHeight - r.bottom - 8 >= h;
   m.style.left = `${clamp(left, 8, window.innerWidth - w - 8)}px`;
   m.style.top = `${down ? r.bottom + 4 : Math.max(8, r.top - h - 4)}px`;
@@ -1143,8 +1225,8 @@ function closeCardMenu(focusBtn) {
   cmenu.url = cmenu.btn = null;
 }
 
-async function onCardMenu(act) {
-  const url = cmenu.url, v = itemByUrl(url), d = state.byUrl.get(url);
+async function onCardMenu(act, at = cmenu.url) {
+  const url = at, v = itemByUrl(url), d = state.byUrl.get(url);
   closeCardMenu(false);
   if (!v) return;
   if (act === "watch") focusItem(url);
@@ -3967,11 +4049,37 @@ function bind() {
     const c = e.target.closest(".card[data-url]");
     if (c) { hover.start(c); prewarm.over(c); }
   });
-  grid.addEventListener("pointerleave", () => { hover.stop(); prewarm.cancel(); });
+  const inFloat = (el) => !!(el && el.closest && el.closest("#hCard"));
+  grid.addEventListener("pointerleave", (e) => { if (inFloat(e.relatedTarget)) return; hover.stop(); prewarm.cancel(); });
   grid.addEventListener("pointerout", (e) => {
     const c = e.target.closest(".card[data-url]");
-    if (c && !c.contains(e.relatedTarget)) { hover.stop(); prewarm.cancel(); }
+    if (c && !c.contains(e.relatedTarget) && !inFloat(e.relatedTarget)) { hover.stop(); prewarm.cancel(); }
   });
+  // buyuyen kart: kartin disina cikinca kapanir; tik video alaninda ayni andan izleme penceresini acar
+  const hc = $("hCard");
+  hc.addEventListener("pointerleave", (e) => {
+    if (hover.card && hover.card.contains(e.relatedTarget)) return;
+    hover.stop();
+    prewarm.cancel();
+  });
+  hc.addEventListener("click", (e) => {
+    const card = hcard.card, url = hcard.url;
+    if (!card) return;
+    const b = e.target.closest("[data-hc]");
+    if (!b) {                                   // video / baslik: kartin kendi tikini ayni durumla (hover.time) calistir
+      card.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, metaKey: e.metaKey }));
+      return;
+    }
+    const act = b.dataset.hc;
+    if (act === "more") { openCardMenu(url, { rect: b.getBoundingClientRect() }, null); return; }
+    hover.stop();
+    if (act === "cut") { player.el().pause(); openCutter(cutTarget(itemByUrl(url))); }
+    else onCardMenu(act, url);
+  });
+  for (const ev of ["contextmenu"]) hc.addEventListener(ev, (e) => e.preventDefault());
+  $("gridWrap").addEventListener("scroll", () => { if (hcard.el) hover.stop(); }, { passive: true });
+  window.addEventListener("resize", () => { if (hcard.el) hover.stop(); });
+  window.addEventListener("blur", () => { if (hcard.el) hover.stop(); });
 
   // secim cubugu
   $("selCount").addEventListener("click", toggleSelList);

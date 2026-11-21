@@ -352,6 +352,30 @@ body:has(.selbar:not([hidden])) .toast { bottom: calc(var(--sb) + 86px); }
 .hlab img[hidden] { display: none; }
 .hlab span { padding: 1px 7px; border-radius: 4px; background: var(--scrim); font-size: 12px; font-weight: 600; }
 .card:hover .thumb { transform: translateY(-2px); box-shadow: 0 8px 20px -8px #000c; }
+/* buyuyen kart: kartin dikdortgeninden ~1.2x'e buyur; video + zaman cubugu ustte, bilgi ve islemler altta */
+.hcard {
+  position: fixed; z-index: 40; overflow: hidden; border-radius: 12px; background: var(--s2); border: 1px solid var(--line2);
+  box-shadow: 0 26px 60px -18px #000, 0 6px 16px -6px #000a; cursor: pointer; transform-origin: 0 0;
+  transition: transform .24s var(--ease), opacity .16s;
+}
+.hcard[hidden] { display: none; }
+.hcard .hcmedia { border-radius: 0; transition: none; }
+.hcinfo { padding: 12px 12px 12px; display: grid; gap: 4px; opacity: 0; transition: opacity .18s .08s; }
+.hcard.in .hcinfo { opacity: 1; }
+.hctitle { font: 600 14px/1.35 var(--font-display); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.hcmeta { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hcstate { display: grid; gap: 5px; margin-top: 4px; font-size: 12.5px; font-weight: 600; color: var(--accent); }
+.hcstate[hidden] { display: none; }
+.hcstate.stopped { color: var(--amber); }
+.hcstate.bad { color: var(--red); }
+.hcstate.queued { color: var(--muted); }
+.hcbar { display: block; height: 3px; border-radius: 2px; background: var(--s3); overflow: hidden; }
+.hcbar b { display: block; height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); transition: transform .5s linear; }
+.hcbar[hidden] { display: none; }
+.hcact { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.hcact .btn { flex: none; }
+.hcact .hcmore { margin-left: auto; width: 30px; padding: 0; justify-content: center; }
+.hcact .hcmore .ic { width: 18px; height: 18px; }
 .card:focus-visible .thumb { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--muted); }
 .card.focus .thumb { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
 .card[aria-selected="true"] .thumb { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }

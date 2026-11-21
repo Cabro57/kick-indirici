@@ -334,6 +334,7 @@
   "fact.categories": "Categories",
   "watch.liveRecNote": "<b>Live recording (beta):</b> the stream is recorded from now on. When you stop it or the stream ends, it becomes an mp4 and appears in Downloads.",
   "watch.liveCutNote": "<b>Cut:</b> pick any moment from the stream's start until now; downloads while the stream is still running.",
+  "act.download": "Download",
   "act.dlClip": "Download clip",
   "act.dlAll": "Download all",
   "act.dlChat": "Download chat",
