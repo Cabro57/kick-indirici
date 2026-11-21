@@ -104,7 +104,7 @@ const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAI
 
 /* ---------- gorunumler ---------- */
 function showView(view) {
-  if (view === "settings" && state.view !== "settings") track("settings_open");
+  if (view === "settings" && state.view !== "settings") { track("settings_open"); $("setSearch").value = ""; }
   state.view = view;
   closeWatch();
   $("homeView").hidden = view !== "home";
@@ -1781,6 +1781,65 @@ function renderSettings() {
   $("setName").value = s.nameTemplate;
   $("nameTokens").innerHTML = esc(t("set.tokens")) + " " + s.nameTokens.map((k) => `<button class="tok" type="button" data-tok="${k}">{${k}}</button>`).join("");
   previewName();
+  filterSettings();
+}
+
+/* ayarlar: sol kategori listesi + arama. Arama tum kategorilerdeki satirlari etiket+aciklamaya gore suzer
+   (aksan/buyuk-kucuk harf duyarsiz); sonuclar kategori adi altinda gruplanir */
+const SET_CATS = ["download", "player", "chat", "cuts", "notify", "app", "advanced"];
+const setFold = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\u0131/g, "i").toLowerCase();
+function setCat() {
+  let c = "";
+  try { c = localStorage.getItem("setCat"); } catch { /* depolama kapali */ }
+  return SET_CATS.includes(c) ? c : SET_CATS[0];
+}
+function filterSettings() {
+  const raw = $("setSearch").value.trim(), q = setFold(raw), cat = setCat();
+  $("settingsView").classList.toggle("searching", !!q);
+  $("setTitle").hidden = !!q;
+  $("setTitle").textContent = t(`set.${cat === "notify" ? "notifications" : cat}`);
+  let hits = 0;
+  for (const g of document.querySelectorAll("#setInner .setgroup")) {
+    let any = false;
+    for (const r of g.querySelectorAll(".setrow")) {
+      r.hidden = !!q && !setFold(r.querySelector(".setlbl").textContent).includes(q);
+      any = any || !r.hidden;
+    }
+    g.hidden = q ? !any : g.dataset.cat !== cat;
+    if (q && any) hits++;
+  }
+  $("setNone").hidden = !q || hits > 0;
+  $("setNone").textContent = t("set.noResults", { q: raw });
+  for (const b of $("setCats").children) {
+    const on = b.dataset.cat === cat;
+    b.setAttribute("aria-selected", on);
+    b.tabIndex = on ? 0 : -1;
+  }
+}
+function pickSettingsCat(cat, focus) {
+  try { localStorage.setItem("setCat", cat); } catch { /* depolama kapali */ }
+  $("setSearch").value = "";
+  filterSettings();
+  $("setInner").parentElement.scrollTop = 0;
+  if (focus) $("setCats").querySelector(`[data-cat="${cat}"]`).focus();
+}
+function initSettingsNav() {
+  $("setCats").addEventListener("click", (e) => { const b = e.target.closest("[data-cat]"); if (b) pickSettingsCat(b.dataset.cat); });
+  $("setCats").addEventListener("keydown", (e) => {
+    const step = { ArrowDown: 1, ArrowUp: -1 }[e.key];
+    let i = SET_CATS.indexOf(setCat());
+    if (step) i = (i + step + SET_CATS.length) % SET_CATS.length;
+    else if (e.key === "Home") i = 0;
+    else if (e.key === "End") i = SET_CATS.length - 1;
+    else return;
+    e.preventDefault();
+    pickSettingsCat(SET_CATS[i], true);
+  });
+  $("setSearch").addEventListener("input", filterSettings);
+  $("setSearch").addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && e.target.value) { e.preventDefault(); e.stopPropagation(); e.target.value = ""; filterSettings(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); $("setCats").querySelector('[aria-selected="true"]').focus(); }
+  });
 }
 
 /* ayarlar: kare onbelleginin disk kullanimi */
@@ -1880,6 +1939,7 @@ function bindSettings() {
     });
   }
   $("setQuality").addEventListener("change", (e) => setQuality(e.target.value, true));
+  initSettingsNav();
   const num = (v) => (v === "auto" ? "auto" : Number(v));
   $("setParallel").addEventListener("change", (e) => saveSetting({ parallel: num(e.target.value) }));
   $("setThreads").addEventListener("change", (e) => saveSetting({ fragThreads: num(e.target.value) }));
@@ -3961,6 +4021,7 @@ function bind() {
     const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName);
     if (e.ctrlKey && e.key.toLowerCase() === "l") { e.preventDefault(); $("linkInput").focus(); $("linkInput").select(); return; }
     if (e.ctrlKey && e.key.toLowerCase() === "j") { e.preventDefault(); showView("library"); return; }
+    if (e.ctrlKey && e.key.toLowerCase() === "f" && state.view === "settings") { e.preventDefault(); $("setSearch").focus(); $("setSearch").select(); return; }
     if (typing) { if (e.key === "Escape") e.target.blur(); return; }
     if (e.key === "?") { e.preventDefault(); $("keysDlg").showModal(); return; }
     const v = player.el();

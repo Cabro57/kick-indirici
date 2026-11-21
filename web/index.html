@@ -187,127 +187,149 @@
 
   <!-- ayarlar -->
   <section class="view settings" id="settingsView" hidden data-i18n-aria="rail.settings">
-    <div class="setinner" id="setInner">
-      <h1 data-i18n="rail.settings"></h1>
-      <section class="setgroup">
-        <h2 data-i18n="set.download"></h2>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.folder"></b><p class="num" id="setFolder"></p></div>
-          <button class="btn" id="setFolderBtn" type="button"><svg class="ic"><use href="#i-folder"/></svg><span data-i18n="set.change"></span></button>
+    <div class="setshell">
+      <nav class="setnav" id="setNav">
+        <label class="search setsearch"><svg class="ic"><use href="#i-search"/></svg><input id="setSearch" type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="set.search" data-i18n-aria="set.search"></label>
+        <div class="setcats" id="setCats" role="tablist" aria-orientation="vertical" data-i18n-aria="rail.settings">
+          <button type="button" role="tab" data-cat="download"><svg class="ic"><use href="#i-download"/></svg><span data-i18n="set.download"></span></button>
+          <button type="button" role="tab" data-cat="player"><svg class="ic"><use href="#i-play"/></svg><span data-i18n="set.player"></span></button>
+          <button type="button" role="tab" data-cat="chat"><svg class="ic"><use href="#i-chat"/></svg><span data-i18n="set.chat"></span></button>
+          <button type="button" role="tab" data-cat="cuts"><svg class="ic"><use href="#i-scissors"/></svg><span data-i18n="set.cuts"></span></button>
+          <button type="button" role="tab" data-cat="notify"><svg class="ic"><use href="#i-live"/></svg><span data-i18n="set.notifications"></span></button>
+          <button type="button" role="tab" data-cat="app"><svg class="ic"><use href="#i-settings"/></svg><span data-i18n="set.app"></span></button>
+          <button type="button" role="tab" data-cat="advanced"><svg class="ic"><use href="#i-gauge"/></svg><span data-i18n="set.advanced"></span></button>
         </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.quality"></b><p data-i18n="set.qualityDesc"></p></div>
-          <div class="select" data-i18n-label="common.quality"><select id="setQuality"></select></div>
+      </nav>
+      <div class="setmain">
+        <div class="setinner" id="setInner" role="tabpanel">
+          <h1 id="setTitle"></h1>
+          <section class="setgroup" data-cat="download">
+            <h2 data-i18n="set.download"></h2>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.folder"></b><p class="num" id="setFolder"></p></div>
+              <button class="btn" id="setFolderBtn" type="button"><svg class="ic"><use href="#i-folder"/></svg><span data-i18n="set.change"></span></button>
+            </div>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.quality"></b><p data-i18n="set.qualityDesc"></p></div>
+              <div class="select" data-i18n-label="common.quality"><select id="setQuality"></select></div>
+            </div>
+            <div class="setrow col">
+              <div class="setlbl"><b data-i18n="set.fileName"></b><p><span data-i18n="set.fileNameDesc"></span> <span id="nameTokens"></span></p></div>
+              <div class="subpanel">
+                <div class="nameedit">
+                  <input id="setName" class="field" spellcheck="false">
+                  <button class="btn ghost sm" id="setNameReset" type="button" data-i18n="set.default"></button>
+                </div>
+                <p class="nameprev num" id="namePrev"></p>
+              </div>
+            </div>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.limit"></b><p data-i18n="set.limitDesc"></p></div>
+              <div class="select" data-i18n-label="set.limitLabel"><select id="setLimit"></select></div>
+            </div>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.remux"></b><p data-i18n="set.remuxDesc"></p></div>
+              <button class="switch" id="setRemux" type="button" role="switch" aria-checked="true"><i></i></button>
+            </div>
+          </section>
+          <section class="setgroup" data-cat="player">
+            <h2 data-i18n="set.player"></h2>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.hover"></b><p data-i18n="set.hoverDesc"></p></div>
+              <button class="switch" id="setHover" type="button" role="switch" aria-checked="true"><i></i></button>
+            </div>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.muted"></b><p data-i18n="set.mutedDesc"></p></div>
+              <button class="switch" id="setMuted" type="button" role="switch" aria-checked="true"><i></i></button>
+            </div>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="common.volume"></b></div>
+              <div class="volset"><input type="range" id="setVolume" min="0" max="100" step="1" data-i18n-aria="common.volume"><span class="num" id="setVolumeTxt"></span></div>
+            </div>
+          </section>
+          <section class="setgroup" data-cat="chat">
+            <h2 data-i18n="set.chat"></h2>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.chatAuto"></b><p data-i18n="set.chatAutoDesc"></p></div>
+              <button class="switch" id="setChatAuto" type="button" role="switch" aria-checked="false"><i></i></button>
+            </div>
+            <div class="setrow col">
+              <div class="setlbl"><b data-i18n="set.chatFormats"></b><p data-i18n="set.chatFormatsDesc"></p></div>
+              <div class="fmtbox start" id="setChatFormats" role="group" data-i18n-aria="set.chatFormats"></div>
+            </div>
+            <div class="setrow col">
+              <div class="setlbl"><b data-i18n="set.chatVideo"></b><p data-i18n="set.chatVideoDesc"></p></div>
+              <div class="subpanel">
+                <div class="fmtbox start" id="setChatVideo" role="group" data-i18n-aria="set.chatVideo">
+                  <div class="select sm" data-i18n-label="set.chatVideoSize"><select id="setCvSize"></select></div>
+                  <div class="select sm" data-i18n-label="set.chatVideoFont"><select id="setCvFont"></select></div>
+                  <span class="fmtbreak"></span>
+                  <span id="setCvChips" class="fmtbox start"></span>
+                </div>
+                <p class="subnote" data-i18n="set.chatVideoNote"></p>
+              </div>
+            </div>
+          </section>
+          <section class="setgroup" data-cat="cuts">
+            <h2 data-i18n="set.cuts"></h2>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.sectionLen"></b><p data-i18n-html="set.sectionLenDesc"></p></div>
+              <div class="select" data-i18n-label="common.length"><select id="setSection">
+                <option value="15" data-i18n="len.15"></option><option value="30" data-i18n="len.30"></option><option value="60" data-i18n="len.60"></option><option value="120" data-i18n="len.120"></option>
+              </select></div>
+            </div>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.thumbCache"></b><p><span data-i18n="set.thumbCacheDesc"></span> <span class="num" id="thumbCacheUsed"></span></p></div>
+              <button class="btn ghost sm" id="thumbCacheClear" type="button" data-i18n="set.thumbCacheClear"></button>
+              <div class="select" data-i18n-label="set.thumbCacheLabel"><select id="setThumbCache"></select></div>
+            </div>
+          </section>
+          <section class="setgroup" data-cat="notify">
+            <h2 data-i18n="set.notifications"></h2>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.notifyDone"></b><p data-i18n="set.notifyDoneDesc"></p></div>
+              <button class="switch" id="setNotifyDone" type="button" role="switch" aria-checked="true"><i></i></button>
+            </div>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.notifyLive"></b><p data-i18n="set.notifyLiveDesc"></p></div>
+              <button class="switch" id="setNotifyLive" type="button" role="switch" aria-checked="true"><i></i></button>
+            </div>
+          </section>
+          <section class="setgroup" data-cat="app">
+            <h2 data-i18n="set.app"></h2>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="settings.language"></b><p data-i18n="settings.language.desc"></p></div>
+              <div class="select" data-i18n-label="settings.language"><select id="setLang"></select></div>
+            </div>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.clipboard"></b><p data-i18n="set.clipboardDesc"></p></div>
+              <button class="switch" id="setClip" type="button" role="switch" aria-checked="true"><i></i></button>
+            </div>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.updates"></b><p><span data-i18n="set.updatesDesc"></span> <span class="num" id="setVersion"></span></p></div>
+              <button class="btn ghost sm" id="checkUpdBtn" type="button" data-i18n="set.checkNow"></button>
+              <button class="switch" id="setUpdate" type="button" role="switch" aria-checked="true"><i></i></button>
+            </div>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="usage.setting"></b><p data-i18n="usage.settingDesc"></p></div>
+              <button class="btn ghost sm" id="usageWhat" type="button" data-i18n="usage.what"></button>
+              <button class="switch" id="setUsage" type="button" role="switch" aria-checked="false"><i></i></button>
+            </div>
+          </section>
+          <section class="setgroup" data-cat="advanced">
+            <h2 data-i18n="set.advanced"></h2>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.parallel"></b><p data-i18n="set.parallelDesc"></p></div>
+              <div class="select" data-i18n-label="set.parallelLabel"><select id="setParallel"></select></div>
+            </div>
+            <div class="setrow">
+              <div class="setlbl"><b data-i18n="set.threads"></b><p data-i18n="set.threadsDesc"></p></div>
+              <div class="select" data-i18n-label="set.threadsLabel"><select id="setThreads"></select></div>
+            </div>
+          </section>
+          <p class="setnone" id="setNone" hidden></p>
         </div>
-        <div class="setrow col">
-          <div class="setlbl"><b data-i18n="set.fileName"></b><p><span data-i18n="set.fileNameDesc"></span> <span id="nameTokens"></span></p></div>
-          <div class="nameedit">
-            <input id="setName" class="field" spellcheck="false">
-            <button class="btn ghost sm" id="setNameReset" type="button" data-i18n="set.default"></button>
-          </div>
-          <p class="nameprev num" id="namePrev"></p>
-        </div>
-      </section>
-      <section class="setgroup">
-        <h2 data-i18n="set.speed"></h2>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.parallel"></b><p data-i18n="set.parallelDesc"></p></div>
-          <div class="select" data-i18n-label="set.parallelLabel"><select id="setParallel"></select></div>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.threads"></b><p data-i18n="set.threadsDesc"></p></div>
-          <div class="select" data-i18n-label="set.threadsLabel"><select id="setThreads"></select></div>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.limit"></b><p data-i18n="set.limitDesc"></p></div>
-          <div class="select" data-i18n-label="set.limitLabel"><select id="setLimit"></select></div>
-        </div>
-      </section>
-      <section class="setgroup">
-        <h2 data-i18n="set.player"></h2>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.hover"></b><p data-i18n="set.hoverDesc"></p></div>
-          <button class="switch" id="setHover" type="button" role="switch" aria-checked="true"><i></i></button>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.muted"></b><p data-i18n="set.mutedDesc"></p></div>
-          <button class="switch" id="setMuted" type="button" role="switch" aria-checked="true"><i></i></button>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="common.volume"></b></div>
-          <div class="volset"><input type="range" id="setVolume" min="0" max="100" step="1" data-i18n-aria="common.volume"><span class="num" id="setVolumeTxt"></span></div>
-        </div>
-      </section>
-      <section class="setgroup">
-        <h2 data-i18n="set.notifications"></h2>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.notifyDone"></b><p data-i18n="set.notifyDoneDesc"></p></div>
-          <button class="switch" id="setNotifyDone" type="button" role="switch" aria-checked="true"><i></i></button>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.notifyLive"></b><p data-i18n="set.notifyLiveDesc"></p></div>
-          <button class="switch" id="setNotifyLive" type="button" role="switch" aria-checked="true"><i></i></button>
-        </div>
-      </section>
-      <section class="setgroup">
-        <h2 data-i18n="set.chat"></h2>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.chatAuto"></b><p data-i18n="set.chatAutoDesc"></p></div>
-          <button class="switch" id="setChatAuto" type="button" role="switch" aria-checked="false"><i></i></button>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.chatFormats"></b><p data-i18n="set.chatFormatsDesc"></p></div>
-          <div class="fmtbox" id="setChatFormats" role="group" data-i18n-aria="set.chatFormats"></div>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.chatVideo"></b><p data-i18n="set.chatVideoDesc"></p></div>
-          <div class="fmtbox" id="setChatVideo" role="group" data-i18n-aria="set.chatVideo">
-            <div class="select sm" data-i18n-label="set.chatVideoSize"><select id="setCvSize"></select></div>
-            <div class="select sm" data-i18n-label="set.chatVideoFont"><select id="setCvFont"></select></div>
-            <span class="fmtbreak"></span>
-            <span id="setCvChips" class="fmtbox"></span>
-          </div>
-        </div>
-      </section>
-      <section class="setgroup">
-        <h2 data-i18n="set.cutsLive"></h2>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.sectionLen"></b><p data-i18n-html="set.sectionLenDesc"></p></div>
-          <div class="select" data-i18n-label="common.length"><select id="setSection">
-            <option value="15" data-i18n="len.15"></option><option value="30" data-i18n="len.30"></option><option value="60" data-i18n="len.60"></option><option value="120" data-i18n="len.120"></option>
-          </select></div>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.thumbCache"></b><p><span data-i18n="set.thumbCacheDesc"></span> <span class="num" id="thumbCacheUsed"></span></p></div>
-          <button class="btn ghost sm" id="thumbCacheClear" type="button" data-i18n="set.thumbCacheClear"></button>
-          <div class="select" data-i18n-label="set.thumbCacheLabel"><select id="setThumbCache"></select></div>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.remux"></b><p data-i18n="set.remuxDesc"></p></div>
-          <button class="switch" id="setRemux" type="button" role="switch" aria-checked="true"><i></i></button>
-        </div>
-      </section>
-      <section class="setgroup">
-        <h2 data-i18n="set.app"></h2>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="settings.language"></b><p data-i18n="settings.language.desc"></p></div>
-          <div class="select" data-i18n-label="settings.language"><select id="setLang"></select></div>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.clipboard"></b><p data-i18n="set.clipboardDesc"></p></div>
-          <button class="switch" id="setClip" type="button" role="switch" aria-checked="true"><i></i></button>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="set.updates"></b><p><span data-i18n="set.updatesDesc"></span> <span class="num" id="setVersion"></span></p></div>
-          <button class="btn ghost sm" id="checkUpdBtn" type="button" data-i18n="set.checkNow"></button>
-          <button class="switch" id="setUpdate" type="button" role="switch" aria-checked="true"><i></i></button>
-        </div>
-        <div class="setrow">
-          <div class="setlbl"><b data-i18n="usage.setting"></b><p data-i18n="usage.settingDesc"></p></div>
-          <button class="btn ghost sm" id="usageWhat" type="button" data-i18n="usage.what"></button>
-          <button class="switch" id="setUsage" type="button" role="switch" aria-checked="false"><i></i></button>
-        </div>
-      </section>
+      </div>
     </div>
   </section>
 
