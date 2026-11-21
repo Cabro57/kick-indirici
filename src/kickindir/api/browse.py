@@ -8,6 +8,7 @@ from kickindir.config import log
 from kickindir.core.i18n import t
 from kickindir.services.kick import fetch_clips, playlist_duration, video_info
 from kickindir.services.media import MediaStrip, ThumbCache
+from kickindir.services import thumbcheck
 
 
 class BrowseMixin:
@@ -116,6 +117,17 @@ class BrowseMixin:
         except Exception as e:  # noqa: BLE001
             log.info("vod kapagi alinamadi (%s): %s", uuid, e)
             return ""
+
+    def thumb_check(self, url, strict=False):
+        """Kapak resmi parazit / statik mi? {"noise": bool}. Sezgi services/thumbcheck.py'de; sonuc URL basina
+        onbelleklenir. strict: klipler (yerine gercek kare yok) icin daha siki esik."""
+        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+            return {"noise": False}
+        try:
+            return self._poster_pool.submit(thumbcheck.check, url, bool(strict)).result()
+        except Exception as e:  # noqa: BLE001
+            log.info("kapak kontrolu basarisiz: %s", e)
+            return {"noise": False}
 
     def thumb_cache_info(self):
         """Ayarlar: kare onbelleginin diskte kapladigi bayt ve siniri (MB)."""

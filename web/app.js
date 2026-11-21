@@ -835,9 +835,32 @@ function bindThumb(host, v) {
   const miss = () => { img.removeAttribute("src"); showFallback(host, avatarOf(v)); posters.want(host, v); };
   if (!url) { miss(); return; }
   img.addEventListener("error", miss, { once: true });
-  img.addEventListener("load", () => { if (img.naturalWidth < 32) miss(); }, { once: true });
+  img.addEventListener("load", () => { if (img.naturalWidth < 32) miss(); else verifyThumb(host, kindOf(v) === "clip", miss); }, { once: true });
   img.src = url;
 }
+
+/* gorunen kapagin parazit / statik olup olmadigini sunucuya sordurur (sirayla, bir seferde bir tane); parazitse miss() */
+function makeVerifier() {
+  const q = [];
+  let busy = false;
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { io.unobserve(e.target); q.push(e.target); pump(); } }), { rootMargin: "150px" });
+  async function pump() {
+    if (busy) return;
+    busy = true;
+    while (q.length) {
+      const host = q.shift(), f = host._vf;
+      const src = host.isConnected && f && (host.querySelector(":scope > img").getAttribute("src") || "");
+      if (!/^https?:/.test(src)) continue;
+      try {
+        const r = await state.api.thumb_check(src, f.strict);
+        if (r && r.noise && host.isConnected && host.querySelector(":scope > img").getAttribute("src") === src) f.miss();
+      } catch { /* kapak kalir */ }
+    }
+    busy = false;
+  }
+  return (host, strict, miss) => { host._vf = { strict, miss }; io.observe(host); };
+}
+const verifyThumb = makeVerifier();
 
 const posters = {
   mem: new Map(), tried: new Set(), q: [], busy: 0, io: null,
@@ -898,7 +921,7 @@ function bindLibThumb(host, e) {
   const miss = () => { img.removeAttribute("src"); showFallback(host, avatarFor(e.url) || ""); libPosters.want(host, e, true); };
   if (!e.thumb) { miss(); return; }
   img.addEventListener("error", miss, { once: true });
-  img.addEventListener("load", () => { if (img.naturalWidth < 32) miss(); }, { once: true });
+  img.addEventListener("load", () => { if (img.naturalWidth < 32) miss(); else verifyThumb(host, false, miss); }, { once: true });
   img.src = e.thumb;
 }
 
