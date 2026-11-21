@@ -6,7 +6,7 @@ from curl_cffi import requests as cffi_requests
 
 from kickindir.config import log
 from kickindir.core.i18n import t
-from kickindir.services.kick import fetch_clips, kick_get, playlist_duration
+from kickindir.services.kick import fetch_clips, playlist_duration, video_info
 from kickindir.services.media import MediaStrip, ThumbCache
 
 
@@ -24,8 +24,11 @@ class BrowseMixin:
         """Kesit secicideki onizleme oynaticisi icin VOD'un HLS adresi. Suren yayinin VOD'u da
         acilir: listesi her istekte yayinin birkac sn gerisine kadar uzar. live ise o anki
         uzunluk da doner (duration); oynatici sondan baslasin."""
+        saved = None if live else MediaStrip.saved_index(uuid)     # bitmis yayin: adres diskte, API cagrisi yok
+        if saved:
+            return {"ok": True, "source": saved["source"]}
         try:
-            v = kick_get(f"https://kick.com/api/v1/video/{uuid}")
+            v = video_info(uuid)
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": t("err.videoOpen", e=str(e)[:120])}
         if not v.get("source"):

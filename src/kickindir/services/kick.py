@@ -2,6 +2,8 @@
 
 import calendar
 import re
+import threading
+import time
 import urllib.request
 from curl_cffi import requests as cffi_requests
 
@@ -16,6 +18,30 @@ def kick_get(url):
         raise LookupError("not found")
     r.raise_for_status()
     return r.json()
+
+
+_VIDEO_TTL = 60
+_video_cache = {}               # uuid -> (zaman, yanit)
+_video_locks = {}               # uuid -> kilit: ayni anda gelen iki istek tek API cagrisi yapar
+_video_guard = threading.Lock()
+
+
+def video_info(uuid):
+    """/api/v1/video yaniti, 60 sn onbellekli. Editor acilisinda vod_source ve serit ayni anda sorar."""
+    with _video_guard:
+        lock = _video_locks.setdefault(uuid, threading.Lock())
+    with lock:
+        hit = _video_cache.get(uuid)
+        if hit and time.monotonic() - hit[0] < _VIDEO_TTL:
+            return hit[1]
+        v = kick_get(f"https://kick.com/api/v1/video/{uuid}")
+        with _video_guard:
+            _video_cache[uuid] = (time.monotonic(), v)
+            if len(_video_cache) > 64:
+                for k in [k for k, (ts, _) in _video_cache.items() if time.monotonic() - ts >= _VIDEO_TTL]:
+                    del _video_cache[k]
+                    _video_locks.pop(k, None)
+        return v
 
 
 def parse_link(text):

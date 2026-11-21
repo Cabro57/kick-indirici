@@ -3,6 +3,7 @@
 import array
 import base64
 import http.server
+import json
 import mimetypes
 import os
 import re
@@ -15,7 +16,7 @@ import urllib.request
 from curl_cffi import requests as cffi_requests
 
 from kickindir.config import DATA_DIR, log
-from kickindir.services.kick import hls_variants, kick_get
+from kickindir.services.kick import hls_variants, video_info
 
 
 class ThumbCache:
@@ -143,7 +144,19 @@ class MediaStrip:
 
     def __init__(self, uuid, ffmpeg):
         self.ffmpeg = ffmpeg
-        v = kick_get(f"https://kick.com/api/v1/video/{uuid}")
+        self.cache = {}
+        self.thumbs = {}
+        self.lock = threading.Lock()
+        self.dir = ThumbCache.dir_for(uuid)
+        self.final = False      # bitmis yayinin listesi degismez: diskten gelir, yenilenmez
+        saved = self.saved_index(uuid)
+        if saved:
+            self.media_url = saved["media"]
+            self._set_segments(saved["segs"])
+            self.final = True
+            log.info("serit listesi diskten: %d parca", len(self.segments))
+            return
+        v = video_info(uuid)
         master_url = v["source"]
         # en dusuk GORUNTULU surum: bazi yayinlarda listede daha dusuk bant genislikli,
         # goruntusuz "audio_only" surumu de var; onu secersek hic kare cikmaz
@@ -151,25 +164,44 @@ class MediaStrip:
         variants = [x for x in variants if x["video"]] or variants
         self.media_url = min(variants, key=lambda x: x["bw"] or 1 << 40)["url"] if variants else master_url
         log.info("serit kaynagi: %s", self.media_url)
-        self.cache = {}
-        self.thumbs = {}
-        self.lock = threading.Lock()
-        self.dir = ThumbCache.dir_for(uuid)
         self.refresh()
+        if self.final:      # EXT-X-ENDLIST: yayin bitmis; sonraki acilista ag cagrisi gerekmesin
+            ThumbCache.write(self.dir, "index.json", json.dumps(
+                {"source": master_url, "media": self.media_url, "segs": self._raw}).encode())
+
+    @staticmethod
+    def saved_index(uuid):
+        """Diskteki parca listesi ({"source", "media", "segs": [[sure, adres], ...]}) ya da None."""
+        raw = ThumbCache.read(ThumbCache.dir_for(uuid), "index.json")
+        try:
+            data = json.loads(raw) if raw else None
+            return data if data and data["source"] and data["media"] and data["segs"] else None
+        except (ValueError, KeyError, TypeError):
+            return None
+
+    def _set_segments(self, raw):
+        segments, t = [], 0.0       # (baslangic, sure, adres)
+        for dur, line in raw:
+            segments.append((t, dur, urllib.parse.urljoin(self.media_url, line)))
+            t += dur
+        self._raw = raw
+        self.segments = segments
 
     def refresh(self):
         """Parca listesini yeniden okur. Suren yayinda liste yalnizca sondan uzar: eski parcalarin
         sirasi, dolayisiyla onbellek gecerli kalir."""
+        if self.final:
+            return
         playlist = cffi_requests.get(self.media_url, impersonate="chrome", timeout=20).text
-        segments, t, dur = [], 0.0, 0.0     # (baslangic, sure, adres)
+        raw, dur = [], 0.0
         for line in playlist.splitlines():
             line = line.strip()
             if line.startswith("#EXTINF:"):
                 dur = float(line[8:].split(",")[0])
             elif line and not line.startswith("#"):
-                segments.append((t, dur, urllib.parse.urljoin(self.media_url, line)))
-                t += dur
-        self.segments = segments
+                raw.append([dur, line])
+        self._set_segments(raw)
+        self.final = "#EXT-X-ENDLIST" in playlist
 
     def index(self):
         return [[round(a, 3), round(d, 3)] for a, d, _ in self.segments]
