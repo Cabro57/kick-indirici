@@ -20,11 +20,18 @@ class BrowseMixin:
             return {"ok": False, "error": t("err.clips", e=str(e)[:120])}
         return {"ok": True, "clips": clips, "cursor": nxt if clips else None}
 
-    def vod_source(self, uuid, live=False):
+    def vod_source(self, uuid, live=False, fresh=False):
         """Kesit secicideki onizleme oynaticisi icin VOD'un HLS adresi. Suren yayinin VOD'u da
         acilir: listesi her istekte yayinin birkac sn gerisine kadar uzar. live ise o anki
-        uzunluk da doner (duration); oynatici sondan baslasin."""
-        saved = None if live else MediaStrip.saved_index(uuid)     # bitmis yayin: adres diskte, API cagrisi yok
+        uzunluk da doner (duration); oynatici sondan baslasin. fresh: diskteki adres olmus
+        (VOD silindi / tasindi); diskteki listeyi atar, adres API'den yeniden alinir."""
+        if fresh:
+            ThumbCache.remove(ThumbCache.dir_for(uuid), "index.json")
+            if getattr(self._strips.get(uuid), "final", False):
+                self._strips.pop(uuid, None)
+            saved = None
+        else:
+            saved = None if live else MediaStrip.saved_index(uuid)     # bitmis yayin: adres diskte, API cagrisi yok
         if saved:
             return {"ok": True, "source": saved["source"]}
         try:

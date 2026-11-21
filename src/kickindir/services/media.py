@@ -49,6 +49,13 @@ class ThumbCache:
             return None
 
     @classmethod
+    def remove(cls, folder, name):
+        try:
+            os.remove(os.path.join(folder, name))
+        except (OSError, TypeError):
+            pass
+
+    @classmethod
     def write(cls, folder, name, data):
         if not folder or not cls.limit:
             return

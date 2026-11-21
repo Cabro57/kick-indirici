@@ -2062,6 +2062,7 @@ async function openCutter(vod) {
   cut.density = null;
   loadChatDensity(vod);
   cut.strip = { uuid: vod.uuid, segs: null, data: new Map(), thumbs: new Map(), busy: 0, tbusy: 0, note: "" };
+  cut.retried = false;
   cut.t0 = performance.now();   // olcum: acilistan ilk kare / ilk goruntu suresine
   cut.perf = { thumbs: false, reopen: cut.seen.has(vod.uuid) };
   cut.seen.add(vod.uuid);
@@ -2092,14 +2093,32 @@ function attachCut(dur) {
   }
   if (!(window.Hls && Hls.isSupported())) { video.src = cut.src; cutterMsg(""); return; }
   cut.hls = new Hls({ maxBufferLength: 20, startPosition: live ? Math.max(0, dur - LIVE_BACK) : -1 });
-  cut.hls.on(Hls.Events.ERROR, (_, d) => {
-    if (d.fatal) cutterMsg(t("cut.previewFailed") + " " + t("cut.stillAdd"));
+  const vod = cut.vod;
+  cut.hls.on(Hls.Events.ERROR, async (_, d) => {
+    if (!d.fatal) return;
+    if (d.type === Hls.ErrorTypes.NETWORK_ERROR && !cut.retried) {   // diskteki adres olmus olabilir (VOD silindi / tasindi): bir kez API'den yeniden al
+      cut.retried = true;
+      const res = await state.api.vod_source(vod.uuid, !!vod.live, true);
+      if (cut.vod !== vod || !$("cutter").open) return;
+      if (res.ok) {
+        cut.src = res.source;
+        if (cut.strip) loadStrip(cut.strip);
+        attachCut(res.duration);
+        return;
+      }
+      cutterMsg(res.error + " " + t("cut.stillAdd"));
+      return;
+    }
+    cutterMsg(t("cut.previewFailed") + " " + t("cut.stillAdd"));
   });
   cut.hls.on(Hls.Events.MANIFEST_PARSED, () => cutterMsg(""));
+  const t0 = cut.t0;
   for (const ev of ["loadeddata", "playing"]) {   // olcum: acilistan ilk goruntuye (oynatma baslamazsa loadeddata)
-    video.addEventListener(ev, () => {
-      state.api.client_log(`perf ana oynatici ${ev}: ${Math.round(performance.now() - cut.t0)} ms`);
-    }, { once: true });
+    const log = () => {
+      video.removeEventListener(ev, log);
+      if (cut.t0 === t0) state.api.client_log(`perf ana oynatici ${ev}: ${Math.round(performance.now() - cut.t0)} ms`);
+    };
+    video.addEventListener(ev, log);
   }
   cut.hls.loadSource(cut.src);
   cut.hls.attachMedia(video);
