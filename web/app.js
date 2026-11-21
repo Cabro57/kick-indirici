@@ -98,6 +98,14 @@ function icon(name) {
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+/* dugme bekleme durumu: islem bitene kadar etiket gizli + halka, tekrar tiklanamaz */
+async function withBusy(btn, fn) {
+  if (btn.classList.contains("is-busy")) return;
+  btn.classList.add("is-busy");
+  btn.setAttribute("aria-busy", "true");
+  try { return await fn(); } finally { btn.classList.remove("is-busy"); btn.removeAttribute("aria-busy"); }
+}
+const MINI = `<i class="mini" aria-hidden="true"></i>`;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const fold = (s) => (s || "").toLocaleLowerCase(i18n.locale);
 const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
@@ -116,7 +124,7 @@ function showView(view) {
   $("libBtn").classList.toggle("on", view === "library");
   if (view === "home" || view === "settings") player.stop();
   if (view === "home") renderHome();
-  if (view === "library") refreshLibrary();
+  if (view === "library") { if (!state.libLoaded) renderLibrary(); refreshLibrary(); }
   if (view === "settings") renderSettings();
   renderRail();
 }
@@ -198,7 +206,7 @@ function renderSkeletonChannel(slug) {
   showView("channel");
   $("chAvatar").src = f ? f.avatar : "";
   $("chName").textContent = f ? f.name : slug;
-  $("chMeta").textContent = t("common.loading");
+  $("chMeta").innerHTML = `${MINI}${esc(t("common.loading"))}`;
   renderSkeleton();
 }
 
@@ -540,7 +548,7 @@ async function loadClips(reset) {
   state.clipsLoading = true;
   if (reset) { state.clips = []; state.clipCursor = null; }
   $("moreBtn").disabled = true;
-  $("moreBtn").textContent = t("common.loading");
+  $("moreBtn").classList.add("is-busy");
   if (state.tab === "clips" && reset) renderGrid();
   try {
     const res = await state.api.list_clips(slug, state.clipSort, reset ? null : state.clipCursor);
@@ -552,7 +560,7 @@ async function loadClips(reset) {
   } finally {
     state.clipsLoading = false;
     $("moreBtn").disabled = false;
-    $("moreBtn").textContent = t("ch.moreClips");
+    $("moreBtn").classList.remove("is-busy");
     $("clipCount").textContent = state.clips.length ? `${state.clips.length}${state.clipCursor ? "+" : ""}` : "0";
     if (state.tab === "clips" && state.view === "channel") renderGrid();
   }
@@ -1329,7 +1337,7 @@ async function onInspectorAction(b) {
   else if (act === "lreveal") state.api.reveal_file(b.dataset.file);
   else if (act === "lchatvideo") {
     track("chat_video_file");
-    state.api.chat_video_file(b.dataset.file).then((r) => toast(r.ok ? t("chat.vid.queued") : r.error));
+    withBusy(b, () => state.api.chat_video_file(b.dataset.file).then((r) => toast(r.ok ? t("chat.vid.queued") : r.error)));
   }
   else if (act === "lcapcut") openInCapcut(b);
   else if (act === "lccchat") { capcut.chat = !capcut.chat; saveCapcut(); b.setAttribute("aria-checked", capcut.chat); }
@@ -1682,6 +1690,7 @@ function humanError(e, friendly) {
 /* ---------- indirilenler (gecmis) ---------- */
 async function refreshLibrary() {
   state.library = await state.api.library();
+  state.libLoaded = true;
   if (state.view === "library") renderLibrary();
   if (state.view === "home") renderHome();
 }
@@ -1711,7 +1720,11 @@ function renderLibrary() {
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(e);
   }
-  $("libEmpty").hidden = state.library.length > 0 || state.downloads.length > 0;
+  $("libEmpty").hidden = !state.libLoaded || state.library.length > 0 || state.downloads.length > 0;
+  if (!state.libLoaded) {     // ilk yukleme: satir iskeletleri
+    $("histGroups").innerHTML = `<section class="histgroup">${'<div class="hrow skeleton"><i class="rthumb"></i><div class="rmain"><p class="rtitle"></p><p class="hsub"></p></div></div>'.repeat(6)}</section>`;
+    return;
+  }
   $("histGroups").innerHTML = [...groups].map(([label, list]) => `<section class="histgroup"><h2>${esc(label)}</h2>${list.map((e) => {
     const sec = chatVid(e) ? " · " + t("lib.chatVideo") : e.chat ? " · " + t("lib.chatSubs") : e.sections ? " · " + t("lib.mergedCuts", { n: e.sections.length }) : e.section ? " · " + t("lib.cutRange", { a: fmtDuration(e.section[0]), b: fmtDuration(e.section[1]) }) : e.live ? " · " + t("lib.liveRec") : "";
     const time = new Date(e.done * 1000).toLocaleTimeString(i18n.locale, { hour: "2-digit", minute: "2-digit" });
@@ -2056,13 +2069,13 @@ function bindSettings() {
     await saveSetting({ thumbCacheMB: Number(e.target.value) });
     showThumbCache();
   });
-  $("thumbCacheClear").addEventListener("click", async () => {
+  $("thumbCacheClear").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
     showThumbCache(await state.api.thumb_cache_clear());
     toast(t("toast.thumbCacheCleared"));
-  });
+  }));
   // dil degisince arayuz bastan kurulur; indirmeler arka uctadir, kesilmez
   $("setLang").addEventListener("change", async (e) => { if (await saveSetting({ lang: e.target.value }, true)) location.reload(); });
-  $("checkUpdBtn").addEventListener("click", () => checkUpdate(true));
+  $("checkUpdBtn").addEventListener("click", (e) => withBusy(e.currentTarget, () => checkUpdate(true)));
   $("setChatFormats").addEventListener("click", async (e) => {
     const b = e.target.closest("[data-fmt]");
     if (!b) return;
@@ -2092,10 +2105,10 @@ function bindSettings() {
     $("setVolumeTxt").textContent = t("pct", { p: e.target.value });
   });
   $("setVolume").addEventListener("change", (e) => saveSetting({ volume: Number(e.target.value) }));
-  $("setFolderBtn").addEventListener("click", async () => {
+  $("setFolderBtn").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
     state.settings.folder = await state.api.pick_folder();
     $("setFolder").textContent = state.settings.folder;
-  });
+  }));
   let nameTimer;
   $("setName").addEventListener("input", () => {
     clearTimeout(nameTimer);
@@ -2421,10 +2434,12 @@ async function cutToLive() {
   const vod = cut.vod;
   if (!vod || !vod.live || !cut.src) return;
   $("cutLive").disabled = true;
+  $("cutLive").classList.add("is-busy");
   cutterMsg(t("cut.loadingLatest"));
   const playing = !$("cutVideo").paused;
   const res = await state.api.vod_source(vod.uuid, true);
   $("cutLive").disabled = false;
+  $("cutLive").classList.remove("is-busy");
   if (cut.vod !== vod) return;
   if (!res.ok || !res.duration) { cutterMsg(""); toast(t("cut.latestFailed")); return; }
   cut.main.reset();
@@ -2822,7 +2837,7 @@ function drawChatDensity() {
   const d = cut.density;
   const note = !d ? "" : d.state === "loading" ? t("cut.chatLoading") : d.state === "error" ? t("cut.chatFailed") : "";
   $("chatNote").hidden = !note;
-  $("chatNote").textContent = note;
+  if (note) $("chatNote").innerHTML = (d.state === "loading" ? MINI : "") + esc(note);
   const dpr = window.devicePixelRatio || 1;
   const cw = cv.clientWidth, ch = cv.clientHeight;
   if (cv.width !== Math.round(cw * dpr) || cv.height !== Math.round(ch * dpr)) {
@@ -3159,7 +3174,7 @@ function drawStrip() {
   const waiting = st.segs && (far ? waveMissing(st) : !st.data.get(segAt(st.segs, s + span / 2)));
   const note = st.note || (!st.segs ? t("cut.loadingStrip") : waiting ? t("cut.loadingAudio") : "");
   $("waveNote").hidden = !note;
-  $("waveNote").textContent = note;
+  if (note) $("waveNote").innerHTML = (!st.note ? MINI : "") + esc(note);
   if ((note && !waiting) || !span) return;   // yuklenirken gelen parcalar yine cizilsin
   if (far) { drawFarWave(g, st, cw, ch, s, span); return; }
   const mid = ch / 2;

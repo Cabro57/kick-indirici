@@ -166,6 +166,19 @@ kbd { font: 600 11px var(--font); padding: 1px 5px; border-radius: 4px; backgrou
   border: 2px solid var(--muted); border-top-color: transparent; animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* bekleyen islem: dugmede etiket gizlenir, ortada halka doner (200 ms'den kisa islemde parlama olmasin diye gecikmeli);
+   kisa bekleme notlarinda satir ici kucuk halka (.mini) */
+.btn.is-busy, .iconbtn.is-busy { position: relative; pointer-events: none; color: transparent; transition: color 0s .2s; }
+.btn.is-busy::after, .iconbtn.is-busy::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+  border: 2px solid var(--muted); border-top-color: transparent; opacity: 0; animation: spin .7s linear infinite, busyin .1s .2s forwards;
+}
+.btn.primary.is-busy::after { border-color: var(--accent-ink); border-top-color: transparent; }
+@keyframes busyin { to { opacity: 1; } }
+.mini {
+  display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -2px; border-radius: 50%;
+  border: 2px solid var(--muted); border-top-color: transparent; animation: spin .7s linear infinite;
+}
 .libbtn {
   position: relative; margin-left: auto; display: flex; align-items: center; gap: 8px;
   height: 36px; padding: 0 12px; background: transparent; border: 1px solid var(--line); border-radius: var(--r);
@@ -494,6 +507,10 @@ body:has(.selbar:not([hidden])) .toast { bottom: calc(var(--sb) + 86px); }
   background: linear-gradient(90deg, var(--s2) 0, var(--s3) 50%, var(--s2) 100%) 0 0 / 200% 100%;
   animation: shimmer 1.2s linear infinite;
 }
+.hrow.skeleton { pointer-events: none; }
+.hrow.skeleton .rthumb, .hrow.skeleton .rtitle, .hrow.skeleton .hsub { background: linear-gradient(90deg, var(--s2) 0, var(--s3) 50%, var(--s2) 100%) 0 0 / 200% 100%; animation: shimmer 1.2s linear infinite; }
+.hrow.skeleton .rtitle { height: 14px; width: 55%; border-radius: 4px; }
+.hrow.skeleton .hsub { height: 11px; width: 35%; border-radius: 4px; margin-top: 8px; }
 .card.skeleton .title { height: 14px; width: 90%; border-radius: 4px; }
 .card.skeleton .sub { height: 11px; width: 55%; border-radius: 4px; margin-top: 8px; }
 @keyframes shimmer { to { background-position: -200% 0; } }
@@ -901,7 +918,8 @@ input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.2); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
-  .spin svg, .spin .arc { animation-duration: 2.8s !important; }   /* yukleniyor isareti durursa bilgi kaybolur: yavas doner */
+  .spin svg, .spin .arc { animation-duration: 2.8s !important; }
+  .mini, .btn.is-busy::after, .iconbtn.is-busy::after, .linkbox.loading .btn::after { animation-duration: 2.8s, .01ms !important; }   /* yukleniyor isareti durursa bilgi kaybolur: yavas doner */
 }
 
 /* ---------- kesit editoru ---------- */

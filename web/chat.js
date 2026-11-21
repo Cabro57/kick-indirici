@@ -60,7 +60,7 @@ class ChatPanel {
   async start(spec) {
     this.stop();
     const token = ++this.token;
-    this.status(t("chat.panel.loading"));
+    this.status(t("chat.panel.loading"), true);
     const res = await state.api.chat_open(spec);
     if (token !== this.token) return;
     if (!res.ok) { this.status(res.error); return; }
@@ -82,10 +82,11 @@ class ChatPanel {
     this.root.querySelector(".chatp-now").hidden = true;
   }
 
-  status(text) {
+  status(text, busy) {
     const m = this.root.querySelector(".chatp-msg");
     m.hidden = !text;
     m.textContent = text || "";
+    if (text && busy) m.insertAdjacentHTML("afterbegin", `<i class="mini" aria-hidden="true"></i>`);
   }
 
   /* canli: Python'daki tampondan yeni mesajlar */
@@ -143,7 +144,7 @@ class ChatPanel {
     }
     const from = Math.max(to - CHAT_SHOW, Math.min(to, this.upto(floor - 0.001)));
     if (this.error) this.status(this.error);
-    else if (loading) this.status(t("chat.panel.loading"));
+    else if (loading) this.status(t("chat.panel.loading"), true);
     else this.status(to > from ? "" : this.live ? t("chat.panel.waiting") : t("chat.panel.empty"));
     if (this.held || this.sel.size) {
       this.root.querySelector(".chatp-now").hidden = false;
@@ -257,8 +258,10 @@ class ChatPanel {
       else if (act === "copy" || act === "save") await this.image(act, b);
       else if (act === "video") {
         track("chat_video_selection", { n: this.sel.size, live: this.live });
-        const res = await state.api.chat_video_selection(this.info(), this.selected(), this.live);
-        toast(res.ok ? t("chat.vid.queued") : res.error);
+        await withBusy(b, async () => {
+          const res = await state.api.chat_video_selection(this.info(), this.selected(), this.live);
+          toast(res.ok ? t("chat.vid.queued") : res.error);
+        });
       }
       return;
     }
@@ -290,6 +293,7 @@ class ChatPanel {
     const msgs = this.selected();
     if (!msgs.length) return;
     btn.disabled = true;
+    btn.classList.add("is-busy");
     try {
       const res = await state.api.chat_image(msgs, { ...state.settings.chatImage, clock: this.live }, act);
       if (!res.ok) { toast(res.error); return; }
@@ -303,6 +307,7 @@ class ChatPanel {
       toast(t("chat.img.copyFailed"));
     } finally {
       btn.disabled = false;
+      btn.classList.remove("is-busy");
     }
   }
 }
