@@ -599,6 +599,7 @@
   "chat.img.failed": "Resim çizilemedi.",
   "toast.chatFormatMin": "En az bir sohbet dosyası türü açık kalmalı",
   "toast.chatVideoBusy": "Bu sohbet videosu zaten hazırlanıyor",
+  "chat.vid.bg": "Arka plan",
   "chat.vid.green": "Yeşil perde",
   "chat.vid.greenTip": "Yeşil arka planlı .mp4; video düzenleyicinde yeşili sil",
   "chat.vid.transparent": "Saydam",

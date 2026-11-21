@@ -673,6 +673,7 @@
   "chat.img.failed": "The image could not be drawn.",
   "toast.chatFormatMin": "At least one chat file type must stay on",
   "toast.chatVideoBusy": "This chat video is already being made",
+  "chat.vid.bg": "Background",
   "chat.vid.green": "Green screen",
   "chat.vid.greenTip": "An .mp4 on a green background; key it out in your video editor",
   "chat.vid.transparent": "Transparent",

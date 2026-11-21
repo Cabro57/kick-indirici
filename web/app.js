@@ -1808,12 +1808,38 @@ function filterSettings() {
     g.hidden = q ? !any : g.dataset.cat !== cat;
     if (q && any) hits++;
   }
+  highlightSettings(q);
   $("setNone").hidden = !q || hits > 0;
   $("setNone").textContent = t("set.noResults", { q: raw });
   for (const b of $("setCats").children) {
     const on = b.dataset.cat === cat;
     b.setAttribute("aria-selected", on);
     b.tabIndex = on ? 0 : -1;
+  }
+}
+/* eslesen kismi <mark> ile isaretler: katlanmis metinden orijinal konuma harf harf esleme */
+function highlightSettings(q) {
+  const box = $("setInner");
+  for (const m of [...box.querySelectorAll("mark")]) { const p = m.parentNode; m.replaceWith(m.textContent); p.normalize(); }
+  if (!q) return;
+  for (const r of box.querySelectorAll(".setrow:not([hidden]) .setlbl")) {
+    const walker = document.createTreeWalker(r, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const n of nodes) {
+      let folded = "";
+      const map = [];
+      [...n.data].forEach((ch, i) => { const f = setFold(ch); for (let k = 0; k < f.length; k++) map.push(i); folded += f; });
+      const chars = [...n.data];
+      const hits = [];
+      for (let at = folded.indexOf(q); at >= 0; at = folded.indexOf(q, at + q.length)) hits.push([map[at], map[at + q.length - 1] + 1]);
+      for (const [a, b] of hits.reverse()) {
+        const rg = document.createRange();
+        const off = (i) => chars.slice(0, i).join("").length;
+        rg.setStart(n, off(a)); rg.setEnd(n, off(b));
+        rg.surroundContents(document.createElement("mark"));
+      }
+    }
   }
 }
 function pickSettingsCat(cat, focus) {
@@ -1886,8 +1912,8 @@ function renderChatVideo() {
   fillSelect($("setCvSize"), CV_SIZES.map(([w, h]) => [`${w}x${h}`, `${w}×${h}`]), `${v.width}x${v.height}`);
   fillSelect($("setCvFont"), CV_FONTS.map((f) => [String(f), `${f} px`]), String(v.font));
   const chip = (key, on, label, tip) => `<button class="btn sm chiptoggle" type="button" data-cv="${key}" aria-pressed="${on}"${tip ? ` title="${esc(tip)}"` : ""}>${esc(label)}</button>`;
-  $("setCvChips").innerHTML = chip("bg:green", v.bg === "green", t("chat.vid.green"), t("chat.vid.greenTip"))
-    + chip("bg:transparent", v.bg === "transparent", t("chat.vid.transparent"), t("chat.vid.transparentTip"))
+  const opt = (val, label, tip) => `<button type="button" role="radio" data-cv="bg:${val}" aria-checked="${v.bg === val}" title="${esc(tip)}">${esc(label)}</button>`;
+  $("setCvChips").innerHTML = `<span class="setseg" role="radiogroup" aria-label="${esc(t("chat.vid.bg"))}">${opt("green", t("chat.vid.green"), t("chat.vid.greenTip"))}${opt("transparent", t("chat.vid.transparent"), t("chat.vid.transparentTip"))}</span>`
     + chip("time", v.time, t("chat.img.time")) + chip("badges", v.badges, t("chat.img.badges")) + chip("emotes", v.emotes, t("chat.img.emotes"));
 }
 
