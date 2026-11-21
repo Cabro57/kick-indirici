@@ -1,10 +1,13 @@
 name: release
 
-# v1.2.3 etiketi atilinca: exe + kurucu + zip + manifest derlenir, herkese acik surum deposuna yuklenir.
+# v1.2.3 etiketi atilinca: exe + kurucu + zip + manifest derlenir, bu deponun release'lerine yuklenir.
 # Uygulama-ici guncelleyici manifest.json'u okur ve yalnizca degisen dosyalari indirir.
 on:
   push:
     tags: ["v*"]
+
+permissions:
+  contents: write
 
 env:
   # sabit surum: her derlemede ayni ffmpeg.exe cikar, guncellemede yeniden indirilmez
@@ -61,9 +64,9 @@ jobs:
       - name: Surumu yayinla
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
             "dist/KickIndirici-Setup-$VERSION.exe" "dist/KickIndirici-$VERSION-windows.zip" \
             dist/manifest.json dist/KickIndirici.exe dist/ffmpeg.exe dist/LICENSE-ffmpeg.txt \
-            -R Cabro57/kick-indirici --title "Kick İndirici $VERSION" --generate-notes
+            -R "$GITHUB_REPOSITORY" --title "Kick İndirici $VERSION" --generate-notes
