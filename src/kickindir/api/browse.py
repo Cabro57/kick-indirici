@@ -57,6 +57,7 @@ class BrowseMixin:
         log.info("serit listesi istendi: %s (ffmpeg: %s)", uuid, self._ffmpeg)
         if not self._ffmpeg:
             return {"ok": False, "error": t("err.stripNoFfmpeg")}
+        t0 = time.monotonic()
         try:
             if uuid not in self._strips:
                 self._strips[uuid] = MediaStrip(uuid, self._ffmpeg)
@@ -65,6 +66,7 @@ class BrowseMixin:
         except Exception as e:  # noqa: BLE001
             log.info("serit listesi alinamadi (%s): %s", uuid, e)
             return {"ok": False, "error": t("err.strip", e=str(e)[:120])}
+        log.info("perf serit listesi: %.2f sn", time.monotonic() - t0)
         return {"ok": True, "segments": self._strips[uuid].index(),
                 "peaksPerSec": MediaStrip.PEAKS_PER_SEC, "frameEvery": MediaStrip.FRAME_EVERY}
 
@@ -92,7 +94,10 @@ class BrowseMixin:
             return {}
         idx = [i for i in indices or [] if 0 <= i < len(strip.segments)][:64]
         try:
-            return {str(i): f for i, f in zip(idx, self._strip_pool.map(strip.thumb, idx))}
+            t0 = time.monotonic()
+            out = {str(i): f for i, f in zip(idx, self._strip_pool.map(strip.thumb, idx))}
+            log.info("perf serit kareleri: %d parca, %.2f sn", len(idx), time.monotonic() - t0)
+            return out
         except Exception as e:  # noqa: BLE001
             log.info("serit kareleri alinamadi: %s", e)
             return {}

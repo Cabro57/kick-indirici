@@ -1957,6 +1957,7 @@ const MIN_VIEW = 20;        // en fazla yakinlasinca cizelgede gorunen saniye
 const TICKS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
 const cut = {
   vod: null, hls: null, peekHls: null,
+  seen: new Set(), t0: 0, perf: null, peekT0: 0,   // olcum (PERF.md): acilis zamani, daha once acilan VOD'lar
   sel: null,                 // secili kesitin id'si
   view: [0, 0],              // cizelgede gorunen aralik (sn)
   drag: null,                // suren surukleme
@@ -2044,6 +2045,9 @@ async function openCutter(vod) {
   cut.density = null;
   loadChatDensity(vod);
   cut.strip = { uuid: vod.uuid, segs: null, data: new Map(), thumbs: new Map(), busy: 0, tbusy: 0, note: "" };
+  cut.t0 = performance.now();   // olcum: acilistan ilk kare / ilk goruntu suresine
+  cut.perf = { thumbs: false, reopen: cut.seen.has(vod.uuid) };
+  cut.seen.add(vod.uuid);
   loadStrip(cut.strip);
   setSideTab(cut.tab);
   setRate(Number($("cutRate").value));
@@ -2075,6 +2079,11 @@ function attachCut(dur) {
     if (d.fatal) cutterMsg(t("cut.previewFailed") + " " + t("cut.stillAdd"));
   });
   cut.hls.on(Hls.Events.MANIFEST_PARSED, () => cutterMsg(""));
+  for (const ev of ["loadeddata", "playing"]) {   // olcum: acilistan ilk goruntuye (oynatma baslamazsa loadeddata)
+    video.addEventListener(ev, () => {
+      state.api.client_log(`perf ana oynatici ${ev}: ${Math.round(performance.now() - cut.t0)} ms`);
+    }, { once: true });
+  }
   cut.hls.loadSource(cut.src);
   cut.hls.attachMedia(video);
   // cizelgenin ustundeki kucuk onizleme: ayni yayin, en dusuk kalite, yalnizca kare gostermek icin
@@ -2574,6 +2583,16 @@ function wantedThumbs(st) {
   return out.filter((i) => !st.data.get(i) && !st.thumbs.has(i));
 }
 
+/* olcum: gorunen seridin tum kareleri dolunca acilistan gecen sure (bir kez) */
+function logThumbsReady(st) {
+  if (!cut.perf || cut.perf.thumbs || !st.segs) return;
+  const [s, e] = cut.view;
+  const segs = [...new Set(tileTimes($("tlFilm"), s, e - s).map((t) => segAt(st.segs, t)))];
+  if (!segs.length || !segs.every((i) => st.thumbs.get(i) || st.data.get(i))) return;
+  cut.perf.thumbs = true;
+  state.api.client_log(`perf editor ilk ${segs.length} kare: ${Math.round(performance.now() - cut.t0)} ms (${cut.perf.reopen ? "yeniden acilis" : "ilk acilis"})`);
+}
+
 /* tam veri (ses + 2 sn'de bir kare) yalnizca ses dalgasi cizilecekse: oynatma cizgisine
    en yakindan baslayarak araliktaki tum parcalar */
 function wantedSegs(st) {
@@ -2604,6 +2623,7 @@ async function pumpStrip() {
       const failed = batch.filter((i) => !(res && res[i]));
       for (const i of batch) st.thumbs.set(i, (res && res[i]) || "");   // "": denendi, alinamadi
       drawStrip();
+      logThumbsReady(st);
       if (failed.length) setTimeout(() => {   // alinamayanlar biraz sonra yeniden denensin
         if (cut.strip !== st) return;
         failed.forEach((i) => { if (st.thumbs.get(i) === "") st.thumbs.delete(i); });
@@ -2790,6 +2810,7 @@ function showPeek(clientX) {
   $("tlHover").hidden = false;
   $("tlHover").style.left = `${x}px`;
   const peek = $("tlPeek");
+  if (peek.hidden) cut.peekT0 = performance.now();   // olcum: uzerine gelinen andan ilk goruntuye
   peek.hidden = false;
   const half = peek.offsetWidth / 2;
   peek.style.left = `${clamp(x, lane.left - track.left + half, lane.right - track.left - half)}px`;
@@ -3007,6 +3028,11 @@ function bindCutter() {
   const v = $("cutVideo");
   cut.main = makeSeeker(v);
   cut.peek = makeSeeker($("peekVideo"));
+  $("peekVideo").addEventListener("seeked", () => {
+    if (!cut.peekT0) return;
+    state.api.client_log(`perf peek ilk goruntu: ${Math.round(performance.now() - cut.peekT0)} ms`);
+    cut.peekT0 = 0;
+  });
   try { cut.len = Number(localStorage.getItem("cutLen")) || 30; } catch { /* depolama kapali */ }
   try { cut.mode = localStorage.getItem("cutMode") === "merge" ? "merge" : "split"; } catch { /* depolama kapali */ }
   $("cutLen").value = String(cut.len);
