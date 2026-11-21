@@ -153,6 +153,7 @@ class MediaStrip:
         self.ffmpeg = ffmpeg
         self.cache = {}
         self.thumbs = {}
+        self.levels = {}        # parca -> ilk saniyenin ses tepe degeri (0..255): uzak gorunumde kaba dalga
         self.lock = threading.Lock()
         self.dir = ThumbCache.dir_for(uuid)
         self.final = False      # bitmis yayinin listesi degismez: diskten gelir, yenilenmez
@@ -244,23 +245,46 @@ class MediaStrip:
         for name in (f"{i}.jpg", f"{i}_00.jpg"):
             raw = ThumbCache.read(self.dir, name)
             if raw:
-                return self._data_url(raw)
-        return ""
-
-    def thumb(self, i):
-        """Parcanin ilk karesi (data URL); alinamazsa ""."""
-        with self.lock:
-            if i in self.cache and self.cache[i]["frames"]:
-                return self.cache[i]["frames"][0]
-            if i in self.thumbs:
-                return self.thumbs[i]
-        for name in (f"{i}.jpg", f"{i}_00.jpg"):
-            raw = ThumbCache.read(self.dir, name)
-            if raw:
                 out = self._data_url(raw)
                 with self.lock:
                     self.thumbs[i] = out
                 return out
+        return ""
+
+    def _level_of(self, i):
+        """Parcanin kaba ses seviyesi (bellek, <i>.lvl, tam veri tepe degerleri); bilinmiyorsa None."""
+        with self.lock:
+            if i in self.levels:
+                return self.levels[i]
+            full = self.cache.get(i)
+        lvl = max(full["peaks"]) if full and full["peaks"] else None
+        if lvl is None:
+            b = ThumbCache.read(self.dir, f"{i}.lvl")
+            if b:
+                lvl = b[0]
+            else:
+                head = ThumbCache.read(self.dir, f"{i}.peaks")
+                lvl = max(head[1:]) if head and len(head) > 1 else None
+        if lvl is not None:
+            with self.lock:
+                self.levels[i] = lvl
+        return lvl
+
+    @staticmethod
+    def _level(raw):
+        """s16le ornekler -> 0..255 (dalga ile ayni olcek: tepe ** 0.6)."""
+        samples = array.array("h")
+        samples.frombytes(raw[:len(raw) // 2 * 2])
+        if not samples:
+            return 0
+        return min(255, int((max(max(samples), -min(samples)) / 32768) ** 0.6 * 255))
+
+    def thumb(self, i):
+        """Parcanin ilk karesi (data URL); alinamazsa "". Ayni ffmpeg cagrisi bastaki ~1 sn'nin ses
+        seviyesini de cikarir (levels[i], <i>.lvl): uzak gorunumde kaba dalga icin."""
+        url = self.thumb_cached(i)
+        if url and self._level_of(i) is not None:
+            return url
         work = tempfile.mkdtemp(prefix="kickthumb-")
         try:
             r = cffi_requests.get(self.segments[i][2], impersonate="chrome", timeout=30,
@@ -269,18 +293,26 @@ class MediaStrip:
             src, jpg = os.path.join(work, "p.ts"), os.path.join(work, "f.jpg")
             with open(src, "wb") as f:
                 f.write(r.content)
+            pcm = os.path.join(work, "a.raw")
             subprocess.run([self.ffmpeg, "-nostdin", "-v", "error", "-y", "-i", src, "-map", "0:v:0", "-frames:v", "1",
-                            "-vf", "scale=-2:88", "-q:v", "7", jpg],
+                            "-vf", "scale=-2:88", "-q:v", "7", jpg,
+                            "-map", "0:a:0?", "-ac", "1", "-ar", "2000", "-f", "s16le", pcm],
                            stdin=subprocess.DEVNULL, capture_output=True, timeout=30,
                            creationflags=subprocess.CREATE_NO_WINDOW)
             if not os.path.exists(jpg):
                 return ""
             with open(jpg, "rb") as f:
                 raw = f.read()
+            lvl = 0
+            if os.path.exists(pcm):
+                with open(pcm, "rb") as f:
+                    lvl = self._level(f.read())
             ThumbCache.write(self.dir, f"{i}.jpg", raw)
+            ThumbCache.write(self.dir, f"{i}.lvl", bytes([lvl]))
             out = self._data_url(raw)
             with self.lock:
                 self.thumbs[i] = out
+                self.levels[i] = lvl
             return out
         except Exception as e:  # noqa: BLE001 - kare yoksa tam parca gelince dolar
             log.info("serit karesi %s alinamadi: %s", i, e)

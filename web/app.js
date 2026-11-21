@@ -1396,6 +1396,7 @@ async function exportCuts() {
 /* ---------- indirmeler ---------- */
 function sync(data) {
   state.downloads = data.downloads;
+  if (cut.strip && cut.strip.bgPaused && bgOk()) scheduleStrip();     // indirme bitti: arka plan dalga dolumu surer
   state.byUrl = new Map(data.downloads.filter((d) => !d.section && !d.live && !d.chat).map((d) => [d.url, d]));
   const newLive = new Set(data.liveFavorites || []);
   const liveChanged = [...newLive].some((s) => !state.liveFavs.has(s)) || [...state.liveFavs].some((s) => !newLive.has(s));
@@ -2075,7 +2076,7 @@ const MIN_VIEW = 20;        // en fazla yakinlasinca cizelgede gorunen saniye
 const TICKS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
 const cut = {
   vod: null, hls: null, peekHls: null,
-  seen: new Set(), geom: {}, t0: 0, perf: null, peekT0: 0, peekAt: 0,   // olcum (PERF.md): acilis zamani, daha once acilan VOD'lar
+  seen: new Set(), geom: {}, hoverT: null, t0: 0, perf: null, peekT0: 0, peekAt: 0,   // olcum (PERF.md): acilis zamani, daha once acilan VOD'lar
   sel: null,                 // secili kesitin id'si
   view: [0, 0],              // cizelgede gorunen aralik (sn)
   drag: null,                // suren surukleme
@@ -2162,7 +2163,9 @@ async function openCutter(vod) {
   cut.view = [0, Math.min(WAVE_MAX, vod.duration || WAVE_MAX)];   // 15 dk'lik yakin gorunumle ac
   cut.density = null;
   loadChatDensity(vod);
-  cut.strip = { uuid: vod.uuid, segs: null, data: new Map(), thumbs: new Map(), busy: 0, tbusy: 0, pbusy: 0, pfail: new Set(), note: "" };
+  cut.strip = { uuid: vod.uuid, segs: null, data: new Map(), thumbs: new Map(), busy: 0, tbusy: 0, pbusy: 0, pfail: new Set(), note: "",
+    pf: null, pl: null,            // parca basina: tam veri tepe degeri / kaba seviye (-1: yok); uzak gorunum dalgasi
+    bbusy: 0, bgSkip: new Set(), bgTry: new Map(), bgPaused: false };
   cut.retried = false;
   cut.t0 = performance.now();   // olcum: acilistan ilk kare / ilk goruntu suresine
   cut.perf = { thumbs: false, reopen: cut.seen.has(vod.uuid) };
@@ -2687,10 +2690,26 @@ async function loadStrip(st, fresh) {
   if (cut.strip !== st) return;
   if (!res.ok) { st.note = res.error; state.api.client_log(`strip_index: ${res.error}`); drawStrip(); return; }
   st.segs = res.segments;
+  ensurePeaks(st);
   st.pps = res.peaksPerSec;
   st.fe = res.frameEvery;
   drawTimeline();
 }
+
+/* uzak gorunum dalgasi icin parca basina tepe degerleri; canlida liste uzayinca buyur */
+function ensurePeaks(st) {
+  const n = st.segs.length;
+  if (st.pf && st.pf.length === n) return;
+  for (const k of ["pf", "pl"]) {
+    const a = new Int16Array(n).fill(-1);
+    if (st[k]) a.set(st[k].subarray(0, Math.min(n, st[k].length)));
+    st[k] = a;
+  }
+}
+const maxOf = (a) => a.reduce((m, v) => (v > m ? v : m), 0);
+
+/* arka plan dolumunun odagi: imlec zaman cizelgesi / genel bakis uzerindeyse orasi, degilse oynatma cizgisi */
+const focusTime = () => (cut.hoverT != null ? cut.hoverT : nowTime());
 
 function segAt(segs, t) {
   let lo = 0, hi = segs.length - 1;
@@ -2730,8 +2749,25 @@ function wantedThumbs(st) {
     ...cutClips().map((c) => c.a + 0.5),
     ...tileTimes($("ovFilm"), 0, cutDuration()),
   ];
-  const out = [...new Set(times.map((t) => segAt(st.segs, t)))];
+  const out = [...new Set([...times.map((t) => segAt(st.segs, t)), ...waveWanted(st)])];
   return out.filter((i) => !st.data.get(i) && !st.thumbs.has(i));
+}
+
+/* uzak gorunumde (> WAVE_MAX) kaba dalga: gorunumdeki her parcanin ilk saniyesi (strip_thumbs ses seviyesini de verir);
+   odaga en yakin once */
+function waveWanted(st) {
+  const [s, e] = cut.view;
+  if (!st.pl || e - s <= WAVE_MAX) return [];
+  const a = segAt(st.segs, s), b = segAt(st.segs, e), mid = segAt(st.segs, clamp(focusTime(), s, e));
+  const want = [];
+  for (let i = a; i <= b; i++) if (st.pl[i] < 0 && st.pf[i] < 0) want.push(i);
+  return want.sort((x, y) => Math.abs(x - mid) - Math.abs(y - mid));
+}
+
+/* strip_thumbs yaniti {"f": kare, "l": ses seviyesi}: kareyi ve seviyeyi yerine koyar */
+function takeThumb(st, i, r, fallback) {
+  st.thumbs.set(i, (r && r.f) || fallback);
+  if (r && r.l != null && st.pl) st.pl[i] = r.l;
 }
 
 /* olcum: gorunen seridin tum kareleri dolunca acilistan gecen sure (bir kez) */
@@ -2777,7 +2813,7 @@ async function pumpStrip() {
         state.api.client_log(`perf editor ilk kare istegi: ${batch.length} kare, ${Math.round(performance.now() - tb)} ms`);
       }
       const failed = batch.filter((i) => !(res && res[i]));
-      for (const i of batch) st.thumbs.set(i, (res && res[i]) || "");   // "": denendi, alinamadi
+      for (const i of batch) takeThumb(st, i, res && res[i], "");   // "": denendi, alinamadi
       drawStrip();
       logThumbsReady(st);
       if (failed.length) setTimeout(() => {   // alinamayanlar biraz sonra yeniden denensin
@@ -2805,7 +2841,7 @@ async function pumpStrip() {
       let failed = false;
       for (const i of batch) {
         const d = res && res[i];
-        if (d && !d.failed) st.data.set(i, d);
+        if (d && !d.failed) { st.data.set(i, d); if (st.pf && d.peaks.length) st.pf[i] = maxOf(d.peaks); }
         else { st.data.delete(i); failed = true; }
       }
       drawStrip();
@@ -2818,6 +2854,52 @@ async function pumpStrip() {
     });
   }
   prefetchThumbs(st);
+  pumpBackground(st);
+}
+
+/* tum yayinin tam dalgasi arka planda: odaga (imlec / oynatma cizgisi) en yakin eksik parcalar, iki yana dogru.
+   Gorunen kareler ve gorunen aralik once; indirme calisirken durur (ortak hat); editor kapaninca biter.
+   160p parcalar ~300-400 KB: 3 saatlik yayin ~400 MB, bu yuzden diskte kalir (ikinci acilista aninda). */
+const bgOk = () => !state.downloads.some((d) => ["downloading", "preparing", "merging"].includes(d.status));
+
+function bgWanted(st) {
+  if (!st.pf) return [];
+  const n = st.segs.length, f = clamp(segAt(st.segs, focusTime()), 0, n - 1);
+  const out = [];
+  for (let d = 0; d < n && out.length < 8; d++) {
+    for (const i of d ? [f + d, f - d] : [f]) {
+      if (i >= 0 && i < n && st.pf[i] < 0 && !st.bgSkip.has(i) && out.length < 8) out.push(i);
+    }
+  }
+  return out;
+}
+
+function pumpBackground(st) {
+  if (st.busy || st.tbusy || st.pbusy) return;      // gorunen is bitmeden yarismaz
+  st.bgPaused = !bgOk();
+  if (st.bgPaused) return;
+  while (st.bbusy < 2) {
+    const batch = bgWanted(st);
+    if (!batch.length) return;
+    batch.forEach((i) => st.bgSkip.add(i));          // yolda
+    st.bbusy++;
+    const t0 = performance.now();
+    const done = (res) => {
+      if (cut.strip !== st) return;
+      st.bbusy--;
+      let failed = false;
+      for (const i of batch) {
+        const d = res && res[i];
+        if (d && !d.failed) { st.pf[i] = d.peaks.length ? maxOf(d.peaks) : 0; st.bgSkip.delete(i); }   // sessiz parca da dolu sayilir
+        else if ((st.bgTry.get(i) || 0) < 3) { st.bgTry.set(i, (st.bgTry.get(i) || 0) + 1); failed = true; setTimeout(() => st.bgSkip.delete(i), 5000); }
+      }
+      if (!st.bgLogged) { st.bgLogged = true; state.api.client_log(`perf arka plan dalga: ilk ${batch.length} parca ${Math.round(performance.now() - t0)} ms`); }
+      if (cut.view[1] - cut.view[0] > WAVE_MAX) drawStrip();
+      if (failed) { clearTimeout(cut.stripTimer); cut.stripTimer = setTimeout(pumpStrip, 5200); }
+      else pumpStrip();
+    };
+    state.api.strip_data(st.uuid, batch, true).then(done, () => done(null));
+  }
 }
 
 /* gorunen her sey bitince: gorunumun bir ekran solu ve sagi icin ilk kareler (dusuk oncelik, tek istek).
@@ -2843,7 +2925,7 @@ function prefetchThumbs(st) {
     if (cut.strip !== st) return;
     st.pbusy = 0;
     for (const i of batch) {
-      if (res && res[i]) st.thumbs.set(i, res[i]);
+      if (res && res[i]) takeThumb(st, i, res[i], "");
       else { st.thumbs.delete(i); st.pfail.add(i); }   // onyukleme tekrar denemez; gorunur olunca normal yolla istenir
     }
     state.api.client_log(`perf yakin onyukleme: ${batch.length} kare, ${Math.round(performance.now() - t0)} ms`);
@@ -2900,12 +2982,13 @@ function drawStrip() {
   const g = cv.getContext("2d");
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, cw, ch);
-  const waiting = st.segs && span <= WAVE_MAX && !st.data.get(segAt(st.segs, s + span / 2));
-  const note = st.note || (!st.segs ? t("cut.loadingStrip") : span > WAVE_MAX
-    ? t("cut.zoomForWave", { n: WAVE_MAX / 60 }) : waiting ? t("cut.loadingAudio") : "");
+  const far = span > WAVE_MAX;
+  const waiting = st.segs && (far ? waveMissing(st) : !st.data.get(segAt(st.segs, s + span / 2)));
+  const note = st.note || (!st.segs ? t("cut.loadingStrip") : waiting ? t("cut.loadingAudio") : "");
   $("waveNote").hidden = !note;
   $("waveNote").textContent = note;
   if ((note && !waiting) || !span) return;   // yuklenirken gelen parcalar yine cizilsin
+  if (far) { drawFarWave(g, st, cw, ch, s, span); return; }
   const mid = ch / 2;
   g.fillStyle = "#2a2a2a";
   g.fillRect(0, mid - 0.5, cw, 1);
@@ -2930,6 +3013,41 @@ function drawStrip() {
     const hh = Math.max(1, (peak / 255) * (mid - 2));
     g.fillRect(x, mid - hh, 1, hh * 2);
   }
+}
+
+/* uzak gorunumde dalga icin hic verisi (ne tam ne kaba) olmayan parca var mi */
+function waveMissing(st) {
+  if (!st.pl) return true;
+  const [s, e] = cut.view;
+  for (let i = segAt(st.segs, s), b = segAt(st.segs, e); i <= b; i++) if (st.pl[i] < 0 && st.pf[i] < 0) return true;
+  return false;
+}
+
+/* uzak gorunum: her piksel sutunu icin kapsadigi parcalarin tepe degeri. Tam veri (tum parcanin tepesi) varsa o,
+   yoksa kaba seviye (parcanin ilk saniyesi) ve soluk cizilir: kesin olmayan yer gorulsun */
+function drawFarWave(g, st, cw, ch, s, span) {
+  const mid = ch / 2, n = st.segs.length;
+  g.fillStyle = "#2a2a2a";
+  g.fillRect(0, mid - 0.5, cw, 1);
+  const clips = cutClips();
+  const on = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(), off = "#6b737d";
+  const per = span / cw;
+  for (let x = 0; x < cw; x++) {
+    const t0 = s + x * per;
+    let full = -1, coarse = -1;
+    for (let k = segAt(st.segs, Math.max(0, t0)), kb = segAt(st.segs, t0 + per); k <= kb && k < n; k++) {
+      if (st.pf[k] > full) full = st.pf[k];
+      if (st.pl[k] > coarse) coarse = st.pl[k];
+    }
+    const peak = full >= 0 ? full : coarse;
+    if (peak < 0) continue;
+    const tm = t0 + per / 2;
+    g.globalAlpha = full >= 0 ? 1 : 0.45;
+    g.fillStyle = clips.some((c) => tm >= c.a && tm <= c.b) ? on : off;
+    const hh = Math.max(1, (peak / 255) * (mid - 2));
+    g.fillRect(x, mid - hh, 1, hh * 2);
+  }
+  g.globalAlpha = 1;
 }
 
 /* giris isareti: cetveldeki bayrak, giristen oynatma cizgisine kadar bekleyen kesit ve videodaki not */
@@ -3010,11 +3128,13 @@ function showPeek(clientX) {
   if (peek.dataset.src !== frame) { peek.dataset.src = frame; peek.style.backgroundImage = frame ? `url("${frame}")` : ""; }
   if (first && frame) state.api.client_log(`perf peek serit karesi: ${Math.round(performance.now() - cut.peekT0)} ms`);
   cut.peekAt = t;
+  cut.hoverT = t;     // arka plan dalga dolumunun odagi
   const pv = $("peekVideo");
   peek.classList.toggle("live", !frame || (pv.readyState >= 2 && !pv.seeking && Math.abs(pv.currentTime - t) < 1.5));   // serit karesi yoksa video gorunur kalir
   if (cut.peekHls) cut.peek.to(t);
 }
 function hidePeek() {
+  cut.hoverT = null;
   $("tlHover").hidden = true;
   $("tlPeek").hidden = true;
 }
@@ -3377,7 +3497,12 @@ function bindCutter() {
     drawTimeline();
   };
   ov.addEventListener("pointerdown", (e) => { ov.setPointerCapture(e.pointerId); ov.dataset.drag = "1"; ovMove(e); });
-  ov.addEventListener("pointermove", (e) => { if (ov.dataset.drag) ovMove(e); });
+  ov.addEventListener("pointermove", (e) => {
+    if (ov.dataset.drag) ovMove(e);
+    const dur = cutDuration(), r = ov.getBoundingClientRect();
+    if (dur) cut.hoverT = clamp((e.clientX - r.left) / r.width, 0, 1) * dur;     // arka plan dalga dolumunun odagi
+  });
+  ov.addEventListener("pointerleave", () => { cut.hoverT = null; });
   ov.addEventListener("pointerup", () => delete ov.dataset.drag);
   ov.addEventListener("dblclick", (e) => {   // cift tik: o ana git
     const dur = cutDuration();

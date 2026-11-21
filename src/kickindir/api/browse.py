@@ -80,8 +80,10 @@ class BrowseMixin:
         return {"ok": True, "segments": self._strips[uuid].index(),
                 "peaksPerSec": MediaStrip.PEAKS_PER_SEC, "frameEvery": MediaStrip.FRAME_EVERY}
 
-    def strip_data(self, uuid, indices):
-        """Istenen parcalarin karelerini ve ses tepe degerlerini paralel isleyip dondurur."""
+    def strip_data(self, uuid, indices, peaks_only=False):
+        """Istenen parcalarin karelerini ve ses tepe degerlerini paralel isleyip dondurur.
+        peaks_only: kareler yanitta yok (arka planda tum yayinin dalgasi: arayuz bellegini sisirmesin;
+        sunucu kareleri yine bellege / diske alir)."""
         strip = self._strips.get(uuid)
         if not strip:
             log.info("serit verisi istendi ama liste yok: %s", uuid)
@@ -92,6 +94,8 @@ class BrowseMixin:
             out = {str(i): d for i, d in zip(idx, self._strip_pool.map(strip.get, idx))}
             log.info("serit verisi: %d parca, %d karesi dolu, %.1f sn", len(out),
                      sum(1 for d in out.values() if d["frames"]), time.monotonic() - t)
+            if peaks_only:
+                out = {k: {kk: vv for kk, vv in d.items() if kk != "frames"} for k, d in out.items()}
             return out
         except Exception as e:  # noqa: BLE001
             log.info("serit parcalari alinamadi: %s", e)
@@ -131,7 +135,9 @@ class BrowseMixin:
         idx = [i for i in indices or [] if 0 <= i < len(strip.segments)][:64]
         try:
             t0 = time.monotonic()
-            out = {str(i): f for i, f in zip(idx, self._strip_pool.map(strip.thumb, idx))}
+            # basarili: {"f": data URL, "l": ses seviyesi 0..255 ya da None}; basarisiz: ""
+            out = {str(i): {"f": f, "l": strip.levels.get(i)} if f else ""
+                   for i, f in zip(idx, self._strip_pool.map(strip.thumb, idx))}
             log.info("perf serit kareleri: %d parca, %.2f sn", len(idx), time.monotonic() - t0)
             return out
         except Exception as e:  # noqa: BLE001
