@@ -2095,9 +2095,11 @@ function attachCut(dur) {
   // capLevelToPlayerSize + dusuk kaliteyle basla: ilk goruntu hizli gelir, sonra ABR yukselir (PERF.md)
   cut.hls = new Hls({ maxBufferLength: 20, capLevelToPlayerSize: true, startPosition: live ? Math.max(0, dur - LIVE_BACK) : -1 });
   cut.hls.on(Hls.Events.MANIFEST_PARSED, () => {
-    // goruntusuz ("audio_only") surum baslangic olmasin
+    // goruntusuz ("audio_only") surum baslangic olmasin; buyuk oynatici icin 160p cok bulanik: en az 360p olan en dusuk surum
     const lv = cut.hls.levels.map((l, i) => ({ i, l })).filter((x) => x.l.height || x.l.videoCodec);
-    if (lv.length) cut.hls.startLevel = lv.reduce((a, b) => (b.l.bitrate < a.l.bitrate ? b : a)).i;
+    const pool = lv.filter((x) => x.l.height >= 360);
+    const best = (pool.length ? pool : lv);
+    if (best.length) cut.hls.startLevel = best.reduce((a, b) => (b.l.bitrate < a.l.bitrate ? b : a)).i;
   });
   const vod = cut.vod;
   cut.hls.on(Hls.Events.ERROR, async (_, d) => {
