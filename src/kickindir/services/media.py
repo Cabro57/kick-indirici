@@ -14,8 +14,116 @@ import threading
 import urllib.request
 from curl_cffi import requests as cffi_requests
 
-from kickindir.config import log
+from kickindir.config import DATA_DIR, log
 from kickindir.services.kick import hls_variants, kick_get
+
+
+class ThumbCache:
+    """Serit karelerinin disk onbellegi: DATA_DIR/thumbs/<uuid>/<dosya>. Ham JPEG ve tepe degerleri
+    dosya olarak durur. Boyut siniri `limit` (bayt, 0 = kapali); asilinca en eski (mtime) dosyalar silinir,
+    okunan dosyanin mtime'i yenilenir (LRU). Temizlik arka planda; serit havuzunu bekletmez."""
+
+    root = os.path.join(DATA_DIR, "thumbs")
+    limit = 200 << 20
+    _lock = threading.Lock()
+    _added = 0              # son temizlikten beri yazilan bayt
+    _trimming = False
+
+    @classmethod
+    def dir_for(cls, uuid):
+        """Yayinin klasoru; uuid beklenen bicimde degilse None (yol karistirmasin)."""
+        return os.path.join(cls.root, uuid) if re.fullmatch(r"[0-9a-f-]{36}", str(uuid)) else None
+
+    @classmethod
+    def read(cls, folder, name):
+        if not folder or not cls.limit:
+            return None
+        path = os.path.join(folder, name)
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+            os.utime(path)
+            return data
+        except OSError:
+            return None
+
+    @classmethod
+    def write(cls, folder, name, data):
+        if not folder or not cls.limit:
+            return
+        try:
+            os.makedirs(folder, exist_ok=True)
+            path = os.path.join(folder, name)
+            tmp = f"{path}.{threading.get_ident()}.tmp"
+            with open(tmp, "wb") as f:
+                f.write(data)
+            os.replace(tmp, path)
+        except OSError as e:
+            log.info("kare onbellegi yazilamadi: %s", e)
+            return
+        with cls._lock:
+            cls._added += len(data)
+            due = cls._added > max(5 << 20, cls.limit // 10) and not cls._trimming
+        if due:
+            cls.trim_async()
+
+    @classmethod
+    def _files(cls):
+        out = []
+        for base, _, names in os.walk(cls.root):
+            for n in names:
+                p = os.path.join(base, n)
+                try:
+                    st = os.stat(p)
+                except OSError:
+                    continue
+                out.append((st.st_mtime, st.st_size, p))
+        return out
+
+    @classmethod
+    def size(cls):
+        return sum(s for _, s, _ in cls._files())
+
+    @classmethod
+    def trim(cls):
+        """Siniri asan kismi en eski dosyalardan baslayarak siler."""
+        with cls._lock:
+            if cls._trimming:
+                return
+            cls._trimming, cls._added = True, 0
+        try:
+            files = cls._files()
+            total = sum(s for _, s, _ in files)
+            for _, size, path in sorted(files):
+                if total <= cls.limit:
+                    break
+                try:
+                    os.remove(path)
+                    total -= size
+                except OSError:
+                    pass
+            for base, _, _ in os.walk(cls.root, topdown=False):     # bosalan yayin klasorleri
+                if base != cls.root and not os.listdir(base):
+                    os.rmdir(base)
+        except OSError as e:
+            log.info("kare onbellegi temizlenemedi: %s", e)
+        finally:
+            cls._trimming = False
+
+    @classmethod
+    def trim_async(cls):
+        threading.Thread(target=cls.trim, daemon=True).start()
+
+    @classmethod
+    def set_limit_mb(cls, mb):
+        cls.limit = int(mb) << 20
+        cls.trim_async()
+
+    @classmethod
+    def clear(cls):
+        shutil.rmtree(cls.root, ignore_errors=True)
+        with cls._lock:
+            cls._added = 0
 
 
 class MediaStrip:
@@ -46,6 +154,7 @@ class MediaStrip:
         self.cache = {}
         self.thumbs = {}
         self.lock = threading.Lock()
+        self.dir = ThumbCache.dir_for(uuid)
         self.refresh()
 
     def refresh(self):
@@ -69,7 +178,7 @@ class MediaStrip:
         with self.lock:
             if i in self.cache:
                 return self.cache[i]
-        out = self._process(i)
+        out = self._from_disk(i) or self._process(i)
         if out["frames"] or out["peaks"]:      # bos sonucu saklama: ag hatasiysa sonra tekrar denensin
             with self.lock:
                 self.cache[i] = out
@@ -82,6 +191,13 @@ class MediaStrip:
                 return self.cache[i]["frames"][0]
             if i in self.thumbs:
                 return self.thumbs[i]
+        for name in (f"{i}.jpg", f"{i}_00.jpg"):
+            raw = ThumbCache.read(self.dir, name)
+            if raw:
+                out = self._data_url(raw)
+                with self.lock:
+                    self.thumbs[i] = out
+                return out
         work = tempfile.mkdtemp(prefix="kickthumb-")
         try:
             r = cffi_requests.get(self.segments[i][2], impersonate="chrome", timeout=30,
@@ -97,7 +213,9 @@ class MediaStrip:
             if not os.path.exists(jpg):
                 return ""
             with open(jpg, "rb") as f:
-                out = "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+                raw = f.read()
+            ThumbCache.write(self.dir, f"{i}.jpg", raw)
+            out = self._data_url(raw)
             with self.lock:
                 self.thumbs[i] = out
             return out
@@ -106,6 +224,24 @@ class MediaStrip:
             return ""
         finally:
             shutil.rmtree(work, ignore_errors=True)
+
+    @staticmethod
+    def _data_url(raw):
+        return "data:image/jpeg;base64," + base64.b64encode(raw).decode()
+
+    def _from_disk(self, i):
+        """Daha once islenmis parca: <i>.peaks (ilk bayt kare sayisi, sonra tepe degerleri) + <i>_NN.jpg.
+        Kareler eksikse (temizlik sildiyse) yok sayilir."""
+        head = ThumbCache.read(self.dir, f"{i}.peaks")
+        if not head:
+            return None
+        frames = []
+        for k in range(head[0]):
+            raw = ThumbCache.read(self.dir, f"{i}_{k:02d}.jpg")
+            if not raw:
+                return None
+            frames.append(self._data_url(raw))
+        return {"peaks": list(head[1:]), "frames": frames, "dur": self.segments[i][1]}
 
     def _process(self, i):
         _, dur, url = self.segments[i]
@@ -138,14 +274,19 @@ class MediaStrip:
                     chunk = samples[k:k + step]
                     peak = max(max(chunk), -min(chunk)) / 32768
                     peaks.append(min(255, int(peak ** 0.6 * 255)))   # sessiz kisimlar da okunsun
-            frames = []
+            frames, raws = [], []
             for name in sorted(n for n in os.listdir(work) if n.endswith(".jpg")):
                 with open(os.path.join(work, name), "rb") as f:
-                    frames.append("data:image/jpeg;base64," + base64.b64encode(f.read()).decode())
+                    raws.append(f.read())
+                frames.append(self._data_url(raws[-1]))
             if not frames or not peaks:
                 log.info("serit parcasi %s: %d kare, %d ses degeri, %d bayt, ffmpeg=%s cikis %s: %s",
                          i, len(frames), len(peaks), len(r.content), self.ffmpeg, proc.returncode,
                          proc.stderr.decode("utf-8", "ignore").strip()[-300:])
+            if frames or peaks:       # .peaks en son yazilir: onu gormek parcanin tam oldugu demek
+                for k, raw in enumerate(raws):
+                    ThumbCache.write(self.dir, f"{i}_{k:02d}.jpg", raw)
+                ThumbCache.write(self.dir, f"{i}.peaks", bytes([len(raws)]) + bytes(peaks))
             return {"peaks": peaks, "frames": frames, "dur": dur}
         except Exception as e:  # noqa: BLE001 - tek parca bozuksa cizelgede bos kalir
             log.info("serit parcasi %s alinamadi: %s", i, e)

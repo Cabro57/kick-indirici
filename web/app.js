@@ -1670,6 +1670,8 @@ function renderSettings() {
   renderChatFormats();
   renderChatVideo();
   fillSelect($("setLimit"), [["0", t("set.unlimited")], ...[1, 2, 5, 10, 20, 50, 100].map((x) => [String(x), `${x} MB/s`])], String(s.speedLimit || 0));
+  fillSelect($("setThumbCache"), [["0", t("set.off")], ...[50, 100, 200, 500, 1000].map((x) => [String(x), `${x} MB`])], String(s.thumbCacheMB));
+  showThumbCache();
   $("setVersion").textContent = t("set.version", { v: state.cfg.version });
   $("setVolume").value = s.volume;
   $("setVolume").style.setProperty("--v", `${s.volume}%`);
@@ -1677,6 +1679,13 @@ function renderSettings() {
   $("setName").value = s.nameTemplate;
   $("nameTokens").innerHTML = esc(t("set.tokens")) + " " + s.nameTokens.map((k) => `<button class="tok" type="button" data-tok="${k}">{${k}}</button>`).join("");
   previewName();
+}
+
+/* ayarlar: kare onbelleginin disk kullanimi */
+async function showThumbCache(info) {
+  info = info || await state.api.thumb_cache_info();
+  $("thumbCacheUsed").textContent = t("set.thumbCacheUsed", { size: fmtBytes(info.bytes) });
+  $("thumbCacheClear").disabled = !info.bytes;
 }
 
 const NAME_ALIASES = { kanal: "channel", baslik: "title", tarih: "date" };   // eski Turkce sablon adlari
@@ -1773,6 +1782,14 @@ function bindSettings() {
   $("setParallel").addEventListener("change", (e) => saveSetting({ parallel: num(e.target.value) }));
   $("setThreads").addEventListener("change", (e) => saveSetting({ fragThreads: num(e.target.value) }));
   $("setLimit").addEventListener("change", (e) => saveSetting({ speedLimit: Number(e.target.value) }));
+  $("setThumbCache").addEventListener("change", async (e) => {
+    await saveSetting({ thumbCacheMB: Number(e.target.value) });
+    showThumbCache();
+  });
+  $("thumbCacheClear").addEventListener("click", async () => {
+    showThumbCache(await state.api.thumb_cache_clear());
+    toast(t("toast.thumbCacheCleared"));
+  });
   // dil degisince arayuz bastan kurulur; indirmeler arka uctadir, kesilmez
   $("setLang").addEventListener("change", async (e) => { if (await saveSetting({ lang: e.target.value }, true)) location.reload(); });
   $("checkUpdBtn").addEventListener("click", () => checkUpdate(true));

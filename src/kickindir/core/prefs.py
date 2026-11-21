@@ -79,6 +79,7 @@ PREFS = {
     "chatPanel": (True, flag),               # izleme penceresinde sohbet paneli acik
     "chatImage": ({"bg": "dark", "time": True, "badges": True, "emotes": True, "width": 480}, chat_image),
     "chatVideo": ({"bg": "green", "width": 400, "height": 720, "font": 18, "time": False, "badges": True, "emotes": True}, chat_video),
-    "telemetry": (None, flag),               # anonim kullanim verisi: None = henuz sorulmadi (ilk acilista sorulur)
+    "thumbCacheMB": (200, ranged(0, 5000)),  # serit karelerinin disk onbellegi siniri, MB (0 = kapali)
+    "telemetry": (None, flag),              # anonim kullanim verisi: None = henuz sorulmadi (ilk acilista sorulur)
     "lang": (detect_lang(), lambda v: v if v in LANGS else None),   # arayuz dili; ilk acilista Windows'tan
 }

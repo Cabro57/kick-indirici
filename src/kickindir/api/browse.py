@@ -7,7 +7,7 @@ from curl_cffi import requests as cffi_requests
 from kickindir.config import log
 from kickindir.core.i18n import t
 from kickindir.services.kick import fetch_clips, kick_get, playlist_duration
-from kickindir.services.media import MediaStrip
+from kickindir.services.media import MediaStrip, ThumbCache
 
 
 class BrowseMixin:
@@ -86,6 +86,15 @@ class BrowseMixin:
         except Exception as e:  # noqa: BLE001
             log.info("serit parcalari alinamadi: %s", e)
             return {}
+
+    def thumb_cache_info(self):
+        """Ayarlar: kare onbelleginin diskte kapladigi bayt ve siniri (MB)."""
+        return {"bytes": ThumbCache.size(), "limitMB": ThumbCache.limit >> 20}
+
+    def thumb_cache_clear(self):
+        """Ayarlar: diskteki kare onbelleginin tamamini siler; acik seritlerin bellekteki kareleri kalir."""
+        ThumbCache.clear()
+        return self.thumb_cache_info()
 
     def strip_thumbs(self, uuid, indices):
         """Uzak gorunum icin parcalarin ilk kareleri: {"i": data URL ya da ""}. Tam veriden hizli."""

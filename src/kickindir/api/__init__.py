@@ -21,6 +21,7 @@ from kickindir.api.workers import WorkerMixin
 from kickindir.api.chat import ChatMixin
 from kickindir.api.usage import UsageMixin
 from kickindir.api.capcut import CapcutMixin
+from kickindir.services.media import ThumbCache
 from kickindir.services.telemetry import Telemetry, installer_consent
 
 
@@ -38,6 +39,7 @@ class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMi
             value = check(s[key]) if key in s else None
             self._prefs[key] = default if value is None else value
         set_lang(self._prefs["lang"])
+        ThumbCache.set_limit_mb(self._prefs["thumbCacheMB"])     # acilista bir temizlik de calisir
         # kullanim verisi: ilk acilista arayuz sorar. Cevaba kadar olaylar bekler; kurulum sihirbazinda
         # "hayir" dendiyse cevaba kadar hic olay tutulmaz.
         consent = self._prefs["telemetry"]

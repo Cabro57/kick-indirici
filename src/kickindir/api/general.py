@@ -11,6 +11,7 @@ from kickindir.services.kick import fetch_channel, kick_error, parse_link, vod_c
 from kickindir.core import i18n
 from kickindir.core.prefs import PREFS, int_or_auto
 from kickindir.core.util import clipboard_text
+from kickindir.services.media import ThumbCache
 
 
 class AppMixin:
@@ -116,6 +117,8 @@ class AppMixin:
         if isinstance(data.get("folder"), str) and data["folder"].strip():
             self._folder = data["folder"].strip()
         LIMITER.rate = self._prefs["speedLimit"] * 1024 * 1024
+        if "thumbCacheMB" in data and self._prefs["thumbCacheMB"] << 20 != ThumbCache.limit:
+            ThumbCache.set_limit_mb(self._prefs["thumbCacheMB"])
         if self._prefs["lang"] != i18n.lang():
             i18n.set_lang(self._prefs["lang"])
             if self._window:

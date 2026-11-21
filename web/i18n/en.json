@@ -452,6 +452,13 @@
   "set.sample": "Example: {name}",
   "set.nameInvalid": "Invalid: must contain {title} or {id}; \\ / : * ? \" < > | are not allowed.",
   "toast.notSaved": "This value could not be saved",
+  "set.off": "Off",
+  "set.thumbCache": "Preview cache",
+  "set.thumbCacheDesc": "Keeps timeline frames on disk so a VOD opens faster the next time. Oldest frames are removed first.",
+  "set.thumbCacheLabel": "Max size",
+  "set.thumbCacheUsed": "In use: {size}.",
+  "set.thumbCacheClear": "Clear",
+  "toast.thumbCacheCleared": "Preview cache cleared",
   "toast.saved": "Saved",
   "cut.liveMeta": "live · started {ago}",
   "file.cuts": {
