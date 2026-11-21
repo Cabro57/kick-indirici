@@ -1375,11 +1375,20 @@ function openCardMenu(url, at, btn, keepFloat) {
   m.hidden = false;
   const w = m.offsetWidth, h = m.offsetHeight;
   const r = anchor || { left: at.x, right: at.x, top: at.y, bottom: at.y };
-  const left = anchor ? r.right - w : r.left;
-  const down = window.innerHeight - r.bottom - 8 >= h;
-  m.style.left = `${clamp(left, 8, window.innerWidth - w - 8)}px`;
-  m.style.top = `${down ? r.bottom + 4 : Math.max(8, r.top - h - 4)}px`;
-  m.classList.toggle("up", !down);
+  // buyuyen karttan acildiysa menu kartin YANINA: video ve baslik gorunur kalsin (once sag, sigmazsa sol; ikisi de sigmazsa asagi / yukari)
+  const fr = keepFloat && hcard.el && hcard.el.getBoundingClientRect();
+  const side = fr && (fr.right + 6 + w <= window.innerWidth - 8 ? fr.right + 6 : fr.left - 6 - w >= 8 ? fr.left - 6 - w : null);
+  if (side != null) {
+    m.style.left = `${side}px`;
+    m.style.top = `${clamp(r.bottom - h, 8, window.innerHeight - h - 8)}px`;
+    m.classList.remove("up");
+  } else {
+    const left = anchor ? r.right - w : r.left;
+    const down = window.innerHeight - r.bottom - 8 >= h;
+    m.style.left = `${clamp(left, 8, window.innerWidth - w - 8)}px`;
+    m.style.top = `${down ? r.bottom + 4 : Math.max(8, r.top - h - 4)}px`;
+    m.classList.toggle("up", !down);
+  }
   if (btn) btn.setAttribute("aria-expanded", "true");
   m.querySelector("button").focus({ preventScroll: true });
 }
