@@ -106,6 +106,9 @@ async function withBusy(btn, fn) {
   try { return await fn(); } finally { btn.classList.remove("is-busy"); btn.removeAttribute("aria-busy"); }
 }
 const MINI = `<i class="mini" aria-hidden="true"></i>`;
+/* emniyet agi: yuklenemeyen her resim gizlenir (tarayicinin kirik-resim simgesi + beyaz cercevesi hicbir yerde cikmaz) */
+document.addEventListener("error", (e) => { if (e.target.tagName === "IMG") e.target.classList.add("broken"); }, true);
+document.addEventListener("load", (e) => { if (e.target.tagName === "IMG") e.target.classList.remove("broken"); }, true);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const fold = (s) => (s || "").toLocaleLowerCase(i18n.locale);
 const BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
@@ -507,9 +510,13 @@ function renderSelBar() {
   $("selDur").textContent = total ? t("sel.total", { d: fmtDuration(total) }) : "";
   $("selDl").querySelector("span").textContent = t("sel.download", { n: items.length });
   if (list.hidden) return;
-  list.innerHTML = items.map((v) => `<li><img src="${esc(v.thumb || BLANK)}" alt=""><span title="${esc(v.title)}">${esc(cleanTitle(v.title))}</span>
+  list.innerHTML = items.map((v) => `<li><span class="tphoto"><img alt=""></span><span title="${esc(v.title)}">${esc(cleanTitle(v.title))}</span>
     <small class="num">${fmtDuration(v.duration)}</small>
     <button class="iconbtn" type="button" data-unsel="${esc(v.url)}" title="${esc(t("sel.remove"))}" aria-label="${esc(t("sel.remove"))}">${icon("x")}</button></li>`).join("");
+  [...list.children].forEach((li, i) => {
+    const host = li.querySelector(".tphoto"), v = items[i];
+    bindPhoto(host, posters.get(v.uuid) || v.thumb, avatarOf(v), () => posters.want(host, v));
+  });
 }
 
 function toggleSelList() {
@@ -830,13 +837,39 @@ function clearFallback(host) {
 
 /* kartin kapagi: yoksa / bozuksa / cok kucukse (gercek bir kare degil) yedek + VOD ise gorunince gercek kare istenir */
 function bindThumb(host, v) {
+  bindPhoto(host, posters.get(v.uuid) || v.thumb, avatarOf(v), () => posters.want(host, v), kindOf(v) === "clip");
+}
+
+/* TEK yol: her kapak resmi buradan gecer. Resim yuklenene dek gorunmez; bos / hata / cok kucuk / parazit ise yedek (.pfb),
+   ardindan upgrade() varsa gercek kare istenir. host: konumlu kutu, ilk cocugu <img>. */
+function bindPhoto(host, url, avatar, upgrade, strict) {
   const img = host.querySelector(":scope > img");
-  const url = posters.get(v.uuid) || v.thumb;
-  const miss = () => { img.removeAttribute("src"); showFallback(host, avatarOf(v)); posters.want(host, v); };
+  img.classList.add("pimg");
+  if (!img._ldb) { img._ldb = true; img.addEventListener("load", () => img.classList.add("ld")); }
+  const miss = () => { img.removeAttribute("src"); showFallback(host, avatar || ""); if (upgrade) upgrade(); };
   if (!url) { miss(); return; }
   img.addEventListener("error", miss, { once: true });
-  img.addEventListener("load", () => { if (img.naturalWidth < 32) miss(); else verifyThumb(host, kindOf(v) === "clip", miss); }, { once: true });
+  img.addEventListener("load", () => { if (img.naturalWidth < 32) miss(); else verifyThumb(host, !!strict, miss); }, { once: true });
   img.src = url;
+}
+
+/* ana sayfa kutulari ve secim listesi: kapak kutularini baglar */
+function bindTiles() {
+  for (const tile of $("favGrid").querySelectorAll(".ftile[data-slug]")) {
+    const host = tile.querySelector(".latest .tphoto");
+    const st = state.favStatus[tile.dataset.slug], lt = st && st.ok && st.latest;
+    if (!host || !lt) continue;
+    const f = state.favorites.find((x) => x.slug === tile.dataset.slug);
+    bindPhoto(host, posters.get(lt.uuid) || lt.thumb, (f && f.avatar) || "", () => posters.want(host, { uuid: lt.uuid, duration: lt.duration, url: lt.url, kind: "vod" }));
+  }
+  for (const tile of $("recentRow").querySelectorAll(".rtile[data-file]")) {
+    const e = libEntry(tile.dataset.file), host = tile.querySelector(".tphoto");
+    if (e) bindPhoto(host, e.thumb, avatarFor(e.url), () => libPosters.want(host, e, true));
+  }
+  for (const tile of $("cutSetRow").querySelectorAll(".cset[data-url]")) {
+    const e = cutSet(tile.dataset.url), host = tile.querySelector(".tphoto");
+    if (e) bindPhoto(host, posters.get(e.uuid) || e.thumb, avatarFor(e.url), () => posters.want(host, { uuid: e.uuid, duration: e.duration, url: e.url, kind: "vod" }));
+  }
 }
 
 /* gorunen kapagin parazit / statik olup olmadigini sunucuya sordurur (sirayla, bir seferde bir tane); parazitse miss() */
@@ -863,11 +896,12 @@ function makeVerifier() {
 const verifyThumb = makeVerifier();
 
 const posters = {
-  mem: new Map(), tried: new Set(), q: [], busy: 0, io: null,
+  mem: new Map(), tried: new Set(), q: [], busy: 0, io: null, hosts: new Map(),
   get(uuid) { return (uuid && this.mem.get(uuid)) || ""; },
   want(host, v) {
     if (!v.uuid || kindOf(v) !== "vod" || !state.cfg.ffmpeg || this.tried.has(v.uuid)) return;
     host._pv = v;
+    this.hosts.set(host, v);
     if (!this.io) this.io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { this.io.unobserve(e.target); this.q.push(e.target); this.pump(); } }), { rootMargin: "150px" });
     this.io.observe(host);
   },
@@ -881,9 +915,9 @@ const posters = {
         const url = await state.api.vod_poster(v.uuid, v.duration || 0);
         if (url) {
           this.mem.set(v.uuid, url);
-          for (const el of $("grid").querySelectorAll(".card .thumb")) {
-            const pv = el._pv;
-            if (pv && pv.uuid === v.uuid && el.classList.contains("nothumb")) { el.querySelector(":scope > img").src = url; clearFallback(el); }
+          for (const [el, pv] of this.hosts) {
+            if (!el.isConnected) { this.hosts.delete(el); continue; }
+            if (pv.uuid === v.uuid && el.classList.contains("nothumb")) { const im = el.querySelector(":scope > img"); im.classList.remove("ld"); im.src = url; clearFallback(el); }
           }
         }
       } catch { /* yedek kalir */ }
@@ -910,19 +944,14 @@ const libPosters = {
       this.tried.add(pe.e.file);
       try {
         const url = await state.api.library_poster(pe.e.file, !!pe.force);
-        if (url) { pe.e.thumb = url; const le = libEntry(pe.e.file); if (le) le.thumb = url; if (host.isConnected) { host.querySelector(":scope > img").src = url; clearFallback(host); } }
+        if (url) { pe.e.thumb = url; const le = libEntry(pe.e.file); if (le) le.thumb = url; if (host.isConnected) { const im = host.querySelector(":scope > img"); im.classList.remove("ld"); im.src = url; clearFallback(host); } }
       } catch { /* yedek kalir */ }
     }
     this.busy = false;
   },
 };
 function bindLibThumb(host, e) {
-  const img = host.querySelector(":scope > img");
-  const miss = () => { img.removeAttribute("src"); showFallback(host, avatarFor(e.url) || ""); libPosters.want(host, e, true); };
-  if (!e.thumb) { miss(); return; }
-  img.addEventListener("error", miss, { once: true });
-  img.addEventListener("load", () => { if (img.naturalWidth < 32) miss(); else verifyThumb(host, false, miss); }, { once: true });
-  img.src = e.thumb;
+  bindPhoto(host, e.thumb, avatarFor(e.url), () => libPosters.want(host, e, true));
 }
 
 const SPIN = `<div class="spin" aria-hidden="true"><svg viewBox="0 0 50 50"><circle class="trk" cx="25" cy="25" r="20"/><circle class="arc" cx="25" cy="25" r="20"/></svg></div>`;
@@ -1564,13 +1593,14 @@ function renderHome() {
       : st.newVods ? `<strong>${esc(t("ch.newVods", { n: st.newVods }))}</strong>` : lt ? esc(t("home.lastStream", { ago: fmtAgo(lt.start) })) : esc(t("home.noVods"));
     return `<button class="ftile${live ? " live" : ""}" type="button" data-slug="${esc(f.slug)}">
       <img class="av" src="${esc(f.avatar || BLANK)}" alt=""><b>${esc(f.name)}</b><span class="fstat">${stat}</span>
-      ${lt ? `<span class="latest"><img src="${esc(lt.thumb || BLANK)}" alt=""><span>${esc(cleanTitle(lt.title))}</span></span>` : ""}</button>`;
+      ${lt ? `<span class="latest"><span class="tphoto"><img alt=""></span><span>${esc(cleanTitle(lt.title))}</span></span>` : ""}</button>`;
   }).join("");
   const rec = state.library.filter((e) => e.exists && !e.chat).slice(0, 6);
   $("recentBox").hidden = !rec.length;
   renderCutSets();
   $("recentRow").innerHTML = rec.map((e) => `<button class="rtile" type="button" data-file="${esc(e.file)}">
-    <img src="${esc(e.thumb || BLANK)}" alt=""><p>${esc(cleanTitle(e.title))}</p><span class="num">${esc(e.channel)} · ${fmtBytes(e.size)}</span></button>`).join("");
+    <span class="tphoto"><img alt=""></span><p>${esc(cleanTitle(e.title))}</p><span class="num">${esc(e.channel)} · ${fmtBytes(e.size)}</span></button>`).join("");
+  bindTiles();
 }
 
 /* ana sayfadaki "Kayitli kesitler": bir kartla editor o VOD'un kesitleriyle acilir */
@@ -1581,10 +1611,11 @@ function renderCutSets() {
   $("cutSetRow").innerHTML = sets.map((e) => {
     const total = e.clips.reduce((n, c) => n + c.b - c.a, 0);
     return `<div class="rtile cset" data-url="${esc(e.url)}">
-      <button class="csetopen" type="button" data-cs="open"><img src="${esc(e.thumb || BLANK)}" alt=""><p>${esc(cleanTitle(e.title))}</p>
+      <button class="csetopen" type="button" data-cs="open"><span class="tphoto"><img alt=""></span><p>${esc(cleanTitle(e.title))}</p>
         <span class="num">${t("cut.count", { n: e.clips.length })} · ${fmtDuration(total)}${e.channel ? ` · ${esc(e.channel)}` : ""}</span></button>
       <button class="iconbtn danger csetdel" type="button" data-cs="del" title="${esc(t("home.deleteCuts"))}" aria-label="${esc(t("home.deleteCuts"))}">${icon("trash")}</button></div>`;
   }).join("");
+  bindTiles();
 }
 
 function openCutSet(url) {

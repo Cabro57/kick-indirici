@@ -40,6 +40,7 @@ def _window(im, cx, cy):
         sat += (m - min(r, g, b)) / m if m else 0.0
     sat /= len(px)
     gray = list(win.convert("L").getdata())
+    luma = sum(gray) / len(gray)
     diff = n = flat = 0
     for y in range(ch - 1):
         row = y * cw
@@ -51,7 +52,7 @@ def _window(im, cx, cy):
             n += 2
             if max(dh, dv) <= 4:
                 flat += 1
-    return sat, diff / n, flat / (n / 2)
+    return sat, diff / n, flat / (n / 2), luma
 
 
 def metrics(raw):
@@ -65,6 +66,14 @@ def metrics(raw):
         return None
     im = im.convert("RGB")
     return [_window(im, cx, cy) for cx, cy in SPOTS]
+
+
+def is_placeholder(ms):
+    """Kick'in "kapak yok" resmi: duz gri zemin (dort kosede de tamamen duz, doygunluk ~0, orta parlaklik) ustunde
+    bir kamera simgesi. Siyah / beyaz ekranlar sayilmaz (gercek yayin karesi olabilir)."""
+    if not ms or len(ms) < 4 or len(ms[0]) < 4:
+        return False
+    return all(m[0] < 0.03 and m[1] < 0.3 and m[2] > 0.98 and 60 < m[3] < 220 for m in ms[:4])
 
 
 def is_noise(ms, limits=LOOSE):
@@ -130,7 +139,7 @@ def check(url, strict=False):
                     json.dump(_mem, f)
             except OSError:
                 pass
-    noise = is_noise(hit, STRICT if strict else LOOSE)
+    noise = is_noise(hit, STRICT if strict else LOOSE) or is_placeholder(hit)
     if noise:
         log.info("noise thumb: %s %s", url, hit)
     return {"noise": noise}

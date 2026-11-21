@@ -80,19 +80,27 @@ class LibraryMixin:
             return ""
         if entry.get("thumb") and not force:
             return entry["thumb"]
-        out = self._frame_thumb(path)
+        # kesit / kayit suresi biliniyorsa kare bunun %20'sinde (en cok yarisinda): kisa kesite sigsin
+        dur = 0
+        if entry.get("section"):
+            dur = max(0, entry["section"][1] - entry["section"][0])
+        elif entry.get("sections"):
+            dur = max(0, sum(b - a for a, b in entry["sections"]))
+        out = self._frame_thumb(path, dur)
         if out:
             with self._lock:
                 entry["thumb"] = out
                 save_history(self._history)
         return out
 
-    def _frame_thumb(self, path):
-        """Dosyanin ilk saniyelerinden kucuk bir kare (data URI). Alinamazsa ''."""
+    def _frame_thumb(self, path, dur=0):
+        """Dosyadan kucuk bir kare (data URI): dur biliniyorsa min(%20, yarisi) konumundan, degilse 1. saniyeden;
+        olmazsa 0. saniye. .ts ve kisa kesitler icin de calisir. Alinamazsa ''."""
         work = tempfile.mkdtemp(prefix="kickthumb-")
         jpg = os.path.join(work, "f.jpg")
         try:
-            for ss in ("1", "0"):
+            first = f"{min(dur * 0.2, dur / 2):.2f}" if dur else "1"
+            for ss in (first, "0"):
                 subprocess.run([self._ffmpeg, "-nostdin", "-v", "error", "-y", "-ss", ss, "-i", path, "-map", "0:v:0",
                                 "-frames:v", "1", "-vf", "scale=-2:180", "-q:v", "5", jpg],
                                stdin=subprocess.DEVNULL, capture_output=True, timeout=30,
