@@ -1112,7 +1112,9 @@ kbd { font: 600 11px var(--font); padding: 1px 5px; border-radius: 4px; backgrou
   border-radius: 8px; overflow: hidden; background: #000; border: 1px solid var(--line2);
   box-shadow: 0 12px 32px -8px #000;
 }
-.peek video { width: 100%; aspect-ratio: 16 / 9; display: block; object-fit: cover; }
+.peek { background: #000 center / cover no-repeat; }   /* video gelene kadar serit karesi */
+.peek video { width: 100%; aspect-ratio: 16 / 9; display: block; object-fit: cover; visibility: hidden; }
+.peek.live video { visibility: visible; }
 .peek span {
   position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%);
   padding: 1px 7px; border-radius: 4px; background: var(--scrim);

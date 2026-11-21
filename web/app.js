@@ -1974,7 +1974,7 @@ const MIN_VIEW = 20;        // en fazla yakinlasinca cizelgede gorunen saniye
 const TICKS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
 const cut = {
   vod: null, hls: null, peekHls: null,
-  seen: new Set(), t0: 0, perf: null, peekT0: 0,   // olcum (PERF.md): acilis zamani, daha once acilan VOD'lar
+  seen: new Set(), t0: 0, perf: null, peekT0: 0, peekAt: 0,   // olcum (PERF.md): acilis zamani, daha once acilan VOD'lar
   sel: null,                 // secili kesitin id'si
   view: [0, 0],              // cizelgede gorunen aralik (sn)
   drag: null,                // suren surukleme
@@ -2827,11 +2827,19 @@ function showPeek(clientX) {
   $("tlHover").hidden = false;
   $("tlHover").style.left = `${x}px`;
   const peek = $("tlPeek");
-  if (peek.hidden) cut.peekT0 = performance.now();   // olcum: uzerine gelinen andan ilk goruntuye
+  const first = peek.hidden;
+  if (first) cut.peekT0 = performance.now();   // olcum: uzerine gelinen andan ilk goruntuye
   peek.hidden = false;
   const half = peek.offsetWidth / 2;
   peek.style.left = `${clamp(x, lane.left - track.left + half, lane.right - track.left - half)}px`;
   $("peekTime").textContent = fmtDuration(t);
+  // hemen serit karesi (ag istegi yok); video o ana varinca ustune gecer
+  const frame = frameAt(cut.strip, t);
+  if (peek.dataset.src !== frame) { peek.dataset.src = frame; peek.style.backgroundImage = frame ? `url("${frame}")` : ""; }
+  if (first && frame) state.api.client_log(`perf peek serit karesi: ${Math.round(performance.now() - cut.peekT0)} ms`);
+  cut.peekAt = t;
+  const pv = $("peekVideo");
+  peek.classList.toggle("live", pv.readyState >= 2 && !pv.seeking && Math.abs(pv.currentTime - t) < 1.5);
   if (cut.peekHls) cut.peek.to(t);
 }
 function hidePeek() {
@@ -3046,8 +3054,10 @@ function bindCutter() {
   cut.main = makeSeeker(v);
   cut.peek = makeSeeker($("peekVideo"));
   $("peekVideo").addEventListener("seeked", () => {
+    const pv = $("peekVideo");
+    if (cut.peek.pending == null && !pv.seeking && Math.abs(pv.currentTime - cut.peekAt) < 1.5) $("tlPeek").classList.add("live");
     if (!cut.peekT0) return;
-    state.api.client_log(`perf peek ilk goruntu: ${Math.round(performance.now() - cut.peekT0)} ms`);
+    state.api.client_log(`perf peek video karesi: ${Math.round(performance.now() - cut.peekT0)} ms`);
     cut.peekT0 = 0;
   });
   try { cut.len = Number(localStorage.getItem("cutLen")) || 30; } catch { /* depolama kapali */ }
