@@ -1337,7 +1337,9 @@ async function downloadChat(v) {
 
 /* ---------- kartin "diger islemler" menusu ----------
    Uc nokta ya da sag tik. Islemler videonun durumuna gore: inmemis, iniyor, durmus / hatali, inmis. */
-const cmenu = { url: null, btn: null };
+const cmenu = { url: null, btn: null, fromFloat: false };
+/* menu buyuyen karttan acikken kartin pointerleave / pointerout kapatmalari bekler */
+const floatHeldByMenu = () => cmenu.fromFloat && !$("cardMenu").hidden;
 
 function cardMenuItems(v) {
   const kind = kindOf(v), d = state.byUrl.get(v.url);
@@ -1357,14 +1359,16 @@ function cardMenuItems(v) {
   return items;
 }
 
-function openCardMenu(url, at, btn) {
+/* keepFloat: menu buyuyen kartin ⋮ dugmesinden acildi; kart ve onizleme menu acikken acik kalir */
+function openCardMenu(url, at, btn, keepFloat) {
   const v = itemByUrl(url);
   if (!v) return;
-  const anchor = btn ? btn.getBoundingClientRect() : at && at.rect;     // buyuyen kartin dugmesi onizleme kapaninca kalkar: dikdortgen once alinir
+  const anchor = btn ? btn.getBoundingClientRect() : at && at.rect;
   closeCardMenu(false);
-  hover.stop();
+  if (!keepFloat) hover.stop();
   cmenu.url = url;
   cmenu.btn = btn || null;
+  cmenu.fromFloat = !!keepFloat;
   const m = $("cardMenu");
   m.innerHTML = cardMenuItems(v).map((x) => x === "-" ? "<hr>"
     : `<button type="button" role="menuitem" data-cm="${x[0]}" class="${x[3] || ""}">${icon(x[1])}<span>${esc(x[2])}</span>${x[4] ? `<small>${x[4]}</small>` : ""}</button>`).join("");
@@ -1384,12 +1388,22 @@ function closeCardMenu(focusBtn) {
   const m = $("cardMenu");
   if (m.hidden) return;
   m.hidden = true;
-  if (cmenu.btn) { cmenu.btn.setAttribute("aria-expanded", "false"); if (focusBtn) cmenu.btn.closest(".card").focus(); }
+  const fromFloat = cmenu.fromFloat;
+  if (cmenu.btn) {
+    cmenu.btn.setAttribute("aria-expanded", "false");
+    if (focusBtn) (fromFloat ? cmenu.btn : cmenu.btn.closest(".card")).focus();
+  }
   cmenu.url = cmenu.btn = null;
+  cmenu.fromFloat = false;
+  // klavyeyle (Esc) kapaninca kart kalir; fareyle kapaninca imlec karta ya da kartin ustune degilse kart da kapanir
+  if (fromFloat && !focusBtn) setTimeout(() => {
+    if (hcard.el && !hcard.el.matches(":hover") && !(hover.card && hover.card.matches(":hover"))) hover.stop();
+  }, 80);
 }
 
 async function onCardMenu(act, at = cmenu.url) {
   const url = at, v = itemByUrl(url), d = state.byUrl.get(url);
+  if (["watch", "cut", "playfile"].includes(act)) { hover.stop(); if (act === "cut") player.el().pause(); }
   closeCardMenu(false);
   if (!v) return;
   if (act === "watch") focusItem(url);
@@ -1436,7 +1450,7 @@ function bindCardMenu() {
     e.stopPropagation();
   });
   document.addEventListener("pointerdown", (e) => {
-    if (!m.hidden && !e.target.closest(".cardmenu") && e.target.closest(".more") !== cmenu.btn) closeCardMenu(false);
+    if (!m.hidden && !e.target.closest(".cardmenu") && !(cmenu.btn && cmenu.btn.contains(e.target))) closeCardMenu(false);
   });
   $("gridWrap").addEventListener("scroll", () => closeCardMenu(false), { passive: true });
   window.addEventListener("resize", () => closeCardMenu(false));
@@ -4240,14 +4254,15 @@ function bind() {
     if (c) { hover.start(c); prewarm.over(c); }
   });
   const inFloat = (el) => !!(el && el.closest && el.closest("#hCard"));
-  grid.addEventListener("pointerleave", (e) => { if (inFloat(e.relatedTarget)) return; hover.stop(); prewarm.cancel(); });
+  grid.addEventListener("pointerleave", (e) => { if (inFloat(e.relatedTarget) || floatHeldByMenu()) return; hover.stop(); prewarm.cancel(); });
   grid.addEventListener("pointerout", (e) => {
     const c = e.target.closest(".card[data-url]");
-    if (c && !c.contains(e.relatedTarget) && !inFloat(e.relatedTarget)) { hover.stop(); prewarm.cancel(); }
+    if (c && !c.contains(e.relatedTarget) && !inFloat(e.relatedTarget) && !floatHeldByMenu()) { hover.stop(); prewarm.cancel(); }
   });
   // buyuyen kart: kartin disina cikinca kapanir; tik video alaninda ayni andan izleme penceresini acar
   const hc = $("hCard");
   hc.addEventListener("pointerleave", (e) => {
+    if (floatHeldByMenu()) return;
     if (hover.card && hover.card.contains(e.relatedTarget)) return;
     hover.stop();
     prewarm.cancel();
@@ -4261,7 +4276,10 @@ function bind() {
       return;
     }
     const act = b.dataset.hc;
-    if (act === "more") { openCardMenu(url, { rect: b.getBoundingClientRect() }, null); return; }
+    if (act === "more") {                          // ikinci tik menuyu kapatir; kart ve onizleme acik kalir
+      if (!$("cardMenu").hidden && cmenu.btn === b) closeCardMenu(true); else openCardMenu(url, null, b, true);
+      return;
+    }
     hover.stop();
     if (act === "cut") { player.el().pause(); openCutter(cutTarget(itemByUrl(url))); }
     else onCardMenu(act, url);
