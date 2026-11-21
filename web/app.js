@@ -389,7 +389,7 @@ function renderGrid() {
   for (const v of list) {
     const c = $("cardTpl").content.firstElementChild.cloneNode(true);
     c.dataset.url = v.url;
-    c.querySelector("img").src = v.thumb || BLANK;
+    bindThumb(c.querySelector(".thumb"), v);
     c.querySelector(".dur").textContent = fmtDuration(v.duration);
     c.querySelector(".cutbtn").hidden = state.tab === "clips";
     c.querySelector(".title").textContent = cleanTitle(v.title);
@@ -586,7 +586,16 @@ const player = {
   hls: null, key: null, live: false, volTimer: 0,
   rate: 1, qual: "auto",   // oturum boyunca hatirlanir: sonraki videolarda da gecerli
   el: () => $("insVideo"),
-  load(key, { source, file, poster, start = 0, live = false, autoplay = true }) {
+  /* kapak: yoksa / bozuksa markali yedek (yayincinin resmi) */
+  setPoster(src, avatar) {
+    const p = $("player"), img = $("insPoster");
+    img.classList.remove("avfb");
+    clearFallback(p);
+    img.dataset.av = avatar || "";
+    if (src) img.src = src;
+    else { img.removeAttribute("src"); showFallback(p, avatar || ""); }
+  },
+  load(key, { source, file, poster, avatar, start = 0, live = false, autoplay = true }) {
     const v = this.el();
     if (this.key === key && (this.hls || v.src)) return;
     this.stop();
@@ -594,8 +603,7 @@ const player = {
     this.live = live;
     $("player").classList.remove("empty", "playing");
     $("player").classList.toggle("loading", !!(file || source));
-    $("insPoster").src = poster || "";
-    $("insPoster").classList.remove("avfb");
+    this.setPoster(poster, avatar);
     this.msg("");
     v.muted = !!state.settings.previewMuted;
     v.volume = clamp((state.settings.volume ?? 50) / 100, 0, 1);
@@ -651,10 +659,10 @@ const player = {
     $("player").classList.add("empty");
     this.msg(text, "film");
   },
-  poster(src, text) {
+  poster(src, text, avatar) {
     this.stop();
     $("player").classList.add("empty");
-    $("insPoster").src = src || "";
+    this.setPoster(src, avatar);
     this.msg(text || "");
   },
   msg(text, ic) {
@@ -801,6 +809,99 @@ function fullscreen() {
 }
 
 /* ---------- uzerine gelince onizleme ---------- */
+/* ---------- kapak yedegi ---------- */
+const avatarOf = (v) => (v && v.avatar) || avatarFor(v && v.url) || (state.channel && state.channel.avatar) || "";
+
+function showFallback(host, avatar) {
+  host.classList.add("nothumb");
+  const old = host.querySelector(":scope > .pfb");
+  if (old && old.dataset.av === (avatar || "")) return;
+  if (old) old.remove();
+  host.insertAdjacentHTML("afterbegin", `<div class="pfb" data-av="${esc(avatar || "")}" aria-hidden="true">${avatar
+    ? `<img class="pfbg" src="${esc(avatar)}" alt=""><img class="pfav" src="${esc(avatar)}" alt="">`
+    : `<img class="pfk" src="logo.svg" alt="">`}</div>`);
+  if (avatar) for (const im of host.querySelectorAll(":scope > .pfb img")) im.addEventListener("error", () => showFallback(host, ""), { once: true });
+}
+function clearFallback(host) {
+  host.classList.remove("nothumb");
+  const fb = host.querySelector(":scope > .pfb");
+  if (fb) fb.remove();
+}
+
+/* kartin kapagi: yoksa / bozuksa / cok kucukse (gercek bir kare degil) yedek + VOD ise gorunince gercek kare istenir */
+function bindThumb(host, v) {
+  const img = host.querySelector(":scope > img");
+  const url = posters.get(v.uuid) || v.thumb;
+  const miss = () => { img.removeAttribute("src"); showFallback(host, avatarOf(v)); posters.want(host, v); };
+  if (!url) { miss(); return; }
+  img.addEventListener("error", miss, { once: true });
+  img.addEventListener("load", () => { if (img.naturalWidth < 32) miss(); }, { once: true });
+  img.src = url;
+}
+
+const posters = {
+  mem: new Map(), tried: new Set(), q: [], busy: 0, io: null,
+  get(uuid) { return (uuid && this.mem.get(uuid)) || ""; },
+  want(host, v) {
+    if (!v.uuid || kindOf(v) !== "vod" || !state.cfg.ffmpeg || this.tried.has(v.uuid)) return;
+    host._pv = v;
+    if (!this.io) this.io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { this.io.unobserve(e.target); this.q.push(e.target); this.pump(); } }), { rootMargin: "150px" });
+    this.io.observe(host);
+  },
+  async pump() {
+    while (this.busy < 2 && this.q.length) {
+      const host = this.q.shift(), v = host._pv;
+      if (!host.isConnected || !v || this.mem.has(v.uuid) || this.tried.has(v.uuid)) continue;
+      this.tried.add(v.uuid);
+      this.busy++;
+      try {
+        const url = await state.api.vod_poster(v.uuid, v.duration || 0);
+        if (url) {
+          this.mem.set(v.uuid, url);
+          for (const el of $("grid").querySelectorAll(".card .thumb")) {
+            const pv = el._pv;
+            if (pv && pv.uuid === v.uuid && el.classList.contains("nothumb")) { el.querySelector(":scope > img").src = url; clearFallback(el); }
+          }
+        }
+      } catch { /* yedek kalir */ }
+      this.busy--;
+    }
+  },
+};
+
+/* Indirilenler satiri: kapak yoksa yedek; dosya varsa dosyadan bir kare alinip kayda yazilir (bir kez, ag yok) */
+const libPosters = {
+  tried: new Set(), q: [], busy: false, io: null,
+  want(host, e, force) {
+    if (!e.exists || !playable(e) || this.tried.has(e.file)) return;
+    host._pe = { e, force };
+    if (!this.io) this.io = new IntersectionObserver((es) => es.forEach((x) => { if (x.isIntersecting) { this.io.unobserve(x.target); this.q.push(x.target); this.pump(); } }), { rootMargin: "100px" });
+    this.io.observe(host);
+  },
+  async pump() {
+    if (this.busy) return;
+    this.busy = true;
+    while (this.q.length) {
+      const host = this.q.shift(), pe = host._pe;
+      if (!host.isConnected || !pe || this.tried.has(pe.e.file)) continue;
+      this.tried.add(pe.e.file);
+      try {
+        const url = await state.api.library_poster(pe.e.file, !!pe.force);
+        if (url) { pe.e.thumb = url; const le = libEntry(pe.e.file); if (le) le.thumb = url; if (host.isConnected) { host.querySelector(":scope > img").src = url; clearFallback(host); } }
+      } catch { /* yedek kalir */ }
+    }
+    this.busy = false;
+  },
+};
+function bindLibThumb(host, e) {
+  const img = host.querySelector(":scope > img");
+  const miss = () => { img.removeAttribute("src"); showFallback(host, avatarFor(e.url) || ""); libPosters.want(host, e, true); };
+  if (!e.thumb) { miss(); return; }
+  img.addEventListener("error", miss, { once: true });
+  img.addEventListener("load", () => { if (img.naturalWidth < 32) miss(); }, { once: true });
+  img.src = e.thumb;
+}
+
 const SPIN = `<div class="spin" aria-hidden="true"><svg viewBox="0 0 50 50"><circle class="trk" cx="25" cy="25" r="20"/><circle class="arc" cx="25" cy="25" r="20"/></svg></div>`;
 const hover = {
   timer: 0, hls: null, card: null, video: null, url: null, zone: null, peekTimer: 0,
@@ -819,7 +920,7 @@ const hover = {
       // secim varken ya da canli ogede yerinde onizleme; aksi halde buyuyen kart (video + zaman cubugu onun icinde)
       const floating = !state.selected.size && kind !== "live" && !v.live && !card.classList.contains("livecard");
       const thumb = floating ? hcard.open(card, v) : card.querySelector(".thumb");
-      thumb.querySelector("img").after(video);
+      thumb.querySelector(":scope > img").after(video);
       if (!thumb.querySelector(".spin")) thumb.insertAdjacentHTML("beforeend", SPIN);
       thumb.classList.add("loading");
       const start = kind === "live" ? -1 : kind === "vod" ? Math.floor((v.duration || 0) * 0.2) : 0;
@@ -925,7 +1026,9 @@ const hcard = {
   open(card, v) {
     const el = $("hCard");
     this.el = el; this.card = card; this.url = v.url; this.key = "";
-    el.querySelector(".hcmedia img").src = card.querySelector(".thumb img").src;
+    const media = el.querySelector(".hcmedia"), cthumb = card.querySelector(".thumb");
+    media.querySelector(":scope > img").src = cthumb.querySelector(":scope > img").getAttribute("src") || "";
+    if (cthumb.classList.contains("nothumb")) showFallback(media, avatarOf(v)); else clearFallback(media);
     el.querySelector(".hctitle").textContent = cleanTitle(v.title);
     el.querySelector(".hctitle").title = v.title;
     el.querySelector(".hcmeta").textContent = [fmtAgo(v.start), t("card.views", { n: v.views, c: fmtCount(v.views) }), fmtDuration(v.duration)].filter(Boolean).join(" · ");
@@ -955,8 +1058,8 @@ const hcard = {
   close() {
     if (!this.el) return;
     this.el.hidden = true;
-    this.el.querySelector(".hcmedia").replaceChildren(this.el.querySelector(".hcmedia img"));
-    this.el.querySelector(".hcmedia").classList.remove("loading", "scrub");
+    this.el.querySelector(".hcmedia").replaceChildren(this.el.querySelector(".hcmedia > img"));
+    this.el.querySelector(".hcmedia").classList.remove("loading", "scrub", "nothumb");
     this.el = this.card = this.url = null;
   },
   /* indirme durumu: metin + cubuk her guncellemede, islem dugmeleri yalnizca durum degisince */
@@ -1095,10 +1198,10 @@ function renderInspector(start) {
   if (!v) { closeWatch(); return; }
   const kind = kindOf(v);
   if (kind === "live") {
-    player.load(`live:${state.channel.slug}`, { source: hlsUrl(v), poster: v.thumb || v.avatar, live: true });
+    player.load(`live:${state.channel.slug}`, { source: hlsUrl(v), poster: v.thumb || v.avatar, avatar: v.avatar, live: true });
     $("insPoster").classList.toggle("avfb", !v.thumb);
   } else {
-    player.load(v.url, { source: v.source, poster: v.thumb, start: start ?? hover.time(v.url) ?? 0 });
+    player.load(v.url, { source: v.source, poster: posters.get(v.uuid) || v.thumb, avatar: avatarOf(v), start: start ?? hover.time(v.url) ?? 0 });
   }
   const facts = [];
   if (kind === "live") {
@@ -1722,7 +1825,7 @@ function renderLibrary() {
   }
   $("libEmpty").hidden = !state.libLoaded || state.library.length > 0 || state.downloads.length > 0;
   if (!state.libLoaded) {     // ilk yukleme: satir iskeletleri
-    $("histGroups").innerHTML = `<section class="histgroup">${'<div class="hrow skeleton"><i class="rthumb"></i><div class="rmain"><p class="rtitle"></p><p class="hsub"></p></div></div>'.repeat(6)}</section>`;
+    $("histGroups").innerHTML = `<section class="histgroup">${'<div class="hrow skeleton"><i class="hthumb"></i><div class="rmain"><p class="rtitle"></p><p class="hsub"></p></div></div>'.repeat(6)}</section>`;
     return;
   }
   $("histGroups").innerHTML = [...groups].map(([label, list]) => `<section class="histgroup"><h2>${esc(label)}</h2>${list.map((e) => {
@@ -1730,12 +1833,16 @@ function renderLibrary() {
     const time = new Date(e.done * 1000).toLocaleTimeString(i18n.locale, { hour: "2-digit", minute: "2-digit" });
     const b = (act, ic, label, cls = "") => `<button class="iconbtn ${cls}" type="button" data-ins="${act}" data-file="${esc(e.file)}" title="${esc(label)}" aria-label="${esc(label)}">${icon(ic)}</button>`;
     return `<div class="hrow${e.exists ? "" : " gone"}${state.libFocus === e.file ? " on" : ""}" data-file="${esc(e.file)}" tabindex="0">
-      <img class="rthumb${!e.thumb && avatarFor(e.url) ? " avfb" : ""}" src="${esc(e.thumb || avatarFor(e.url) || BLANK)}" alt="">
+      <div class="hthumb"><img alt=""></div>
       <div class="rmain"><p class="rtitle" title="${esc(e.title)}">${e.chat ? `<span class="kind">${t("kind.chat")}</span>` : ""}${esc(cleanTitle(e.title))}</p>
         <p class="hsub num">${esc(e.channel)}${sec} · ${fmtBytes(e.size)} · ${time}${e.exists ? "" : ` · <em>${t("lib.missing")}</em>`}</p></div>
       <div class="ractions">${e.exists && playable(e) ? b("lplay", "play", t("lib.playHere")) + b("lopen", "external", t("lib.openWindows")) : ""}${e.exists ? b("lreveal", "reveal", t("act.reveal")) : ""}
         ${b("ldel", "trash", e.exists ? t("lib.deleteRecycle") : t("act.removeFromList"), "danger")}</div></div>`;
   }).join("")}</section>`).join("") || (q && state.library.length ? `<p class="gridnote">${t("lib.noMatch")}</p>` : "");
+  for (const row of $("histGroups").querySelectorAll(".hrow[data-file]")) {
+    const e = libEntry(row.dataset.file);
+    if (e) bindLibThumb(row.querySelector(".hthumb"), e);
+  }
 }
 
 /* Indirilenler'deki sohbet videosu (.chat.mp4 / .chat.webm): sohbet kaydidir ama video gibi oynar */
@@ -1755,12 +1862,12 @@ async function playFile(file) {
   openWatch();
   renderLibraryInspector();
   if (!e || !e.exists) return;
-  if (!playable(e)) { player.poster(e.thumb, t("lib.chatPoster")); return; }
+  if (!playable(e)) { player.poster(e.thumb, t("lib.chatPoster"), avatarFor(e.url)); return; }
   const r = await state.api.media_url(file);
   if (state.libFocus !== file) return;
-  if (!r.ok) { player.poster(e.thumb, r.error); return; }
-  if (!r.playable) { player.poster(e.thumb, t("lib.tsNotPlayable")); return; }
-  player.load(`file:${file}`, { file: r.url, poster: e.thumb });
+  if (!r.ok) { player.poster(e.thumb, r.error, avatarFor(e.url)); return; }
+  if (!r.playable) { player.poster(e.thumb, t("lib.tsNotPlayable"), avatarFor(e.url)); return; }
+  player.load(`file:${file}`, { file: r.url, poster: e.thumb, avatar: avatarFor(e.url) });
 }
 
 function renderLibraryInspector() {
@@ -2340,6 +2447,7 @@ async function openCutter(vod) {
   $("cutLive").hidden = !vod.live;
   const video = $("cutVideo");
   video.poster = vod.thumb || "";
+  setCutPoster(vod);
   video.muted = false;
   cut.view = [0, Math.min(WAVE_MAX, vod.duration || WAVE_MAX)];   // 15 dk'lik yakin gorunumle ac
   cut.density = null;
@@ -2492,6 +2600,19 @@ function setSideTab(tab) {
     cutChat.uuid = cut.vod.uuid;
     cutChat.start({ vod: cut.vod.uuid });
   }
+}
+
+/* kesit penceresi kapagi: kapak yoksa / bozuksa video karesi gelene kadar markali yedek */
+function setCutPoster(vod) {
+  const box = $("cutVideo").parentElement, video = $("cutVideo");
+  clearFallback(box);
+  box.classList.remove("hasframe");
+  const fb = () => { if (!box.classList.contains("hasframe")) { video.removeAttribute("poster"); showFallback(box, avatarOf(vod)); } };
+  video.addEventListener("loadeddata", () => { box.classList.add("hasframe"); clearFallback(box); }, { once: true });
+  if (!vod.thumb) { fb(); return; }
+  const probe = new Image();
+  probe.onerror = fb;
+  probe.src = vod.thumb;
 }
 
 function cutterMsg(msg) {
@@ -4127,8 +4248,9 @@ function bind() {
   $("insPoster").addEventListener("error", (e) => {
     const l = player.live && liveItem();
     const fb = l && l.avatar && e.target.src !== l.avatar;
-    e.target.src = fb ? l.avatar : "";
-    e.target.classList.toggle("avfb", !!fb);
+    if (fb) { e.target.src = l.avatar; e.target.classList.add("avfb"); return; }
+    e.target.removeAttribute("src");
+    showFallback($("player"), e.target.dataset.av || "");
   });
 
   // indirilenler

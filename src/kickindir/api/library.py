@@ -71,6 +71,22 @@ class LibraryMixin:
         else:
             self.open_folder()
 
+    def library_poster(self, path, force=False):
+        """Kapagi eksik indirilen dosya icin dosyadan kare (data URL): bir kez alinir, gecmis kaydina yazilir
+        (ag yok). Alinamazsa ""."""
+        with self._lock:
+            entry = next((e for e in self._history if e["file"] == path), None)
+        if not entry or not os.path.isfile(path):
+            return ""
+        if entry.get("thumb") and not force:
+            return entry["thumb"]
+        out = self._frame_thumb(path)
+        if out:
+            with self._lock:
+                entry["thumb"] = out
+                save_history(self._history)
+        return out
+
     def _frame_thumb(self, path):
         """Dosyanin ilk saniyelerinden kucuk bir kare (data URI). Alinamazsa ''."""
         work = tempfile.mkdtemp(prefix="kickthumb-")

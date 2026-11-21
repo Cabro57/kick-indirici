@@ -340,6 +340,38 @@ class MediaStrip:
         finally:
             shutil.rmtree(work, ignore_errors=True)
 
+    POSTER_HEIGHT = 160
+
+    def poster(self, i):
+        """Kart / oynatici kapagi: parcanin ilk karesi, serit karesinden buyuk (160p); diske <i>.poster.jpg
+        olarak onbelleklenir. Tek 32 KB'lik Range istegi. Alinamazsa ""."""
+        raw = ThumbCache.read(self.dir, f"{i}.poster.jpg")
+        if raw:
+            return self._data_url(raw)
+        work = tempfile.mkdtemp(prefix="kickposter-")
+        try:
+            r = cffi_requests.get(self.segments[i][2], impersonate="chrome", timeout=30,
+                                  headers={"Range": f"bytes=0-{self.THUMB_BYTES - 1}"})
+            r.raise_for_status()
+            src, jpg = os.path.join(work, "p.ts"), os.path.join(work, "f.jpg")
+            with open(src, "wb") as f:
+                f.write(r.content)
+            subprocess.run([self.ffmpeg, "-nostdin", "-v", "error", "-y", "-i", src, "-map", "0:v:0", "-frames:v", "1",
+                            "-vf", f"scale=-2:{self.POSTER_HEIGHT}", "-q:v", "5", jpg],
+                           stdin=subprocess.DEVNULL, capture_output=True, timeout=30,
+                           creationflags=subprocess.CREATE_NO_WINDOW)
+            if not os.path.exists(jpg):
+                return ""
+            with open(jpg, "rb") as f:
+                raw = f.read()
+            ThumbCache.write(self.dir, f"{i}.poster.jpg", raw)
+            return self._data_url(raw)
+        except Exception as e:  # noqa: BLE001 - kapak yoksa markali yedek kalir
+            log.info("kapak karesi %s alinamadi: %s", i, e)
+            return ""
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+
     @staticmethod
     def _data_url(raw):
         return "data:image/jpeg;base64," + base64.b64encode(raw).decode()

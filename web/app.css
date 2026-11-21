@@ -175,6 +175,7 @@ kbd { font: 600 11px var(--font); padding: 1px 5px; border-radius: 4px; backgrou
 }
 .btn.primary.is-busy::after { border-color: var(--accent-ink); border-top-color: transparent; }
 @keyframes busyin { to { opacity: 1; } }
+.wavenote .mini { margin-right: 0; flex: none; }
 .mini {
   display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -2px; border-radius: 50%;
   border: 2px solid var(--muted); border-top-color: transparent; animation: spin .7s linear infinite;
@@ -364,6 +365,20 @@ body:has(.selbar:not([hidden])) .toast { bottom: calc(var(--sb) + 86px); }
 .hlab img { width: 112px; aspect-ratio: 16 / 9; object-fit: cover; display: block; border-radius: 4px; border: 1px solid var(--line2); background: #000; }
 .hlab img[hidden] { display: none; }
 .hlab span { padding: 1px 7px; border-radius: 4px; background: var(--scrim); font-size: 12px; font-weight: 600; }
+/* kapak yedegi (kapak yok / bozuk / indirilemedi): yayincinin resmi ortada, arkada ayni resmin buyuk bulanik kopyasi;
+   resim yoksa soluk K isareti. Kart, kutuphane satiri, izleme ve kesit penceresinde ayni gorunum (container birimleriyle olceklenir) */
+.pfb { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; overflow: hidden; container-type: size; background: var(--s2); pointer-events: none; }
+.pfb .pfbg { position: absolute; inset: -25%; width: 150%; height: 150%; object-fit: cover; filter: blur(26px) saturate(1.15) brightness(.55); }
+.pfb .pfav { position: relative; width: 34cqmin; height: 34cqmin; border-radius: 50%; object-fit: cover; background: var(--s3); box-shadow: 0 0 0 max(1px, 1.4cqmin) rgba(255, 255, 255, .16), 0 1.5cqmin 6cqmin -1cqmin #000a; }
+.pfb .pfk { position: relative; inset: auto; width: 26cqmin; height: 26cqmin; opacity: .2; }
+.pfb:has(.pfk) { background: radial-gradient(120% 120% at 50% 40%, var(--s3), var(--s2) 70%); }
+.thumb.nothumb > img, .player.nothumb > .ppos { opacity: 0; }
+.player .pfb { z-index: 1; }
+.player.playing .pfb, .videobox.hasframe .pfb { display: none; }
+.hthumb { position: relative; width: 96px; aspect-ratio: 16 / 9; border-radius: 6px; background: var(--s3); overflow: hidden; display: block; }
+.hthumb > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.hthumb.nothumb > img { opacity: 0; }
+.hrow.gone .hthumb { opacity: .4; }
 .card:hover .thumb { transform: translateY(-2px); box-shadow: 0 8px 20px -8px #000c; }
 /* buyuyen kart: kartin dikdortgeninden ~1.2x'e buyur; video + zaman cubugu ustte, bilgi ve islemler altta */
 .hcard {
@@ -508,7 +523,7 @@ body:has(.selbar:not([hidden])) .toast { bottom: calc(var(--sb) + 86px); }
   animation: shimmer 1.2s linear infinite;
 }
 .hrow.skeleton { pointer-events: none; }
-.hrow.skeleton .rthumb, .hrow.skeleton .rtitle, .hrow.skeleton .hsub { background: linear-gradient(90deg, var(--s2) 0, var(--s3) 50%, var(--s2) 100%) 0 0 / 200% 100%; animation: shimmer 1.2s linear infinite; }
+.hrow.skeleton .hthumb, .hrow.skeleton .rtitle, .hrow.skeleton .hsub { background: linear-gradient(90deg, var(--s2) 0, var(--s3) 50%, var(--s2) 100%) 0 0 / 200% 100%; animation: shimmer 1.2s linear infinite; }
 .hrow.skeleton .rtitle { height: 14px; width: 55%; border-radius: 4px; }
 .hrow.skeleton .hsub { height: 11px; width: 35%; border-radius: 4px; margin-top: 8px; }
 .card.skeleton .title { height: 14px; width: 90%; border-radius: 4px; }
@@ -1150,7 +1165,7 @@ kbd { font: 600 11px var(--font); padding: 1px 5px; border-radius: 4px; backgrou
 .wavebox { position: relative; height: var(--wah); border-bottom: 1px solid var(--line); }
 .chatrow { position: relative; height: var(--cdh); border-bottom: 1px solid var(--line); }
 .wave { display: block; width: 100%; height: 100%; }
-.wavenote { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; color: var(--faint); pointer-events: none; }
+.wavenote { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; font-size: 12px; color: var(--faint); pointer-events: none; }
 .bands { position: absolute; left: 0; right: 0; top: calc(var(--ruh) + 1px); height: calc(var(--fih) + var(--wah)); pointer-events: none; overflow: hidden; }
 .bands i { position: absolute; top: 0; bottom: 0; background: rgba(83, 252, 24, .1); border-left: 1px solid rgba(83, 252, 24, .5); border-right: 1px solid rgba(83, 252, 24, .5); }
 .bands i.sel { background: rgba(83, 252, 24, .16); border-color: var(--accent); }

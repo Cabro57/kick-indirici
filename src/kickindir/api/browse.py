@@ -99,6 +99,24 @@ class BrowseMixin:
             log.info("serit parcalari alinamadi: %s", e)
             return {}
 
+    def vod_poster(self, uuid, duration=0):
+        """Kapagi eksik / bozuk VOD icin gercek kare (data URL; alinamazsa ""): suresinin ~%20'sindeki parcanin
+        ilk karesi, tek 32 KB'lik Range istegi, diske onbelleklenir. Ayri havuz (en cok 2 es zamanli)."""
+        if not self._ffmpeg or not uuid:
+            return ""
+        try:
+            strip = self._strips.get(uuid)
+            if not strip:
+                strip = self._strips[uuid] = MediaStrip(uuid, self._ffmpeg)
+            if not strip.segments:
+                return ""
+            total = strip.segments[-1][0] + strip.segments[-1][1]
+            i = strip.segment_at(float(duration or total) * 0.2)
+            return self._poster_pool.submit(strip.poster, i).result()
+        except Exception as e:  # noqa: BLE001
+            log.info("vod kapagi alinamadi (%s): %s", uuid, e)
+            return ""
+
     def thumb_cache_info(self):
         """Ayarlar: kare onbelleginin diskte kapladigi bayt ve siniri (MB)."""
         return {"bytes": ThumbCache.size(), "limitMB": ThumbCache.limit >> 20}

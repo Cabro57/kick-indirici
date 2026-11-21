@@ -69,6 +69,7 @@ class Api(AppMixin, UpdateMixin, CutsMixin, FavoritesMixin, BrowseMixin, QueueMi
         # ilk kareler (strip_thumbs) 32'li gruplar halinde gelir; CDN gecikmesi belirleyici oldugundan
         # cok paralel istek: 8 -> 32 is parcacigi ilk karelerde 17-21 -> 50-65 parca/sn (PERF.md)
         self._strip_pool = ThreadPoolExecutor(max_workers=32)
+        self._poster_pool = ThreadPoolExecutor(max_workers=2)     # kapak kareleri: duzenleyicinin seridini bogmasin
         self._closing = False
         self._exit_ok = False
         self._dirty = threading.Event()
