@@ -2092,11 +2092,19 @@ function attachCut(dur) {
     drawTimeline();
   }
   if (!(window.Hls && Hls.isSupported())) { video.src = cut.src; cutterMsg(""); return; }
-  cut.hls = new Hls({ maxBufferLength: 20, startPosition: live ? Math.max(0, dur - LIVE_BACK) : -1 });
+  // capLevelToPlayerSize + dusuk kaliteyle basla: ilk goruntu hizli gelir, sonra ABR yukselir (PERF.md)
+  cut.hls = new Hls({ maxBufferLength: 20, capLevelToPlayerSize: true, startPosition: live ? Math.max(0, dur - LIVE_BACK) : -1 });
+  cut.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    // goruntusuz ("audio_only") surum baslangic olmasin
+    const lv = cut.hls.levels.map((l, i) => ({ i, l })).filter((x) => x.l.height || x.l.videoCodec);
+    if (lv.length) cut.hls.startLevel = lv.reduce((a, b) => (b.l.bitrate < a.l.bitrate ? b : a)).i;
+  });
   const vod = cut.vod;
   cut.hls.on(Hls.Events.ERROR, async (_, d) => {
     if (!d.fatal) return;
-    if (d.type === Hls.ErrorTypes.NETWORK_ERROR && !cut.retried) {   // diskteki adres olmus olabilir (VOD silindi / tasindi): bir kez API'den yeniden al
+    const E = Hls.ErrorDetails;
+    const deadSource = [E.MANIFEST_LOAD_ERROR, E.MANIFEST_LOAD_TIMEOUT, E.LEVEL_LOAD_ERROR, E.LEVEL_LOAD_TIMEOUT].includes(d.details);
+    if (deadSource && !cut.retried) {   // diskteki adres olmus olabilir (VOD silindi / tasindi): bir kez API'den yeniden al
       cut.retried = true;
       const res = await state.api.vod_source(vod.uuid, !!vod.live, true);
       if (cut.vod !== vod || !$("cutter").open) return;
@@ -2858,7 +2866,7 @@ function showPeek(clientX) {
   if (first && frame) state.api.client_log(`perf peek serit karesi: ${Math.round(performance.now() - cut.peekT0)} ms`);
   cut.peekAt = t;
   const pv = $("peekVideo");
-  peek.classList.toggle("live", pv.readyState >= 2 && !pv.seeking && Math.abs(pv.currentTime - t) < 1.5);
+  peek.classList.toggle("live", !frame || (pv.readyState >= 2 && !pv.seeking && Math.abs(pv.currentTime - t) < 1.5));   // serit karesi yoksa video gorunur kalir
   if (cut.peekHls) cut.peek.to(t);
 }
 function hidePeek() {
