@@ -121,7 +121,7 @@ class BrowseMixin:
     def thumb_check(self, url, strict=False):
         """Kapak resmi parazit / statik mi? {"noise": bool}. Sezgi services/thumbcheck.py'de; sonuc URL basina
         onbelleklenir. strict: klipler (yerine gercek kare yok) icin daha siki esik."""
-        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+        if not isinstance(url, str) or not url.startswith("https://"):
             return {"noise": False}
         try:
             return self._poster_pool.submit(thumbcheck.check, url, bool(strict)).result()
