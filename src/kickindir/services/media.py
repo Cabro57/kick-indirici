@@ -154,6 +154,7 @@ class MediaStrip:
         self.cache = {}
         self.thumbs = {}
         self.levels = {}        # parca -> ilk saniyenin ses tepe degeri (0..255): uzak gorunumde kaba dalga
+        self.pk = {}            # parca -> yalnizca tepe degerleri (bayt): arka plan dalga dolumu kareleri bellekte tutmaz
         self.lock = threading.Lock()
         self.dir = ThumbCache.dir_for(uuid)
         self.final = False      # bitmis yayinin listesi degismez: diskten gelir, yenilenmez
@@ -222,6 +223,25 @@ class MediaStrip:
         if out["frames"] or out["peaks"]:      # bos sonucu saklama: ag hatasiysa sonra tekrar denensin
             with self.lock:
                 self.cache[i] = out
+        return out
+
+    def peaks(self, i):
+        """Yalnizca ses tepe degerleri ({"peaks", "dur"}). Kareler bellekte tutulmaz: arka planda tum yayin
+        taranirken sunucu bellegi sismesin; kareler diske yazilir, yakin gorunum onlari diskten okur."""
+        with self.lock:
+            if i in self.cache:
+                return {"peaks": self.cache[i]["peaks"], "dur": self.segments[i][1]}
+            if i in self.pk:
+                return {"peaks": list(self.pk[i]), "dur": self.segments[i][1]}
+        head = ThumbCache.read(self.dir, f"{i}.peaks")
+        if head:
+            out = {"peaks": list(head[1:]), "dur": self.segments[i][1]}
+        else:
+            out = self._process(i)      # kareler diske yazilir; sozlugu hemen birakilir
+            out = {k: v for k, v in out.items() if k != "frames"}
+        if out.get("peaks") and not out.get("failed"):
+            with self.lock:
+                self.pk[i] = bytes(out["peaks"])
         return out
 
     def segment_at(self, t):

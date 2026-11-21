@@ -2753,16 +2753,21 @@ function wantedThumbs(st) {
   return out.filter((i) => !st.data.get(i) && !st.thumbs.has(i));
 }
 
-/* uzak gorunumde (> WAVE_MAX) kaba dalga: gorunumdeki her parcanin ilk saniyesi (strip_thumbs ses seviyesini de verir);
-   odaga en yakin once */
-function waveWanted(st) {
+/* uzak gorunumde (> WAVE_MAX) kaba dalga icin ornek parcalar: en cok WAVE_SAMPLES tane, gorunume esit aralikli
+   (her k. sutunun ortasindaki parca). Tum yayini taramaz; boylece odaktaki tam dolum birkac sn icinde baslar. Aradaki
+   sutunlar cizimde komsu orneginden doldurulur. Odaga en yakin once. */
+const WAVE_SAMPLES = 300;
+function waveSamples(st) {
   const [s, e] = cut.view;
   if (!st.pl || e - s <= WAVE_MAX) return [];
-  const a = segAt(st.segs, s), b = segAt(st.segs, e), mid = segAt(st.segs, clamp(focusTime(), s, e));
-  const want = [];
-  for (let i = a; i <= b; i++) if (st.pl[i] < 0 && st.pf[i] < 0) want.push(i);
-  return want.sort((x, y) => Math.abs(x - mid) - Math.abs(y - mid));
+  const cols = $("tlWave").clientWidth || 1200, per = (e - s) / cols;
+  const step = Math.max(1, Math.ceil(cols / WAVE_SAMPLES));
+  const mid = segAt(st.segs, clamp(focusTime(), s, e));
+  const segs = new Set();
+  for (let x = step >> 1; x < cols; x += step) segs.add(segAt(st.segs, s + (x + 0.5) * per));
+  return [...segs].sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid));
 }
+const waveWanted = (st) => waveSamples(st).filter((i) => st.pl[i] < 0 && st.pf[i] < 0);
 
 /* strip_thumbs yaniti {"f": kare, "l": ses seviyesi}: kareyi ve seviyeyi yerine koyar */
 function takeThumb(st, i, r, fallback) {
@@ -3015,12 +3020,9 @@ function drawStrip() {
   }
 }
 
-/* uzak gorunumde dalga icin hic verisi (ne tam ne kaba) olmayan parca var mi */
+/* uzak gorunumde dalga icin hic verisi (ne tam ne kaba) olmayan ornek parca var mi */
 function waveMissing(st) {
-  if (!st.pl) return true;
-  const [s, e] = cut.view;
-  for (let i = segAt(st.segs, s), b = segAt(st.segs, e); i <= b; i++) if (st.pl[i] < 0 && st.pf[i] < 0) return true;
-  return false;
+  return !st.pl || waveWanted(st).length > 0;
 }
 
 /* uzak gorunum: her piksel sutunu icin kapsadigi parcalarin tepe degeri. Tam veri (tum parcanin tepesi) varsa o,
@@ -3031,7 +3033,8 @@ function drawFarWave(g, st, cw, ch, s, span) {
   g.fillRect(0, mid - 0.5, cw, 1);
   const clips = cutClips();
   const on = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(), off = "#6b737d";
-  const per = span / cw;
+  const per = span / cw, step = Math.max(1, Math.ceil(cw / WAVE_SAMPLES));
+  let hold = -1, holdLeft = 0;      // kaba ornekler arasi bosluk: son kaba deger komsu sutunlara tasinir
   for (let x = 0; x < cw; x++) {
     const t0 = s + x * per;
     let full = -1, coarse = -1;
@@ -3039,6 +3042,8 @@ function drawFarWave(g, st, cw, ch, s, span) {
       if (st.pf[k] > full) full = st.pf[k];
       if (st.pl[k] > coarse) coarse = st.pl[k];
     }
+    if (full < 0 && coarse >= 0) { hold = coarse; holdLeft = step - 1; }
+    else if (full < 0 && holdLeft > 0) { coarse = hold; holdLeft--; }
     const peak = full >= 0 ? full : coarse;
     if (peak < 0) continue;
     const tm = t0 + per / 2;

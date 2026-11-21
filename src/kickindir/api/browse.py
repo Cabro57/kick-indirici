@@ -82,8 +82,8 @@ class BrowseMixin:
 
     def strip_data(self, uuid, indices, peaks_only=False):
         """Istenen parcalarin karelerini ve ses tepe degerlerini paralel isleyip dondurur.
-        peaks_only: kareler yanitta yok (arka planda tum yayinin dalgasi: arayuz bellegini sisirmesin;
-        sunucu kareleri yine bellege / diske alir)."""
+        peaks_only: kareler yanitta yok ve sunucu da bellekte tutmaz (arka planda tum yayinin dalgasi;
+        kareler yalnizca diske yazilir)."""
         strip = self._strips.get(uuid)
         if not strip:
             log.info("serit verisi istendi ama liste yok: %s", uuid)
@@ -91,11 +91,9 @@ class BrowseMixin:
         idx = [i for i in indices or [] if 0 <= i < len(strip.segments)][:16]
         try:
             t = time.monotonic()
-            out = {str(i): d for i, d in zip(idx, self._strip_pool.map(strip.get, idx))}
-            log.info("serit verisi: %d parca, %d karesi dolu, %.1f sn", len(out),
-                     sum(1 for d in out.values() if d["frames"]), time.monotonic() - t)
-            if peaks_only:
-                out = {k: {kk: vv for kk, vv in d.items() if kk != "frames"} for k, d in out.items()}
+            out = {str(i): d for i, d in zip(idx, self._strip_pool.map(strip.peaks if peaks_only else strip.get, idx))}
+            log.info("serit verisi: %d parca, %d karesi dolu, %.1f sn%s", len(out),
+                     sum(1 for d in out.values() if d.get("frames")), time.monotonic() - t, " (yalniz tepe)" if peaks_only else "")
             return out
         except Exception as e:  # noqa: BLE001
             log.info("serit parcalari alinamadi: %s", e)
