@@ -958,7 +958,7 @@ const SPIN = `<div class="spin" aria-hidden="true"><svg viewBox="0 0 50 50"><cir
 const hover = {
   timer: 0, hls: null, card: null, video: null, url: null, zone: null, peekTimer: 0,
   start(card) {
-    if (!state.settings.hoverPreview || this.card === card || card.dataset.url === state.focus) return;
+    if (!state.settings.hoverPreview || this.card === card || card.dataset.url === state.focus || floatHeldByMenu()) return;
     this.stop();
     const v = itemByUrl(card.dataset.url);
     if (!v || !v.source || !(window.Hls && Hls.isSupported())) return;
@@ -1406,7 +1406,11 @@ function closeCardMenu(focusBtn) {
   cmenu.fromFloat = false;
   // klavyeyle (Esc) kapaninca kart kalir; fareyle kapaninca imlec karta ya da kartin ustune degilse kart da kapanir
   if (fromFloat && !focusBtn) setTimeout(() => {
-    if (hcard.el && !hcard.el.matches(":hover") && !(hover.card && hover.card.matches(":hover"))) hover.stop();
+    if (hcard.el && !hcard.el.matches(":hover") && !(hover.card && hover.card.matches(":hover"))) {
+      hover.stop();
+      const under = $("grid").querySelector(".card[data-url]:hover");   // imlec baska kartin ustundeyse onun onizlemesi baslasin
+      if (under) hover.start(under);
+    }
   }, 80);
 }
 
@@ -4259,6 +4263,7 @@ function bind() {
     if (e.key === "Enter") focusItem(c.dataset.url);
   });
   grid.addEventListener("pointerover", (e) => {
+    if (floatHeldByMenu()) return;               // menu acikken komsu kart onizlemeyi baslatip kayan karti kapatmasin
     const c = e.target.closest(".card[data-url]");
     if (c) { hover.start(c); prewarm.over(c); }
   });
