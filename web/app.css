@@ -368,9 +368,10 @@ body:has(.selbar:not([hidden])) .toast { bottom: calc(var(--sb) + 86px); }
 /* kapak yedegi (kapak yok / bozuk / indirilemedi): yayincinin resmi ortada, arkada ayni resmin buyuk bulanik kopyasi;
    resim yoksa soluk K isareti. Kart, kutuphane satiri, izleme ve kesit penceresinde ayni gorunum (container birimleriyle olceklenir) */
 .pfb { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; overflow: hidden; container-type: size; background: var(--s2); pointer-events: none; }
-.pfb .pfbg { position: absolute; inset: -25%; width: 150%; height: 150%; object-fit: cover; filter: blur(26px) saturate(1.15) brightness(.55); }
-.pfb .pfav { position: relative; width: 34cqmin; height: 34cqmin; border-radius: 50%; object-fit: cover; background: var(--s3); box-shadow: 0 0 0 max(1px, 1.4cqmin) rgba(255, 255, 255, .16), 0 1.5cqmin 6cqmin -1cqmin #000a; }
-.pfb .pfk { position: relative; inset: auto; width: 26cqmin; height: 26cqmin; opacity: .2; }
+.pfb .pfbg { position: absolute; inset: -25%; width: 150%; height: 150%; object-fit: cover; filter: blur(24px) saturate(1.3) brightness(.38); }
+.pfb:has(.pfbg)::after { content: ""; position: absolute; inset: 0; background: radial-gradient(90% 90% at 50% 50%, transparent 35%, var(--s2) 130%); }
+.pfb .pfav { position: relative; z-index: 1; width: max(36cqh, 24px); height: max(36cqh, 24px); border-radius: 50%; object-fit: cover; background: var(--s3); box-shadow: 0 0 0 max(1px, 1.4cqmin) rgba(255, 255, 255, .16), 0 1.5cqmin 6cqmin -1cqmin #000a; }
+.pfb .pfk { position: relative; inset: auto; width: max(36cqh, 24px); height: max(36cqh, 24px); opacity: .22; }
 .pfb:has(.pfk) { background: radial-gradient(120% 120% at 50% 40%, var(--s3), var(--s2) 70%); }
 .thumb.nothumb > img, .player.nothumb > .ppos { opacity: 0; }
 .player .pfb { z-index: 1; }
