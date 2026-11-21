@@ -862,10 +862,15 @@ const prewarm = {
     if (!res.ok || this.last !== v.uuid) { this.done.delete(v.uuid); return; }   // baska karta gecildiyse kareler atlanir
     const segs = res.segments;
     const end = segs.length ? segs[segs.length - 1][0] + segs[segs.length - 1][1] : 0;
+    // editorun ilk istedigi kareler: ayni formul (tilesFor) ve en son olculen serit genislikleri; ilk acilista tahmin
     const view = Math.min(WAVE_MAX, v.duration || end, end);
-    const idx = [...new Set(Array.from({ length: 16 }, (_, i) => segAt(segs, ((i + 0.5) * view) / 16)))];
+    const w0 = Math.max(500, window.innerWidth - 380);
+    const tl = cut.geom.tlFilm || { w: w0, fw: 92 }, ov = cut.geom.ovFilm || { w: w0, fw: 71 };
+    const times = [...tilesFor(tl.w, tl.fw, 0, view), ...tilesFor(ov.w, ov.fw, 0, v.duration || end)];
+    const idx = [...new Set(times.map((t) => segAt(segs, t)))].slice(0, 64);
+    const t1 = performance.now();
     await state.api.strip_thumbs(v.uuid, idx);
-    state.api.client_log(`perf kart onisitma: ${Math.round(performance.now() - t0)} ms (${idx.length} kare)`);
+    state.api.client_log(`perf kart onisitma: ${Math.round(performance.now() - t0)} ms (${idx.length} kare, kareler ${Math.round(performance.now() - t1)} ms)`);
   },
 };
 
@@ -2005,7 +2010,7 @@ const MIN_VIEW = 20;        // en fazla yakinlasinca cizelgede gorunen saniye
 const TICKS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
 const cut = {
   vod: null, hls: null, peekHls: null,
-  seen: new Set(), t0: 0, perf: null, peekT0: 0, peekAt: 0,   // olcum (PERF.md): acilis zamani, daha once acilan VOD'lar
+  seen: new Set(), geom: {}, t0: 0, perf: null, peekT0: 0, peekAt: 0,   // olcum (PERF.md): acilis zamani, daha once acilan VOD'lar
   sel: null,                 // secili kesitin id'si
   view: [0, 0],              // cizelgede gorunen aralik (sn)
   drag: null,                // suren surukleme
@@ -2092,7 +2097,7 @@ async function openCutter(vod) {
   cut.view = [0, Math.min(WAVE_MAX, vod.duration || WAVE_MAX)];   // 15 dk'lik yakin gorunumle ac
   cut.density = null;
   loadChatDensity(vod);
-  cut.strip = { uuid: vod.uuid, segs: null, data: new Map(), thumbs: new Map(), busy: 0, tbusy: 0, note: "" };
+  cut.strip = { uuid: vod.uuid, segs: null, data: new Map(), thumbs: new Map(), busy: 0, tbusy: 0, pbusy: 0, note: "" };
   cut.retried = false;
   cut.t0 = performance.now();   // olcum: acilistan ilk kare / ilk goruntu suresine
   cut.perf = { thumbs: false, reopen: cut.seen.has(vod.uuid) };
@@ -2641,10 +2646,14 @@ function frameAt(st, t) {
 }
 
 /* bir seridin karelerinin ortasina dusen anlar */
-function tileTimes(el, s, span) {
-  const w = el.clientWidth, fw = frameW(el);
+function tilesFor(w, fw, s, span) {
   if (!w || !span) return [];
   return Array.from({ length: Math.ceil(w / fw) }, (_, i) => s + ((i + 0.5) * fw * span) / w);
+}
+function tileTimes(el, s, span) {
+  const w = el.clientWidth, fw = frameW(el);
+  if (w) cut.geom[el.id] = { w, fw };    // kart onisitmasi ayni kareleri istesin diye olculer hatirlanir
+  return tilesFor(w, fw, s, span);
 }
 
 /* hizli ilk kareler: once gorunen serit, sonra kesit kartlari, sonra tum yayin seridi */
@@ -2694,9 +2703,14 @@ async function pumpStrip() {
     if (!batch.length) break;
     batch.forEach((i) => st.thumbs.set(i, null));   // yolda
     st.tbusy++;
+    const tb = performance.now();
     const done = (res) => {
       if (cut.strip !== st) return;
       st.tbusy--;
+      if (cut.perf && !cut.perf.batch) {    // olcum: ilk kare istegi (kart onisitmasi varsa <0.1 sn beklenir)
+        cut.perf.batch = true;
+        state.api.client_log(`perf editor ilk kare istegi: ${batch.length} kare, ${Math.round(performance.now() - tb)} ms`);
+      }
       const failed = batch.filter((i) => !(res && res[i]));
       for (const i of batch) st.thumbs.set(i, (res && res[i]) || "");   // "": denendi, alinamadi
       drawStrip();
@@ -2716,7 +2730,7 @@ async function pumpStrip() {
   if (st.tbusy) return;   // once kareler: ses istekleriyle ayni anda hat paylasilinca ilk kareler 2 kat gec geliyor
   while (st.busy < 2) {
     const batch = wantedSegs(st).slice(0, 8);
-    if (!batch.length) return;
+    if (!batch.length) break;
     batch.forEach((i) => st.data.set(i, null));   // yolda
     st.busy++;
     // bir istek hata verse de kuyruk kilitlenmesin; basarisiz parcalar bir sure sonra yeniden istenir
@@ -2738,6 +2752,36 @@ async function pumpStrip() {
       done(null);
     });
   }
+  prefetchThumbs(st);
+}
+
+/* gorunen her sey bitince: gorunumun bir ekran solu ve sagi icin ilk kareler (dusuk oncelik, tek istek).
+   Gorunum degisince yeni gorunen kareler once gelir (pumpStrip sirasi); yoldaki istek biter, atilmaz. */
+function prefetchWanted(st) {
+  const [s, e] = cut.view, span = e - s, dur = cutDuration();
+  if (!(span > 0) || !dur) return [];
+  const el = $("tlFilm");
+  const times = [...tileTimes(el, s - span, span), ...tileTimes(el, e, span)].filter((t) => t >= 0 && t < dur);
+  const dist = (t) => (t < s ? s - t : t - e);
+  const segs = [...new Set(times.sort((a, b) => dist(a) - dist(b)).map((t) => segAt(st.segs, t)))];
+  return segs.filter((i) => !st.data.get(i) && !st.thumbs.has(i));
+}
+
+function prefetchThumbs(st) {
+  if (st.busy || st.tbusy || st.pbusy) return;
+  const batch = prefetchWanted(st).slice(0, 16);
+  if (!batch.length) return;
+  batch.forEach((i) => st.thumbs.set(i, null));
+  st.pbusy = 1;
+  const t0 = performance.now();
+  const done = (res) => {
+    if (cut.strip !== st) return;
+    st.pbusy = 0;
+    for (const i of batch) st.thumbs.set(i, (res && res[i]) || "");   // alinamayan bos kalir, tekrar denenmez
+    state.api.client_log(`perf yakin onyukleme: ${batch.length} kare, ${Math.round(performance.now() - t0)} ms`);
+    pumpStrip();
+  };
+  state.api.strip_thumbs(st.uuid, batch).then(done, () => done(null));
 }
 
 /* bir kare seridini (yakin gorunum ya da tum yayin) karelerle doldurur */
