@@ -838,6 +838,37 @@ const hover = {
   },
 };
 
+/* karta 300 ms'den uzun gelinince editorun ilk 16 karesi arka planda hazirlanir (serit listesi + kareler;
+   sunucu bellekte ve diskte tutar). Yalnizca VOD'lar; ayni VOD bir kez; yalnizca son gelinen kart. */
+const prewarm = {
+  timer: 0, card: null, last: null, done: new Set(),
+  over(card) {
+    if (this.card === card) return;
+    this.cancel();
+    const v = itemByUrl(card.dataset.url);
+    if (!v || !v.uuid || kindOf(v) !== "vod" || !state.cfg.ffmpeg || this.done.has(v.uuid)) return;
+    this.card = card;
+    this.timer = setTimeout(() => this.run(v), 300);
+  },
+  cancel() {
+    clearTimeout(this.timer);
+    this.card = null;
+  },
+  async run(v) {
+    this.done.add(v.uuid);
+    this.last = v.uuid;
+    const t0 = performance.now();
+    const res = await state.api.strip_index(v.uuid, false);
+    if (!res.ok || this.last !== v.uuid) { this.done.delete(v.uuid); return; }   // baska karta gecildiyse kareler atlanir
+    const segs = res.segments;
+    const end = segs.length ? segs[segs.length - 1][0] + segs[segs.length - 1][1] : 0;
+    const view = Math.min(WAVE_MAX, v.duration || end, end);
+    const idx = [...new Set(Array.from({ length: 16 }, (_, i) => segAt(segs, ((i + 0.5) * view) / 16)))];
+    await state.api.strip_thumbs(v.uuid, idx);
+    state.api.client_log(`perf kart onisitma: ${Math.round(performance.now() - t0)} ms (${idx.length} kare)`);
+  },
+};
+
 /* ---------- inceleme paneli ---------- */
 function focusItem(url, start) {
   const it = state.channel && itemByUrl(url);
@@ -3606,12 +3637,12 @@ function bind() {
   });
   grid.addEventListener("pointerover", (e) => {
     const c = e.target.closest(".card[data-url]");
-    if (c) hover.start(c);
+    if (c) { hover.start(c); prewarm.over(c); }
   });
-  grid.addEventListener("pointerleave", () => hover.stop());
+  grid.addEventListener("pointerleave", () => { hover.stop(); prewarm.cancel(); });
   grid.addEventListener("pointerout", (e) => {
     const c = e.target.closest(".card[data-url]");
-    if (c && !c.contains(e.relatedTarget)) hover.stop();
+    if (c && !c.contains(e.relatedTarget)) { hover.stop(); prewarm.cancel(); }
   });
 
   // secim cubugu
