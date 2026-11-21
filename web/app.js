@@ -787,7 +787,7 @@ function fullscreen() {
 /* ---------- uzerine gelince onizleme ---------- */
 const SPIN = `<div class="spin" aria-hidden="true"><svg viewBox="0 0 50 50"><circle class="trk" cx="25" cy="25" r="20"/><circle class="arc" cx="25" cy="25" r="20"/></svg></div>`;
 const hover = {
-  timer: 0, hls: null, card: null, video: null, url: null,
+  timer: 0, hls: null, card: null, video: null, url: null, zone: null, peekTimer: 0,
   start(card) {
     if (!state.settings.hoverPreview || this.card === card || card.dataset.url === state.focus) return;
     this.stop();
@@ -813,7 +813,8 @@ const hover = {
         hls.currentLevel = lo;
         video.play().catch(() => {});
       });
-      video.addEventListener("playing", () => { video.classList.add("on"); thumb.classList.remove("loading"); }, { once: true });
+      video.addEventListener("playing", () => { video.classList.add("on"); thumb.classList.remove("loading"); thumb.classList.add("scrub"); }, { once: true });
+      if (kind !== "live" && !v.live) this.scrubber(thumb, video, v);
       hlsUrl(v).then((src) => {
         if (this.hls !== hls) return;
         hls.loadSource(src);
@@ -824,13 +825,74 @@ const hover = {
       this.url = v.url;
     }, 450);
   },
+  /* altta ince ilerleme cubugu (YouTube gibi); imlecle uzerine gelince kalinlasir, zaman etiketi ve (onbellekteyse)
+     o anin karesi cikar, onizleme oraya sarar. Cubuga tiklamak karti acmaz. Canli yayinda cubuk yok. */
+  scrubber(thumb, video, v) {
+    const zone = document.createElement("div");
+    zone.className = "hzone";
+    zone.setAttribute("aria-hidden", "true");
+    zone.innerHTML = `<div class="hlab" hidden><img alt="" hidden><span class="num"></span></div><div class="hbar"><i class="hseek"></i><i class="hfill"></i></div>`;
+    thumb.append(zone);
+    this.zone = zone;
+    const lab = zone.querySelector(".hlab"), labImg = lab.querySelector("img"), labT = lab.querySelector("span");
+    const fill = zone.querySelector(".hfill"), seek = zone.querySelector(".hseek");
+    const seeker = makeSeeker(video);
+    const dur = () => (isFinite(video.duration) && video.duration > 0 ? video.duration : v.duration || 0);
+    video.addEventListener("timeupdate", () => {
+      const d = dur();
+      if (d) fill.style.transform = `scaleX(${clamp(video.currentTime / d, 0, 1)})`;
+    });
+    const at = (e) => {
+      const r = zone.getBoundingClientRect();
+      return { x: e.clientX - r.left, w: r.width, f: clamp((e.clientX - r.left) / r.width, 0, 1) };
+    };
+    let lastPeek = 0, token = 0;
+    const peek = (t) => {     // kare yalnizca onbellekten gelir (kart onisitmasi / editor doldurduysa), ag yok
+      lastPeek = performance.now();
+      if (!v.uuid || kindOf(v) !== "vod") return;
+      const mine = ++token;
+      state.api.strip_peek(v.uuid, t).then((src) => {
+        if (mine !== token) return;
+        labImg.hidden = !src;
+        if (src) labImg.src = src;
+      }).catch(() => {});
+    };
+    zone.addEventListener("pointermove", (e) => {
+      const d = dur();
+      if (!d) return;
+      const { x, w, f } = at(e);
+      const t = f * d;
+      seek.style.transform = `scaleX(${f})`;
+      lab.hidden = false;
+      labT.textContent = fmtDuration(t);
+      const half = lab.offsetWidth / 2;
+      lab.style.left = `${clamp(x, half, w - half)}px`;
+      seeker.to(t);
+      clearTimeout(this.peekTimer);
+      if (performance.now() - lastPeek > 80) peek(t);
+      else this.peekTimer = setTimeout(() => peek(t), 80);    // son konum da kare alsin
+    });
+    zone.addEventListener("pointerleave", () => {
+      lab.hidden = true;
+      clearTimeout(this.peekTimer);
+      seek.style.transform = "scaleX(0)";
+    });
+    zone.addEventListener("click", (e) => {      // sar ve oynamaya devam et; karti acma
+      e.stopPropagation();
+      const d = dur();
+      if (d) seeker.to(at(e).f * d);
+    });
+    for (const ev of ["dblclick", "pointerdown", "contextmenu"]) zone.addEventListener(ev, (e) => e.stopPropagation());
+  },
   /* tiklaninca inceleme ayni andan devam etsin */
   time(url) {
     return this.url === url && this.video && this.video.currentTime > 0.5 ? this.video.currentTime : null;
   },
   stop() {
     clearTimeout(this.timer);
-    if (this.card) this.card.querySelector(".thumb").classList.remove("loading");
+    clearTimeout(this.peekTimer);
+    if (this.zone) { this.zone.remove(); this.zone = null; }
+    if (this.card) this.card.querySelector(".thumb").classList.remove("loading", "scrub");
     if (this.hls) { this.hls.destroy(); this.hls = null; }
     if (this.video) { this.video.pause(); this.video.remove(); this.video = null; }
     this.card = null;
@@ -864,12 +926,15 @@ const prewarm = {
     const end = segs.length ? segs[segs.length - 1][0] + segs[segs.length - 1][1] : 0;
     // editorun ilk istedigi kareler: ayni formul (tilesFor) ve en son olculen serit genislikleri; ilk acilista tahmin
     const view = Math.min(WAVE_MAX, v.duration || end, end);
-    const w0 = Math.max(500, window.innerWidth - 380);
-    const tl = cut.geom.tlFilm || { w: w0, fw: 92 }, ov = cut.geom.ovFilm || { w: w0, fw: 71 };
+    const w0 = Math.max(500, window.innerWidth - 114);    // olculen: editor genisligi = pencere - 114 px
+    const tl = cut.geom.tlFilm || { w: w0, fw: 69 }, ov = cut.geom.ovFilm || { w: w0, fw: 50 };   // olculen kare genislikleri (film yuksekligi 39 / 28 px)
     const times = [...tilesFor(tl.w, tl.fw, 0, view), ...tilesFor(ov.w, ov.fw, 0, v.duration || end)];
     const idx = [...new Set(times.map((t) => segAt(segs, t)))].slice(0, 64);
     const t1 = performance.now();
-    await state.api.strip_thumbs(v.uuid, idx);
+    for (let k = 0; k < idx.length; k += 16) {     // 16'lik gruplar: ilk grup (gorunen serit) yavas bir parcaya takilmasin
+      if (k && this.last !== v.uuid) break;
+      await state.api.strip_thumbs(v.uuid, idx.slice(k, k + 16));
+    }
     state.api.client_log(`perf kart onisitma: ${Math.round(performance.now() - t0)} ms (${idx.length} kare, kareler ${Math.round(performance.now() - t1)} ms)`);
   },
 };
@@ -2097,7 +2162,7 @@ async function openCutter(vod) {
   cut.view = [0, Math.min(WAVE_MAX, vod.duration || WAVE_MAX)];   // 15 dk'lik yakin gorunumle ac
   cut.density = null;
   loadChatDensity(vod);
-  cut.strip = { uuid: vod.uuid, segs: null, data: new Map(), thumbs: new Map(), busy: 0, tbusy: 0, pbusy: 0, note: "" };
+  cut.strip = { uuid: vod.uuid, segs: null, data: new Map(), thumbs: new Map(), busy: 0, tbusy: 0, pbusy: 0, pfail: new Set(), note: "" };
   cut.retried = false;
   cut.t0 = performance.now();   // olcum: acilistan ilk kare / ilk goruntu suresine
   cut.perf = { thumbs: false, reopen: cut.seen.has(vod.uuid) };
@@ -2764,7 +2829,7 @@ function prefetchWanted(st) {
   const times = [...tileTimes(el, s - span, span), ...tileTimes(el, e, span)].filter((t) => t >= 0 && t < dur);
   const dist = (t) => (t < s ? s - t : t - e);
   const segs = [...new Set(times.sort((a, b) => dist(a) - dist(b)).map((t) => segAt(st.segs, t)))];
-  return segs.filter((i) => !st.data.get(i) && !st.thumbs.has(i));
+  return segs.filter((i) => !st.data.get(i) && !st.thumbs.has(i) && !st.pfail.has(i));
 }
 
 function prefetchThumbs(st) {
@@ -2777,7 +2842,10 @@ function prefetchThumbs(st) {
   const done = (res) => {
     if (cut.strip !== st) return;
     st.pbusy = 0;
-    for (const i of batch) st.thumbs.set(i, (res && res[i]) || "");   // alinamayan bos kalir, tekrar denenmez
+    for (const i of batch) {
+      if (res && res[i]) st.thumbs.set(i, res[i]);
+      else { st.thumbs.delete(i); st.pfail.add(i); }   // onyukleme tekrar denemez; gorunur olunca normal yolla istenir
+    }
     state.api.client_log(`perf yakin onyukleme: ${batch.length} kare, ${Math.round(performance.now() - t0)} ms`);
     pumpStrip();
   };

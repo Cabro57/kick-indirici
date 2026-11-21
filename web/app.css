@@ -338,6 +338,19 @@ body:has(.selbar:not([hidden])) .toast { bottom: calc(var(--sb) + 86px); }
 }
 .thumb video { opacity: 0; transition: opacity .25s; background: #000; }
 .thumb video.on { opacity: 1; }
+/* kart onizlemesinin zaman cubugu: 20px'lik tutma alani, 3px cubuk (imlecle 6px) */
+.hzone { position: absolute; left: 0; right: 0; bottom: 0; height: 20px; z-index: 2; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity .18s var(--ease); }
+.thumb.scrub .hzone { opacity: 1; pointer-events: auto; }
+.hbar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255, 255, 255, .22); overflow: hidden; transition: height .12s var(--ease); }
+.hzone:hover .hbar { height: 6px; }
+.hbar i { position: absolute; inset: 0; transform-origin: left; transform: scaleX(0); }
+.hfill { background: var(--accent); transition: transform .25s linear; }
+.hseek { background: rgba(255, 255, 255, .38); }
+.hlab { position: absolute; bottom: 12px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
+.hlab[hidden] { display: none; }
+.hlab img { width: 112px; aspect-ratio: 16 / 9; object-fit: cover; display: block; border-radius: 4px; border: 1px solid var(--line2); background: #000; }
+.hlab img[hidden] { display: none; }
+.hlab span { padding: 1px 7px; border-radius: 4px; background: var(--scrim); font-size: 12px; font-weight: 600; }
 .card:hover .thumb { transform: translateY(-2px); box-shadow: 0 8px 20px -8px #000c; }
 .card:focus-visible .thumb { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--muted); }
 .card.focus .thumb { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }

@@ -223,6 +223,30 @@ class MediaStrip:
                 self.cache[i] = out
         return out
 
+    def segment_at(self, t):
+        """t saniyesini iceren parcanin sirasi (liste bos degilse)."""
+        lo, hi = 0, len(self.segments) - 1
+        while lo < hi:
+            mid = (lo + hi + 1) >> 1
+            if self.segments[mid][0] <= t:
+                lo = mid
+            else:
+                hi = mid - 1
+        return lo
+
+    def thumb_cached(self, i):
+        """Parcanin ilk karesi yalnizca bellekten / diskten; ag yok. Yoksa ""."""
+        with self.lock:
+            if i in self.cache and self.cache[i]["frames"]:
+                return self.cache[i]["frames"][0]
+            if i in self.thumbs and self.thumbs[i]:
+                return self.thumbs[i]
+        for name in (f"{i}.jpg", f"{i}_00.jpg"):
+            raw = ThumbCache.read(self.dir, name)
+            if raw:
+                return self._data_url(raw)
+        return ""
+
     def thumb(self, i):
         """Parcanin ilk karesi (data URL); alinamazsa ""."""
         with self.lock:

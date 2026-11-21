@@ -106,6 +106,23 @@ class BrowseMixin:
         ThumbCache.clear()
         return self.thumb_cache_info()
 
+    def strip_peek(self, uuid, t):
+        """Kart onizlemesinin zaman cubugu: t saniyesindeki kare ("" olabilir) YALNIZCA onbellekten
+        (bellek / disk); ag cagrisi yapmaz. Liste bellekte ya da diskte yoksa bos doner."""
+        strip = self._strips.get(uuid)
+        if not strip and MediaStrip.saved_index(uuid):
+            try:
+                strip = self._strips[uuid] = MediaStrip(uuid, self._ffmpeg)    # diskten: ag yok
+            except Exception as e:  # noqa: BLE001
+                log.info("serit onizleme listesi acilamadi (%s): %s", uuid, e)
+                return ""
+        if not strip or not strip.segments:
+            return ""
+        try:
+            return strip.thumb_cached(strip.segment_at(float(t)))
+        except (TypeError, ValueError):
+            return ""
+
     def strip_thumbs(self, uuid, indices):
         """Uzak gorunum icin parcalarin ilk kareleri: {"i": data URL ya da ""}. Tam veriden hizli."""
         strip = self._strips.get(uuid)
